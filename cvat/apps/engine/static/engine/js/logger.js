@@ -394,6 +394,9 @@ var Logger = {
         fitImage: 25,
         // dumped as "Rotate image". There are no additional required fields.
         rotateImage: 26,
+        // dumped as "Track object". "count" is required field with number
+        // value.
+        trackObject: 27,
     },
 
     /**

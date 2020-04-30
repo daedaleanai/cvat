@@ -2011,6 +2011,11 @@ class ShapeView extends Listener {
                 propagateButton.setAttribute('title', `
                     ${shortkeys['propagate_shape'].view_value} - ${shortkeys['propagate_shape'].description}`);
 
+                let trackButton = document.createElement('button');
+                trackButton.classList.add('graphicButton', 'trackButton');
+                trackButton.setAttribute('title', `
+                    ${shortkeys['track_shape'].view_value} - ${shortkeys['track_shape'].description}`);
+
                 let hiddenButton = document.createElement('button');
                 hiddenButton.classList.add('graphicButton', 'hiddenButton');
                 hiddenButton.setAttribute('title', `
@@ -2021,6 +2026,7 @@ class ShapeView extends Listener {
                 annotationCenter.appendChild(occludedButton);
                 annotationCenter.appendChild(copyButton);
                 annotationCenter.appendChild(propagateButton);
+                annotationCenter.appendChild(trackButton);
                 annotationCenter.appendChild(hiddenButton);
                 buttonBlock.appendChild(annotationCenter);
 
@@ -2029,6 +2035,7 @@ class ShapeView extends Listener {
                 this._uis.buttons['hide'] = hiddenButton;
                 this._uis.buttons['copy'] = copyButton;
                 this._uis.buttons['propagate'] = propagateButton;
+                this._uis.buttons['track'] = trackButton;
             }
 
             if (type.split('_')[0] == 'interpolation') {
@@ -2446,6 +2453,12 @@ class ShapeView extends Listener {
         if ('propagate' in this._uis.buttons) {
             this._uis.buttons.propagate.onclick = () => {
                 Mousetrap.trigger(window.cvat.config.shortkeys['propagate_shape'].value, 'keydown');
+            };
+        }
+
+        if ('track' in this._uis.buttons) {
+            this._uis.buttons.track.onclick = () => {
+                Mousetrap.trigger(window.cvat.config.shortkeys['track_shape'].value, 'keydown');
             };
         }
 

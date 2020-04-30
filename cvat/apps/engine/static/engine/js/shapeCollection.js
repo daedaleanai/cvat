@@ -382,10 +382,10 @@ class ShapeCollectionModel extends Listener {
         this._interpolate();
     }
 
-    add(data, type) {
+    add(data, type, color) {
         this._idx += 1;
         const id = this._idx;
-        const model = buildShapeModel(data, type, id, this.nextColor());
+        const model = buildShapeModel(data, type, id, color || this.nextColor());
         if (type.startsWith('interpolation')) {
             this._interpolationShapes.push(model);
         } else {

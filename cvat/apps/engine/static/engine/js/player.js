@@ -424,6 +424,10 @@ class PlayerModel extends Listener {
 
         this.fit();
     }
+
+    require(frame) {
+        return this._frameProvider.require(frame);
+    }
 }
 
 

@@ -208,6 +208,12 @@ class Config {
                 description: 'propagate active shape',
             },
 
+            track_shape: {
+                value: 'ctrl+t',
+                view_value: 'Ctrl + T',
+                description: 'track active shape',
+            },
+
             switch_paste: {
                 value: 'ctrl+v',
                 view_value: 'Ctrl + V',
