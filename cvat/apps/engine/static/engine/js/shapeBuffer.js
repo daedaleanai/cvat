@@ -343,7 +343,7 @@ class ShapeBufferModel extends Listener  {
 
         if (addedObjects.length) {
             // Undo/redo code
-            window.cvat.addAction('Propagate Object', () => {
+            window.cvat.addAction('Track Object', () => {
                 for (let object of addedObjects) {
                     object.removed = true;
                     object.unsubscribe(this._collection);
