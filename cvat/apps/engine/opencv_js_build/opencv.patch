@@ -1,0 +1,92 @@
+diff --git a/modules/js/src/core_bindings.cpp b/modules/js/src/core_bindings.cpp
+index 279ee78bb1..5ca56fdb9b 100644
+--- a/modules/js/src/core_bindings.cpp
++++ b/modules/js/src/core_bindings.cpp
+@@ -425,6 +425,16 @@ namespace binding_utils
+         cv::hal::test_hal_intrin_float64();
+     }
+ #endif
++
++#ifdef HAVE_OPENCV_TRACKING
++    Rect2d updateTracker(Tracker& tracker, const cv::Mat& frame, const Rect2d& rect) {
++        Rect2d updated = rect;
++        if (!tracker.update(frame, updated)) {
++            updated = Rect2d{-1, -1, -1, -1};
++        }
++        return updated;
++    }
++#endif
+ }
+ 
+ EMSCRIPTEN_BINDINGS(binding_utils)
+@@ -574,6 +584,7 @@ EMSCRIPTEN_BINDINGS(binding_utils)
+ 
+     EMSCRIPTEN_CV_RECT(int, "Rect")
+     EMSCRIPTEN_CV_RECT(float, "Rect2f")
++    EMSCRIPTEN_CV_RECT(double, "Rect2d")
+ 
+     emscripten::value_object<cv::RotatedRect>("RotatedRect")
+         .field("center", &cv::RotatedRect::center)
+@@ -697,6 +708,10 @@ EMSCRIPTEN_BINDINGS(binding_utils)
+     function("test_hal_intrin_all", &binding_utils::test_hal_intrin_all);
+ #endif
+ 
++#ifdef HAVE_OPENCV_TRACKING
++    function("updateTracker", select_overload<Rect2d(Tracker&, const cv::Mat&, const Rect2d&)>(&binding_utils::updateTracker));
++#endif
++
+     constant("CV_8UC1", CV_8UC1);
+     constant("CV_8UC2", CV_8UC2);
+     constant("CV_8UC3", CV_8UC3);
+diff --git a/platforms/js/build_js.py b/platforms/js/build_js.py
+index 10e04ea020..2d625e5ba0 100644
+--- a/platforms/js/build_js.py
++++ b/platforms/js/build_js.py
+@@ -115,14 +115,15 @@ class Builder:
+                "-DWITH_ITT=OFF",
+                "-DWITH_QUIRC=OFF",
+                "-DBUILD_ZLIB=ON",
++               "-DBUILD_opencv_aruco=OFF",
+                "-DBUILD_opencv_apps=OFF",
+                "-DBUILD_opencv_calib3d=ON",
+-               "-DBUILD_opencv_dnn=ON",
++               "-DBUILD_opencv_dnn=OFF",
+                "-DBUILD_opencv_features2d=ON",
+                "-DBUILD_opencv_flann=ON",  # No bindings provided. This module is used as a dependency for other modules.
+                "-DBUILD_opencv_gapi=OFF",
+                "-DBUILD_opencv_ml=OFF",
+-               "-DBUILD_opencv_photo=ON",
++               "-DBUILD_opencv_photo=OFF",
+                "-DBUILD_opencv_imgcodecs=OFF",
+                "-DBUILD_opencv_shape=OFF",
+                "-DBUILD_opencv_videoio=OFF",
+@@ -139,7 +140,8 @@ class Builder:
+                "-DBUILD_EXAMPLES=OFF",
+                "-DBUILD_PACKAGE=OFF",
+                "-DBUILD_TESTS=OFF",
+-               "-DBUILD_PERF_TESTS=OFF"]
++               "-DBUILD_PERF_TESTS=OFF",
++               "-DOPENCV_EXTRA_MODULES_PATH=../contrib/modules"]
+         if self.options.cmake_option:
+             cmd += self.options.cmake_option
+         if self.options.build_doc:
+diff --git a/platforms/js/opencv_js.config.py b/platforms/js/opencv_js.config.py
+index 72efd46faf..41c4575431 100644
+--- a/platforms/js/opencv_js.config.py
++++ b/platforms/js/opencv_js.config.py
+@@ -78,5 +78,14 @@ aruco = {'': ['detectMarkers', 'drawDetectedMarkers', 'drawAxis', 'estimatePoseS
+ 
+ calib3d = {'': ['findHomography', 'calibrateCameraExtended', 'drawFrameAxes', 'estimateAffine2D', 'getDefaultNewCameraMatrix', 'initUndistortRectifyMap', 'Rodrigues']}
+ 
++tracking = {'Tracker': ['init', 'update'],
++        'TrackerMIL': ['create'],
++        'TrackerBoosting': ['create'],
++        'TrackerMedianFlow': ['create'],
++        'TrackerTLD': ['create'],
++        'TrackerKCF': ['create'],
++        'TrackerMOSSE': ['create'],
++        'TrackerCSRT': ['create']
++        }
+ 
+-white_list = makeWhiteList([core, imgproc, objdetect, video, dnn, features2d, photo, aruco, calib3d])
++white_list = makeWhiteList([core, imgproc, objdetect, video, dnn, features2d, photo, aruco, calib3d, tracking])

@@ -267,6 +267,97 @@ class ShapeBufferModel extends Listener  {
         }
     }
 
+    trackToFrames() {
+        let numOfFrames = this._propagateFrames;
+        if (this._shape.type !== 'box' || !Number.isInteger(numOfFrames)) {
+            // TODO(gy): disable button in this case
+            return;
+        }
+
+        // How to get current shape color?
+        let color = this._collection.nextColor();
+        let box = {
+            xtl: this._shape.position.xtl,
+            ytl: this._shape.position.ytl,
+            xbr: this._shape.position.xbr,
+            ybr: this._shape.position.ybr,
+        };
+        let object = this._makeObject(box, null, false);
+        if (!object) {
+            return;
+        }
+
+        Logger.addEvent(Logger.EventType.trackObject, {
+            count: numOfFrames,
+        });
+
+        let rect = {
+            x: box.xtl,
+            y: box.ytl,
+            width: box.xbr - box.xtl,
+            height: box.ybr - box.ytl
+        };
+
+        let tracker = null;
+        try {
+            let startImage = cv.imread(window.cvat.require(object.frame));
+            tracker = new cv.TrackerMedianFlow();
+            if (!tracker.init(startImage, rect)) {
+                startImage.delete();
+                tracker.delete();
+                return;
+            }
+            startImage.delete();
+        } catch(err) {
+            return;
+        }
+
+        let addedObjects = [];
+        while (numOfFrames > 0 && (object.frame + 1 <= window.cvat.player.frames.stop)) {
+            object.frame ++;
+            numOfFrames --;
+
+            try {
+                let image = cv.imread(window.cvat.require(object.frame));
+                rect = cv.updateTracker(tracker, image, rect);
+                image.delete();
+            } catch(err) {
+                break;
+            }
+            if (rect.width < 0) {
+                break;
+            }
+
+            object.z_order = this._collection.zOrder(object.frame).max;
+            let position = {
+                xtl: rect.x,
+                ytl: rect.y,
+                xbr: rect.x + rect.width,
+                ybr: rect.y + rect.height
+            };
+            Object.assign(object, position);
+            this._collection.add(object, `annotation_${this._shape.type}`, color);
+            addedObjects.push(this._collection.shapes.slice(-1)[0]);
+        }
+        tracker.delete();
+
+        if (addedObjects.length) {
+            // Undo/redo code
+            window.cvat.addAction('Track Object', () => {
+                for (let object of addedObjects) {
+                    object.removed = true;
+                    object.unsubscribe(this._collection);
+                }
+            }, () => {
+                for (let object of addedObjects) {
+                    object.removed = false;
+                    object.subscribe(this._collection);
+                }
+            }, window.cvat.player.frames.current);
+            // End of undo/redo code
+        }
+    }
+
     get pasteMode() {
         return this._pasteMode;
     }
@@ -329,9 +420,40 @@ class ShapeBufferController {
                 }
             }.bind(this));
 
+            let trackDialogShowed = false;
+            let trackHandler = Logger.shortkeyLogDecorator(function() {
+                if (!trackDialogShowed) {
+                    blurAllElements();
+                    if (this._model.copyToBuffer()) {
+                        let curFrame = window.cvat.player.frames.current;
+                        let startFrame = window.cvat.player.frames.start;
+                        let endFrame = Math.min(window.cvat.player.frames.stop, curFrame + this._model.propagateFrames);
+                        let imageSizes = window.cvat.job.images;
+
+                        let message = `Track this object up to ${endFrame} frame. `;
+                        let refSize = imageSizes[curFrame - startFrame] || imageSizes[0];
+                        for (let _frame = curFrame + 1; _frame <= endFrame; _frame ++) {
+                            let size = imageSizes[_frame - startFrame] || imageSizes[0];
+                            if ((size.width != refSize.width) || (size.height != refSize.height) ) {
+                                message += 'Some covered frames have another resolution. Tracking is unreliable. ';
+                                break;
+                            }
+                        }
+                        message += 'Are you sure?';
+
+                        trackDialogShowed = true;
+                        userConfirm(message, () => {
+                            this._model.trackToFrames();
+                            trackDialogShowed = false;
+                        }, () => trackDialogShowed = false);
+                    }
+                }
+            }.bind(this));
+
             let shortkeys = window.cvat.config.shortkeys;
             Mousetrap.bind(shortkeys["copy_shape"].value, copyHandler, 'keydown');
             Mousetrap.bind(shortkeys["propagate_shape"].value, propagateHandler, 'keydown');
+            Mousetrap.bind(shortkeys["track_shape"].value, trackHandler, 'keydown');
             Mousetrap.bind(shortkeys["switch_paste"].value, switchHandler, 'keydown');
         }
     }

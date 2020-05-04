@@ -21,6 +21,8 @@
             {% endblock %}
         {% endcompress %}
 
+        <script async src="{% static 'engine/js/3rdparty/opencv.js' %}" onload="" type="text/javascript"></script>
+
         {% compress js file platformchecker %}
             <script type="text/javascript" src="{% static 'engine/js/3rdparty/platform.js' %}"></script>
             <script type="text/javascript" src="{% static 'engine/js/checkPlatform.js' %}"></script>

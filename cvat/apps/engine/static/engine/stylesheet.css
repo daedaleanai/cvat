@@ -76,6 +76,11 @@
     background-size: 20px;
 }
 
+.trackButton {
+    background: url("icons/track.png") no-repeat;
+    background-size: 20px;
+}
+
 .hiddenButton {
     background: url("icons/non-hidden.png") no-repeat;
     background-size: 20px;

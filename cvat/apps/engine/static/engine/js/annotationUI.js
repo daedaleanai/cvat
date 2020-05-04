@@ -618,6 +618,7 @@ function buildAnnotationUI(jobData, taskData, imageMetaData, annotationData, ann
         }));
     new PlayerView(playerModel, playerController);
 
+    window.cvat.require = (frame) => playerModel.require(frame);
 
     const aamModel = new AAMModel(shapeCollectionModel, (xtl, xbr, ytl, ybr) => {
         playerModel.focus(xtl, xbr, ytl, ybr);
