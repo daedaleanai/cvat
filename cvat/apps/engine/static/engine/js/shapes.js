@@ -23,7 +23,7 @@
 const STROKE_WIDTH = 2.5;
 const SELECT_POINT_STROKE_WIDTH = 2.5;
 const POINT_RADIUS = 5;
-const AREA_TRESHOLD = 9;
+const AREA_TRESHOLD = 1;
 const TEXT_MARGIN = 10;
 
 /******************************** SHAPE MODELS  ********************************/

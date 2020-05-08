@@ -754,5 +754,12 @@ function drawBoxSize(boxScene, textScene, box) {
     obj.textUI.addClass('shapeText');
     obj.textUI.move(textPoint.x, textPoint.y);
 
+    const minSizeForLabel = 10;
+    if (box.width < minSizeForLabel || box.height < minSizeForLabel) {
+        obj.textUI.addClass('hidden');
+    } else {
+        obj.textUI.removeClass('hidden');
+    }
+
     return obj;
 }

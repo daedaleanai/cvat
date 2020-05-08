@@ -130,8 +130,8 @@ class FrameProvider extends Listener {
 }
 
 
-const MAX_PLAYER_SCALE = 10;
-const MIN_PLAYER_SCALE = 0.1;
+const MAX_PLAYER_SCALE = 20;
+const MIN_PLAYER_SCALE = 0.2;
 
 class PlayerModel extends Listener {
     constructor(task, playerSize) {
