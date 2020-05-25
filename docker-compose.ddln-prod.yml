@@ -1,0 +1,16 @@
+version: "2.3"
+services:
+  cvat_proxy:
+    environment:
+      CVAT_HOST: cvat.daedalean.ai
+  cvat:
+    environment:
+      CVAT_SHARE_URL: "Mounted from grey"
+    volumes:
+      - cvat_share:/home/django/share:ro
+volumes:
+  cvat_share:
+    driver_opts:
+      type: none
+      device: /mnt/grey/
+      o: bind
