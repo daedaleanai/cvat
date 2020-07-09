@@ -209,6 +209,13 @@ class ShapeModel extends Listener {
         return counter;
     }
 
+    _clamp(value, min, max) {
+        if (window.frameClipper) {
+            return window.frameClipper.clamp(value, min, max);
+        }
+        return this.clipToFrame ? Math.clamp(value, min, max) : value;
+    }
+
     notify(updateReason) {
         let oldReason = this._updateReason;
         this._updateReason = updateReason;
@@ -680,10 +687,10 @@ class BoxModel extends ShapeModel {
 
     updatePosition(frame, position, silent) {
         let pos = {
-            xtl: Math.clamp(position.xtl, 0, window.cvat.player.geometry.frameWidth),
-            ytl: Math.clamp(position.ytl, 0, window.cvat.player.geometry.frameHeight),
-            xbr: Math.clamp(position.xbr, 0, window.cvat.player.geometry.frameWidth),
-            ybr: Math.clamp(position.ybr, 0, window.cvat.player.geometry.frameHeight),
+            xtl: this._clamp(position.xtl, 0, window.cvat.player.geometry.frameWidth),
+            ytl: this._clamp(position.ytl, 0, window.cvat.player.geometry.frameHeight),
+            xbr: this._clamp(position.xbr, 0, window.cvat.player.geometry.frameWidth),
+            ybr: this._clamp(position.ybr, 0, window.cvat.player.geometry.frameHeight),
             occluded: position.occluded,
             z_order: position.z_order,
         };
@@ -936,10 +943,8 @@ class PolyShapeModel extends ShapeModel {
 
         let points = PolyShapeModel.convertStringToNumberArray(position.points);
         for (let point of points) {
-            if (this.clipToFrame) {
-                point.x = Math.clamp(point.x, 0, window.cvat.player.geometry.frameWidth);
-                point.y = Math.clamp(point.y, 0, window.cvat.player.geometry.frameHeight);
-            }
+            point.x = this._clamp(point.x, 0, window.cvat.player.geometry.frameWidth);
+            point.y = this._clamp(point.y, 0, window.cvat.player.geometry.frameHeight);
 
             box.xtl = Math.min(box.xtl, point.x);
             box.ytl = Math.min(box.ytl, point.y);

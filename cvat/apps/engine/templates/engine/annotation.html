@@ -47,6 +47,7 @@
         <script type="text/javascript" src="{% static 'engine/js/labelsInfo.js' %}"></script>
         <script type="text/javascript" src="{% static 'engine/js/annotationParser.js' %}"></script>
         <script type="text/javascript" src="{% static 'engine/js/attributeAnnotationMode.js' %}"></script>
+        <script type="text/javascript" src="{% static 'engine/js/frameClipper.js' %}"></script>
         <script type="text/javascript" src="{% static 'engine/js/shapeFilter.js' %}"></script>
         <script type="text/javascript" src="{% static 'engine/js/shapeSplitter.js' %}"></script>
         <script type="text/javascript" src="{% static 'engine/js/polyshapeEditor.js' %}"></script>
@@ -458,6 +459,10 @@
         <div id="polyShapeSizeWrapper">
             <label for="polyShapeSize" class="regular h2"> Poly Shape Size: </label>
             <input id="polyShapeSize" type="text" value="" class="regular h2" style="width: 30%; margin-top: 1%;" placeholder="0-100"/>
+        </div>
+        <div id="outOfImageWrapper">
+            <label for="outOfImageCheckbox" class="regular h2"> Out of image shapes:  </label>
+            <input type="checkbox" id="outOfImageCheckbox" class="regular h2" style="width: 30%; margin-top: 1%;"/>
         </div>
     </div>
     <div id="aamMenu" class="hidden">
