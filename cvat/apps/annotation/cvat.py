@@ -189,7 +189,7 @@ def dump_as_cvat_annotation(file_object, annotations):
     dumper.open_root()
     dumper.add_meta(annotations.meta)
 
-    for frame_annotation in annotations.group_by_frame():
+    for frame_annotation in annotations.group_by_frame(omit_empty_frames=False):
         frame_id = frame_annotation.frame
         dumper.open_image(OrderedDict([
             ("id", str(frame_id)),
