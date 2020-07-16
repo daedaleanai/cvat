@@ -28,24 +28,25 @@ def add_bbox(bbox, frame_id, annotations):
     xbr = float(bbox.xbr) * width
     ybr = float(bbox.ybr) * height
 
+    attributes = [
+        annotations.Attribute(name="Object_class", value=bbox.class_id, ),
+        annotations.Attribute(name="Track_id", value=bbox.track_id, ),
+    ]
+
+    if bbox.score:
+        attributes.append(annotations.Attribute(name="Score", value=bbox.score))
+    if bbox.source:
+        attributes.append(annotations.Attribute(name="Source", value=bbox.source))
+
     shape = {
-        'attributes': [
-            annotations.Attribute(
-                name='Object_class',
-                value=bbox.class_id,
-            ),
-            annotations.Attribute(
-                name='Track_id',
-                value=bbox.track_id,
-            ),
-        ],
-        'points': [xtl, ytl, xbr, ybr],
-        'frame': frame_id,
-        'group': 0,
-        'z_order': 0,
-        'occluded': False,
-        'type': 'rectangle',
-        'label': label_by_class_id[bbox.class_id],
+        "attributes": attributes,
+        "points": [xtl, ytl, xbr, ybr],
+        "frame": frame_id,
+        "group": 0,
+        "z_order": 0,
+        "occluded": False,
+        "type": "rectangle",
+        "label": label_by_class_id[bbox.class_id],
     }
     annotations.add_shape(annotations.LabeledShape(**shape))
 
@@ -73,8 +74,21 @@ class FrameReader:
         self._reader = csv.reader(self._file, lineterminator="\n")
 
     def iterate_bboxes(self):
-        for xtl, ytl, xbr, ybr, class_id, track_id in self._reader:
-            yield SimpleNamespace(xtl=xtl, ytl=ytl, xbr=xbr, ybr=ybr, class_id=class_id, track_id=track_id)
+        for row in self._reader:
+            score, source = None, None
+            if len(row) == 8:
+                *row, score, source = row
+            xtl, ytl, xbr, ybr, class_id, track_id = row
+            yield SimpleNamespace(
+                xtl=xtl,
+                ytl=ytl,
+                xbr=xbr,
+                ybr=ybr,
+                class_id=class_id,
+                track_id=track_id,
+                score=score,
+                source=source,
+            )
 
 
 label_by_class_id = {
