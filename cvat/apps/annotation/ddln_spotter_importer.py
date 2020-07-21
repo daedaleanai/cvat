@@ -29,8 +29,8 @@ def add_bbox(bbox, frame_id, annotations):
     ybr = float(bbox.ybr) * height
 
     attributes = [
-        annotations.Attribute(name="Object_class", value=bbox.class_id, ),
-        annotations.Attribute(name="Track_id", value=bbox.track_id, ),
+        annotations.Attribute(name="Object_class", value=bbox.class_id),
+        annotations.Attribute(name="Track_id", value=bbox.track_id),
     ]
 
     if bbox.score:
