@@ -12,9 +12,9 @@ format_spec = {
     ],
     "loaders": [
         {
-            "display_name": "{name} {format} {version} for images (BB)",
+            "display_name": "{name} {format} {version}",
             "format": "ZIP",
-            "version": "0.9",
+            "version": "0.1",
             "handler": "load",
         }
     ],
@@ -118,7 +118,7 @@ def dump(file_object, annotations):
         make_zip_archive(temp_dir, file_object)
 """
 def load(file_object, annotations):
-    from cvat.apps.annotation.ddln_zip_importer import (
+    from cvat.apps.annotation.ddln_spotter_importer import (
         build_frame_id_mapping,
         CsvZipImporter,
         add_bbox,
