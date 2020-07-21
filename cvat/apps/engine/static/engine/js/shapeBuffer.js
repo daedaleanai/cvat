@@ -592,8 +592,8 @@ class ShapeBufferView {
                 if (this.clipToFrame) {
                     actualPoints = PolyShapeModel.convertStringToNumberArray(actualPoints);
                     for (let point of actualPoints) {
-                        point.x = Math.clamp(point.x, 0, frameWidth);
-                        point.y = Math.clamp(point.y, 0, frameHeight);
+                        point.x = window.cvat.frameClipper.clamp(point.x, 0, frameWidth);
+                        point.y = window.cvat.frameClipper.clamp(point.y, 0, frameHeight);
                     }
                     actualPoints = PolyShapeModel.convertNumberArrayToString(actualPoints);
                 }
@@ -620,10 +620,10 @@ class ShapeBufferView {
                 let frameHeight = window.cvat.player.geometry.frameHeight;
                 let rect = window.cvat.translate.box.canvasToActual(this._shapeView.node.getBBox());
                 let box = {};
-                box.xtl = Math.clamp(rect.x, 0, frameWidth);
-                box.ytl = Math.clamp(rect.y, 0, frameHeight);
-                box.xbr = Math.clamp(rect.x + rect.width, 0, frameWidth);
-                box.ybr = Math.clamp(rect.y + rect.height, 0, frameHeight);
+                box.xtl = window.cvat.frameClipper.clamp(rect.x, 0, frameWidth);
+                box.ytl = window.cvat.frameClipper.clamp(rect.y, 0, frameHeight);
+                box.xbr = window.cvat.frameClipper.clamp(rect.x + rect.width, 0, frameWidth);
+                box.ybr = window.cvat.frameClipper.clamp(rect.y + rect.height, 0, frameHeight);
 
                 if ((box.xbr - box.xtl) * (box.ybr - box.ytl) >= AREA_TRESHOLD) {
                     this._controller.pasteToFrame(e, box, null);
