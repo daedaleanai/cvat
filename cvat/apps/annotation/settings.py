@@ -14,5 +14,5 @@ BUILTIN_FORMATS = (
     os.path.join(path_prefix, 'tfrecord.py'),
     os.path.join(path_prefix, 'mot.py'),
     os.path.join(path_prefix, 'labelme.py'),
-    os.path.join(path_prefix, 'ddln_spotter.py'),
+    os.path.join(path_prefix, 'cvat_ddln.py'),
 )
