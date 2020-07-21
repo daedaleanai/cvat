@@ -547,6 +547,13 @@ function buildAnnotationUI(jobData, taskData, imageMetaData, annotationData, ann
                 return `${window.location.origin}/?${this.value}`;
             },
         },
+        frameClipper: {
+            clipToFrame: false,
+
+            clamp(value, min, max) {
+                return this.clipToFrame ? value : Math.clamp(value, min, max);
+            },
+        },
     };
 
     // Remove external search parameters from url

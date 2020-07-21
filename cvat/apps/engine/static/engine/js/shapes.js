@@ -50,7 +50,6 @@ class ShapeModel extends Listener {
         this._hiddenShape = false;
         this._hiddenText = true;
         this._updateReason = null;
-        this._clipToFrame = true;
         this._importAttributes(data.attributes, positions);
     }
 
@@ -210,10 +209,7 @@ class ShapeModel extends Listener {
     }
 
     _clamp(value, min, max) {
-        if (window.frameClipper) {
-            return window.frameClipper.clamp(value, min, max);
-        }
-        return this.clipToFrame ? Math.clamp(value, min, max) : value;
+        return window.cvat.frameClipper.clamp(value, min, max);
     }
 
     notify(updateReason) {
@@ -615,10 +611,6 @@ class ShapeModel extends Listener {
 
     get selected() {
         return this._selected;
-    }
-
-    get clipToFrame() {
-        return this._clipToFrame;
     }
 }
 

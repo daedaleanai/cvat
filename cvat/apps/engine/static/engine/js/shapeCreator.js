@@ -285,7 +285,7 @@ class ShapeCreatorView {
         });
 
         this._outOfImageCheckbox.on('click', (e) => {
-            frameClipper.clipToFrame = e.target.checked;
+            window.cvat.frameClipper.clipToFrame = e.target.checked;
         });
 
         this._playerFrame.on('mousemove.shapeCreatorAIM', (e) => {
@@ -524,8 +524,8 @@ class ShapeCreatorView {
                     const { frameWidth } = window.cvat.player.geometry;
                     const { frameHeight } = window.cvat.player.geometry;
                     for (const point of actualPoints) {
-                        point.x = frameClipper.clamp(point.x, 0, frameWidth);
-                        point.y = frameClipper.clamp(point.y, 0, frameHeight);
+                        point.x = window.cvat.frameClipper.clamp(point.x, 0, frameWidth);
+                        point.y = window.cvat.frameClipper.clamp(point.y, 0, frameHeight);
                     }
                     actualPoints = PolyShapeModel.convertNumberArrayToString(actualPoints);
 
@@ -732,10 +732,10 @@ class ShapeCreatorView {
                 const frameHeight = window.cvat.player.geometry.frameHeight;
                 const rect = window.cvat.translate.box.canvasToActual(e.target.getBBox());
 
-                const xtl = frameClipper.clamp(rect.x, 0, frameWidth);
-                const ytl = frameClipper.clamp(rect.y, 0, frameHeight);
-                const xbr = frameClipper.clamp(rect.x + rect.width, 0, frameWidth);
-                const ybr = frameClipper.clamp(rect.y + rect.height, 0, frameHeight);
+                const xtl = window.cvat.frameClipper.clamp(rect.x, 0, frameWidth);
+                const ytl = window.cvat.frameClipper.clamp(rect.y, 0, frameHeight);
+                const xbr = window.cvat.frameClipper.clamp(rect.x + rect.width, 0, frameWidth);
+                const ybr = window.cvat.frameClipper.clamp(rect.y + rect.height, 0, frameHeight);
                 if ((ybr - ytl) * (xbr - xtl) >= AREA_TRESHOLD) {
                     const box = {
                         xtl,
@@ -789,8 +789,8 @@ class ShapeCreatorView {
 
                         for (const point of actualPoints) {
                             // clamp point
-                            point.x = frameClipper.clamp(point.x, 0, frameWidth);
-                            point.y = frameClipper.clamp(point.y, 0, frameHeight);
+                            point.x = window.cvat.frameClipper.clamp(point.x, 0, frameWidth);
+                            point.y = window.cvat.frameClipper.clamp(point.y, 0, frameHeight);
 
                             // update bounding box
                             box.xtl = Math.min(point.x, box.xtl);

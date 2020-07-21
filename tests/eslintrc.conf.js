@@ -106,8 +106,6 @@ module.exports = {
         'FilterModel': true,
         'FilterController': true,
         'FilterView': true,
-        // from frameClipper.js
-        'frameClipper': true,
         // from shapeSplitter.js
         'ShapeSplitter': true,
         // from userConfig.js
