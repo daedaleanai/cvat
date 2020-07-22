@@ -773,12 +773,11 @@ class ShapeCreatorView {
                     if (numberOfPoints === 4) {
                         let actualPoints = window.cvat.translate.points.canvasToActual(e.target.getAttribute('points'));
                         actualPoints = PolyShapeModel.convertStringToNumberArray(actualPoints);
-                        const { frameWidth, frameHeight } = window.cvat.player.geometry;
 
                         // init bounding box
                         const box = {
-                            'xtl': frameWidth,
-                            'ytl': frameHeight,
+                            'xtl': Number.MAX_SAFE_INTEGER,
+                            'ytl': Number.MAX_SAFE_INTEGER,
                             'xbr': 0,
                             'ybr': 0
                         };
