@@ -4,7 +4,7 @@ format_spec = {
     "name": "DDLN_CSV",
     "dumpers": [
         {
-            "display_name": "{name} {format} {version} for images (BB)",
+            "display_name": "{name} {format} {version} for images [BB]",
             "format": "ZIP",
             "version": "0.9",
             "handler": "dump"
@@ -12,9 +12,9 @@ format_spec = {
     ],
     "loaders": [
         {
-            "display_name": "{name} {format} {version}",
+            "display_name": "{name} {format} {version} for images [BB]",
             "format": "ZIP",
-            "version": "0.1",
+            "version": "0.9",
             "handler": "load",
         }
     ],
@@ -116,7 +116,7 @@ def dump(file_object, annotations):
             log_file.write(log_data)
         
         make_zip_archive(temp_dir, file_object)
-"""
+
 def load(file_object, annotations):
     from cvat.apps.annotation.ddln_spotter_importer import (
         build_frame_id_mapping,
@@ -131,4 +131,4 @@ def load(file_object, annotations):
         frame_id = frame_id_by_names[frame_reader.name, frame_reader.sequence_name]
         for bbox in frame_reader.iterate_bboxes():
             add_bbox(bbox, frame_id, annotations)
-"""
+
