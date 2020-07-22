@@ -197,7 +197,7 @@ class ShapeCreatorView {
         this._modeSelector = $('#shapeModeSelector');
         this._typeSelector = $('#shapeTypeSelector');
         this._polyShapeSizeInput = $('#polyShapeSize');
-        this._outOfImageCheckbox = $('#outOfImageCheckbox');
+        this._clipToFrameCheckbox = $('#clipToFrameCheckbox');
         this._commonBordersCheckbox = $('#commonBordersCheckbox');
         this._frameContent = SVG.adopt($('#frameContent')[0]);
         this._frameText = SVG.adopt($('#frameText')[0]);
@@ -284,7 +284,7 @@ class ShapeCreatorView {
             e.stopPropagation();
         });
 
-        this._outOfImageCheckbox.on('click', (e) => {
+        this._clipToFrameCheckbox.on('click', (e) => {
             window.cvat.frameClipper.clipToFrame = e.target.checked;
         });
 

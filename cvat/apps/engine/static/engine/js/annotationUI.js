@@ -548,10 +548,10 @@ function buildAnnotationUI(jobData, taskData, imageMetaData, annotationData, ann
             },
         },
         frameClipper: {
-            clipToFrame: false,
+            clipToFrame: true,
 
             clamp(value, min, max) {
-                return this.clipToFrame ? value : Math.clamp(value, min, max);
+                return this.clipToFrame ? Math.clamp(value, min, max) : value;
             },
         },
     };
