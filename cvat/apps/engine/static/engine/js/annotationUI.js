@@ -553,6 +553,14 @@ function buildAnnotationUI(jobData, taskData, imageMetaData, annotationData, ann
             clamp(value, min, max) {
                 return this.clipToFrame ? Math.clamp(value, min, max) : value;
             },
+
+            clampX(value) {
+                return this.clamp(value, 0, window.cvat.player.geometry.frameWidth);
+            },
+
+            clampY(value) {
+                return this.clamp(value, 0, window.cvat.player.geometry.frameHeight);
+            },
         },
     };
 

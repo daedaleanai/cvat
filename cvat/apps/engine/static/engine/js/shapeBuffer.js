@@ -586,14 +586,12 @@ class ShapeBufferView {
             if (e.which != 1) return;
             if (this._shape.type != 'box') {
                 let actualPoints = window.cvat.translate.points.canvasToActual(this._shapeView.attr('points'));
-                let frameWidth = window.cvat.player.geometry.frameWidth;
-                let frameHeight = window.cvat.player.geometry.frameHeight;
 
                 if (this.clipToFrame) {
                     actualPoints = PolyShapeModel.convertStringToNumberArray(actualPoints);
                     for (let point of actualPoints) {
-                        point.x = window.cvat.frameClipper.clamp(point.x, 0, frameWidth);
-                        point.y = window.cvat.frameClipper.clamp(point.y, 0, frameHeight);
+                        point.x = window.cvat.frameClipper.clampX(point.x);
+                        point.y = window.cvat.frameClipper.clampY(point.y);
                     }
                     actualPoints = PolyShapeModel.convertNumberArrayToString(actualPoints);
                 }
@@ -616,14 +614,12 @@ class ShapeBufferView {
                 }
             }
             else {
-                let frameWidth = window.cvat.player.geometry.frameWidth;
-                let frameHeight = window.cvat.player.geometry.frameHeight;
                 let rect = window.cvat.translate.box.canvasToActual(this._shapeView.node.getBBox());
                 let box = {};
-                box.xtl = window.cvat.frameClipper.clamp(rect.x, 0, frameWidth);
-                box.ytl = window.cvat.frameClipper.clamp(rect.y, 0, frameHeight);
-                box.xbr = window.cvat.frameClipper.clamp(rect.x + rect.width, 0, frameWidth);
-                box.ybr = window.cvat.frameClipper.clamp(rect.y + rect.height, 0, frameHeight);
+                box.xtl = window.cvat.frameClipper.clampX(rect.x);
+                box.ytl = window.cvat.frameClipper.clampY(rect.y);
+                box.xbr = window.cvat.frameClipper.clampX(rect.x + rect.width);
+                box.ybr = window.cvat.frameClipper.clampY(rect.y + rect.height);
 
                 if ((box.xbr - box.xtl) * (box.ybr - box.ytl) >= AREA_TRESHOLD) {
                     this._controller.pasteToFrame(e, box, null);

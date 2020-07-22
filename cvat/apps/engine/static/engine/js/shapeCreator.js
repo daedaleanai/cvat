@@ -521,11 +521,9 @@ class ShapeCreatorView {
                     this._controller.finish({ points }, this._type);
                     this._controller.switchCreateMode(true);
                 } else {
-                    const { frameWidth } = window.cvat.player.geometry;
-                    const { frameHeight } = window.cvat.player.geometry;
                     for (const point of actualPoints) {
-                        point.x = window.cvat.frameClipper.clamp(point.x, 0, frameWidth);
-                        point.y = window.cvat.frameClipper.clamp(point.y, 0, frameHeight);
+                        point.x = window.cvat.frameClipper.clampX(point.x);
+                        point.y = window.cvat.frameClipper.clampY(point.y);
                     }
                     actualPoints = PolyShapeModel.convertNumberArrayToString(actualPoints);
 
@@ -728,14 +726,12 @@ class ShapeCreatorView {
                     sizeUI = null;
                 }
 
-                const frameWidth = window.cvat.player.geometry.frameWidth;
-                const frameHeight = window.cvat.player.geometry.frameHeight;
                 const rect = window.cvat.translate.box.canvasToActual(e.target.getBBox());
 
-                const xtl = window.cvat.frameClipper.clamp(rect.x, 0, frameWidth);
-                const ytl = window.cvat.frameClipper.clamp(rect.y, 0, frameHeight);
-                const xbr = window.cvat.frameClipper.clamp(rect.x + rect.width, 0, frameWidth);
-                const ybr = window.cvat.frameClipper.clamp(rect.y + rect.height, 0, frameHeight);
+                const xtl = window.cvat.frameClipper.clampX(rect.x);
+                const ytl = window.cvat.frameClipper.clampY(rect.y);
+                const xbr = window.cvat.frameClipper.clampX(rect.x + rect.width);
+                const ybr = window.cvat.frameClipper.clampY(rect.y + rect.height);
                 if ((ybr - ytl) * (xbr - xtl) >= AREA_TRESHOLD) {
                     const box = {
                         xtl,
@@ -789,8 +785,8 @@ class ShapeCreatorView {
 
                         for (const point of actualPoints) {
                             // clamp point
-                            point.x = window.cvat.frameClipper.clamp(point.x, 0, frameWidth);
-                            point.y = window.cvat.frameClipper.clamp(point.y, 0, frameHeight);
+                            point.x = window.cvat.frameClipper.clampX(point.x);
+                            point.y = window.cvat.frameClipper.clampY(point.y);
 
                             // update bounding box
                             box.xtl = Math.min(point.x, box.xtl);
