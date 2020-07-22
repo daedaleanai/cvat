@@ -1,7 +1,7 @@
 # Copyright (C) 2020
 
 format_spec = {
-    "name": "DDLN_CSV",
+    "name": "DDLN_CSV_BB",
     "dumpers": [
         {
             "display_name": "{name} {format} {version} for images [BB]",
