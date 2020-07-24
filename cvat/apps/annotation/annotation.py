@@ -300,10 +300,10 @@ class Annotation:
             attributes=self._export_attributes(tag["attributes"]),
         )
 
-    def group_by_frame(self):
-        def _get_frame(annotations, shape):
-            db_image = self._frame_info[shape["frame"]]
-            frame = self._db_task.start_frame + shape["frame"] * self._frame_step
+    def group_by_frame(self, omit_empty_frames=True):
+        def _get_frame(annotations, frame_index):
+            db_image = self._frame_info[frame_index]
+            frame = self._db_task.start_frame + frame_index * self._frame_step
             rpath = db_image['path'].split(os.path.sep)
             if len(rpath) != 1:
                 rpath = os.path.sep.join(rpath[rpath.index(".upload")+1:])
@@ -321,12 +321,17 @@ class Annotation:
             return annotations[frame]
 
         annotations = {}
+
+        if not omit_empty_frames:
+            for frame_index in self._frame_info:
+                _get_frame(annotations, frame_index)
+
         data_manager = DataManager(self._annotation_ir)
         for shape in sorted(data_manager.to_shapes(self._db_task.size), key=lambda s: s.get("z_order", 0)):
-            _get_frame(annotations, shape).labeled_shapes.append(self._export_labeled_shape(shape))
+            _get_frame(annotations, shape["frame"]).labeled_shapes.append(self._export_labeled_shape(shape))
 
         for tag in self._annotation_ir.tags:
-            _get_frame(annotations, tag).tags.append(self._export_tag(tag))
+            _get_frame(annotations, tag["frame"]).tags.append(self._export_tag(tag))
 
         return iter(annotations.values())
 
