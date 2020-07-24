@@ -21,11 +21,12 @@ format_spec = {
 }
 
 def extractFileParams(filename):
-    #directoryName = filename.split("/")[2]
-    #csvFilename = filename.split("/")[-1]
     directoryName, csvFilename = os.path.split(filename)
-    directoryName = directoryName.split("/")[2]
-    #csvFilename = csvFilename[:-4] + "_y_bb.csv"
+    if directoryName:
+        directoryName = directoryName.split("/")[2]
+    # for local testing
+    else: 
+        directoryName = "dummy"
     csvFilename = os.path.splitext(csvFilename)[0] + "_y_bb.csv"
 	
     return directoryName,csvFilename
@@ -47,9 +48,7 @@ def dump(file_object, annotations):
     from tempfile import TemporaryDirectory
 
     with TemporaryDirectory() as temp_dir:
-        #log_file_path = temp_dir + "/" + "export.log"
         log_file_path = os.path.join(temp_dir, "export.log")
-        log_data = "" 
         totalSucceed = 0
         totalFailed = 0
         boxIndex = 0
@@ -60,7 +59,7 @@ def dump(file_object, annotations):
                 image_width = frame_annotation.width
                 image_height = frame_annotation.height
                 
-                log_data = log_data + "Image: {}\n".format(image_name)
+                log_file.write("Image: {}\n".format(image_name))
                 csv_data = ""
 
                 for index, shape in enumerate(frame_annotation.labeled_shapes, 1):
@@ -85,35 +84,28 @@ def dump(file_object, annotations):
                         if attr.name == "Track_id":
                             trackid = attr.value
 
-                    log_line = "Initial data: [{}] {} | {},{},{},{},{},{} | {}\n".format(
-                            index, label, xtl, ytl, xbr, ybr, classid, trackid, shape.attributes)
-                    log_data = log_data + log_line
+                    log_file.write("Initial data: [{}] {} | {},{},{},{},{},{} | {}\n".format(
+                            index, label, xtl, ytl, xbr, ybr, classid, trackid, shape.attributes))
                     
                     csv_line = "{},{},{},{},{},{}\n".format(normalizedXtl, normalizedYtl, normalizedXbr, normalizedYbr, classid, trackid)
                     csv_data = csv_data + csv_line
-                    log_line = "Converted data: {}".format(csv_line)
-                    log_data = log_data + log_line
+                    log_file.write("Converted data: {}".format(csv_line))
                         
                 dir_name, csv_file_name  = extractFileParams(image_name)
                 dir_name = temp_dir + "/" + dir_name + "/"
-                log_line = "Dir: {}; File: {}\n".format(dir_name, csv_file_name)
-                log_data = log_data + log_line
-
-                log_line = "Added to [{}] ..\n".format(csv_file_name)
-                log_data = log_data + log_line
+                log_file.write("Dir: {}; Added to file: {}\n".format(dir_name, csv_file_name))
 
                 write_result = writeToCsv(dir_name, csv_file_name, csv_data)
+                
                 if write_result == True:
                     totalSucceed += 1
                 else:
                     totalFailed += 1
-                
-            log_data = log_data + "\n"       
-            log_data = log_data + "Successfully created files: {}\n".format(totalSucceed)
-            log_data = log_data + "Failed: {}\n".format(totalFailed)
-            log_data = log_data + "Total: {}\n".format(totalSucceed+totalFailed)
-            log_data = log_data + "Boxes: {}\n".format(boxIndex)
-            log_file.write(log_data)
+
+            log_file.write("\nSuccessfully created files: {}\n".format(totalSucceed))
+            log_file.write("Failed: {}\n".format(totalFailed))
+            log_file.write("Total: {}\n".format(totalSucceed+totalFailed))
+            log_file.write("Boxes: {}\n".format(boxIndex))
         
         make_zip_archive(temp_dir, file_object)
 
