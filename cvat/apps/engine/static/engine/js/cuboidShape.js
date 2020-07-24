@@ -805,7 +805,6 @@ class CuboidModel extends PolyShapeModel {
     constructor(data, type, cliendID, color) {
         super(data, type, cliendID, color);
         this._minPoints = 6;
-        this._clipToFrame = false;
     }
 
     static isWithinFrame(points) {
@@ -825,6 +824,10 @@ class CuboidModel extends PolyShapeModel {
             { x: box.xbr, y: box.ybr },
         ]);
         return withinFrame && ((box.xbr - box.xtl) * (box.ybr - box.ytl) >= AREA_TRESHOLD);
+    }
+
+    _clamp(value, min, max) {
+        return value;
     }
 
     contain(mousePos, frame) {

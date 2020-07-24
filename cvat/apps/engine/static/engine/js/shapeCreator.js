@@ -197,6 +197,7 @@ class ShapeCreatorView {
         this._modeSelector = $('#shapeModeSelector');
         this._typeSelector = $('#shapeTypeSelector');
         this._polyShapeSizeInput = $('#polyShapeSize');
+        this._clipToFrameCheckbox = $('#clipToFrameCheckbox');
         this._commonBordersCheckbox = $('#commonBordersCheckbox');
         this._frameContent = SVG.adopt($('#frameContent')[0]);
         this._frameText = SVG.adopt($('#frameText')[0]);
@@ -281,6 +282,10 @@ class ShapeCreatorView {
 
         this._polyShapeSizeInput.on('keydown', function(e) {
             e.stopPropagation();
+        });
+
+        this._clipToFrameCheckbox.on('click', (e) => {
+            window.cvat.frameClipper.clipToFrame = e.target.checked;
         });
 
         this._playerFrame.on('mousemove.shapeCreatorAIM', (e) => {
@@ -516,11 +521,9 @@ class ShapeCreatorView {
                     this._controller.finish({ points }, this._type);
                     this._controller.switchCreateMode(true);
                 } else {
-                    const { frameWidth } = window.cvat.player.geometry;
-                    const { frameHeight } = window.cvat.player.geometry;
                     for (const point of actualPoints) {
-                        point.x = Math.clamp(point.x, 0, frameWidth);
-                        point.y = Math.clamp(point.y, 0, frameHeight);
+                        point.x = window.cvat.frameClipper.clampX(point.x);
+                        point.y = window.cvat.frameClipper.clampY(point.y);
                     }
                     actualPoints = PolyShapeModel.convertNumberArrayToString(actualPoints);
 
@@ -723,14 +726,12 @@ class ShapeCreatorView {
                     sizeUI = null;
                 }
 
-                const frameWidth = window.cvat.player.geometry.frameWidth;
-                const frameHeight = window.cvat.player.geometry.frameHeight;
                 const rect = window.cvat.translate.box.canvasToActual(e.target.getBBox());
 
-                const xtl = Math.clamp(rect.x, 0, frameWidth);
-                const ytl = Math.clamp(rect.y, 0, frameHeight);
-                const xbr = Math.clamp(rect.x + rect.width, 0, frameWidth);
-                const ybr = Math.clamp(rect.y + rect.height, 0, frameHeight);
+                const xtl = window.cvat.frameClipper.clampX(rect.x);
+                const ytl = window.cvat.frameClipper.clampY(rect.y);
+                const xbr = window.cvat.frameClipper.clampX(rect.x + rect.width);
+                const ybr = window.cvat.frameClipper.clampY(rect.y + rect.height);
                 if ((ybr - ytl) * (xbr - xtl) >= AREA_TRESHOLD) {
                     const box = {
                         xtl,
@@ -772,20 +773,19 @@ class ShapeCreatorView {
                     if (numberOfPoints === 4) {
                         let actualPoints = window.cvat.translate.points.canvasToActual(e.target.getAttribute('points'));
                         actualPoints = PolyShapeModel.convertStringToNumberArray(actualPoints);
-                        const { frameWidth, frameHeight } = window.cvat.player.geometry;
 
                         // init bounding box
                         const box = {
-                            'xtl': frameWidth,
-                            'ytl': frameHeight,
+                            'xtl': Number.MAX_SAFE_INTEGER,
+                            'ytl': Number.MAX_SAFE_INTEGER,
                             'xbr': 0,
                             'ybr': 0
                         };
 
                         for (const point of actualPoints) {
                             // clamp point
-                            point.x = Math.clamp(point.x, 0, frameWidth);
-                            point.y = Math.clamp(point.y, 0, frameHeight);
+                            point.x = window.cvat.frameClipper.clampX(point.x);
+                            point.y = window.cvat.frameClipper.clampY(point.y);
 
                             // update bounding box
                             box.xtl = Math.min(point.x, box.xtl);

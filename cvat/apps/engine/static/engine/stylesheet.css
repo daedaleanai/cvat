@@ -409,7 +409,7 @@
     text-align: center;
 }
 
-#shapeLabelSelector, #shapeModeSelector, #shapeTypeSelector, polyShapeSizeWrapper {
+#shapeLabelSelector, #shapeModeSelector, #shapeTypeSelector, #polyShapeSizeWrapper, #clipToFrameWrapper {
     width: 80%;
     margin-left: auto;
     margin-top: 2%;
