@@ -47,6 +47,9 @@ from cvat.apps.authentication import auth
 from rest_framework.permissions import SAFE_METHODS
 from cvat.apps.annotation.models import AnnotationDumper, AnnotationLoader
 from cvat.apps.annotation.format import get_annotation_formats
+from cvat.apps.annotation.ddln_spotter_importer import CVATImporter
+from cvat.apps.annotation.structures import load_sequences
+from cvat.apps.annotation.validation import validate
 import cvat.apps.dataset_manager.task as DatumaroTask
 
 from drf_yasg.utils import swagger_auto_schema
@@ -443,6 +446,18 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
                 except (AttributeError, IntegrityError) as e:
                     return Response(data=str(e), status=status.HTTP_400_BAD_REQUEST)
                 return Response(data)
+
+    @swagger_auto_schema(method='get', operation_summary='Method returns validation report for a specific task')
+    @action(detail=True, methods=['GET'])
+    def validate(self, request, pk):
+        self.get_object() # force to call check_object_permissions
+
+        importer = CVATImporter.for_task(pk)
+        sequences = load_sequences(importer)
+        reporter = validate(sequences)
+        report = reporter.get_text_report()
+
+        return Response(data={"report": report}, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method='get', operation_summary='Method allows to download annotations as a file',
         manual_parameters=[openapi.Parameter('filename', openapi.IN_PATH, description="A name of a file with annotations",

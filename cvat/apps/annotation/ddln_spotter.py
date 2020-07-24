@@ -45,6 +45,9 @@ def writeToCsv(dirname, filename, data):
 
 def dump(file_object, annotations):
     from cvat.apps.dataset_manager.util import make_zip_archive
+    from cvat.apps.annotation.structures import load_sequences
+    from cvat.apps.annotation.ddln_spotter_importer import CsvDirectoryImporter
+    from cvat.apps.annotation.validation import validate
     from tempfile import TemporaryDirectory
 
     with TemporaryDirectory() as temp_dir:
@@ -106,7 +109,11 @@ def dump(file_object, annotations):
             log_file.write("Failed: {}\n".format(totalFailed))
             log_file.write("Total: {}\n".format(totalSucceed+totalFailed))
             log_file.write("Boxes: {}\n".format(boxIndex))
-        
+
+        sequences = load_sequences(CsvDirectoryImporter(temp_dir))
+        reporter = validate(sequences)
+        validation_file = os.path.join(temp_dir, 'validation.txt')
+        reporter.write_text_report(open(validation_file, 'wt'))
         make_zip_archive(temp_dir, file_object)
 
 def load(file_object, annotations):
