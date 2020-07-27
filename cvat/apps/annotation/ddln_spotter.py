@@ -27,7 +27,7 @@ def extractFileParams(filename):
     # for local testing
     else: 
         directoryName = "dummy"
-    csvFilename = os.path.splitext(csvFilename)[0] + "_y_bb.csv"
+    csvFilename = os.path.splitext(csvFilename)[0] + "_y.csv"
 	
     return directoryName,csvFilename
 
@@ -92,7 +92,7 @@ def dump(file_object, annotations):
                     log_file.write("Converted data: {}".format(csv_line))
                         
                 dir_name, csv_file_name  = extractFileParams(image_name)
-                dir_name = temp_dir + "/" + dir_name + "/"
+                dir_name = os.path.join(temp_dir, dir_name)
                 log_file.write("Dir: {}; Added to file: {}\n".format(dir_name, csv_file_name))
 
                 write_result = writeToCsv(dir_name, csv_file_name, csv_data)
