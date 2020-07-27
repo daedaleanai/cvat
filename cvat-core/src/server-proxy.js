@@ -249,6 +249,21 @@
                 }
             }
 
+            async function validateTask(id) {
+                const { backendAPI } = config;
+
+                let response = null;
+                try {
+                    response = await Axios.get(`${backendAPI}/tasks/${id}/validate`, {
+                        proxy: config.proxy,
+                    });
+                } catch (errorData) {
+                    throw generateError(errorData);
+                }
+
+                return response.data;
+            }
+
             async function exportDataset(id, format) {
                 const { backendAPI } = config;
                 let url = `${backendAPI}/tasks/${id}/dataset?format=${format}`;
@@ -607,6 +622,7 @@
                         saveTask,
                         createTask,
                         deleteTask,
+                        validateTask,
                         exportDataset,
                     }),
                     writable: false,
