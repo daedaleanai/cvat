@@ -58,8 +58,7 @@ class CVATImporter:
         return cls(anno_exporter)
 
     def iterate_frames(self):
-        # for frame_annotation in self._annotations.group_by_frame(omit_empty_frames=False):
-        for frame_annotation in self._annotations.group_by_frame():
+        for frame_annotation in self._annotations.group_by_frame(omit_empty_frames=False):
             frame_name, sequence_name = parse_frame_name(frame_annotation.name)
 
             if any(
@@ -85,8 +84,7 @@ class CVATFrameReader:
 
         for shape in self._frame_annotation.labeled_shapes:
             if shape.type != "rectangle":
-                # currently only bounding box is supported
-                # TODO: warn when bump into unknown type
+                # only bounding box is supported
                 continue
 
             attrs = self._get_attributes(shape)
