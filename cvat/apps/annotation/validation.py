@@ -4,8 +4,6 @@ from itertools import groupby
 from cvat.apps.annotation.ddln_spotter_importer import label_by_class_id
 from cvat.apps.annotation.structures import BoundingBox
 
-UNKNOWN_CLASS = "100"
-
 
 def validate(sequences):
     reporter = ValidationReporter()
@@ -56,8 +54,7 @@ def _validate_attributes(bbox, reporter):
 
 def _validate_class_immutability(bbox, class_id_by_track_id, reporter):
     prev_class_id = class_id_by_track_id.get(bbox.track_id, bbox.class_id)
-    # it is allowed to transition from unknown class to another
-    if prev_class_id != bbox.class_id and prev_class_id != UNKNOWN_CLASS:
+    if prev_class_id != bbox.class_id:
         reporter.report_class_id_change(prev_class_id, bbox.class_id)
     class_id_by_track_id[bbox.track_id] = bbox.class_id
 
