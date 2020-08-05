@@ -10,3 +10,10 @@ def parse_frame_name(path):
 
 def build_attrs_dict(shape):
     return {a.name: a.value for a in shape.attributes}
+
+
+def grouper(iterable, n):
+    """Collect data into fixed-length chunks or blocks"""
+    # grouper('ABCDEF', 3) --> ABC DEF
+    args = [iter(iterable)] * n
+    return zip(*args)

@@ -1,6 +1,7 @@
 import math
 import sys
 from collections import defaultdict
+from typing import Optional
 
 
 def load_sequences(importer):
@@ -121,6 +122,74 @@ class LabeledBoundingBox(BoundingBox):
     def from_two_corners(cls, xtl, ytl, xbr, ybr, class_id, track_id):
         assert xbr >= xtl and ybr >= ytl
         return cls(xtl, ytl, xbr - xtl, ybr - ytl, class_id, track_id)
+
+
+class RunwayPoint:
+    def __init__(self, visible: bool, x: Optional[int], y: Optional[int]):
+        # for non-visible threshold points coordinates are not specified, i.e. their values are set to None
+        self.visible = visible
+        self.x = x
+        self.y = y
+
+    @classmethod
+    def from_row(cls, row):
+        visible, x, y = row
+        visible = bool(int(visible))
+        x = _deserialize(x)
+        y = _deserialize(y)
+        return cls(visible, x, y)
+
+    def as_row(self):
+        return int(self.visible), _serialize(self.x), _serialize(self.y)
+
+
+def _serialize(coordinate):
+    return '' if coordinate is None else coordinate
+
+
+def _deserialize(input):
+    return None if input == '' else int(input)
+
+
+class Runway:
+    def __init__(
+        self,
+        id: str,
+        full_visible: bool,
+        start_left: RunwayPoint,
+        start_right: RunwayPoint,
+        end_left: RunwayPoint,
+        end_right: RunwayPoint,
+        threshold_left: RunwayPoint,
+        threshold_right: RunwayPoint
+    ):
+        if not threshold_left.visible:
+            threshold_left = RunwayPoint(False, None, None)
+        if not threshold_right.visible:
+            threshold_right = RunwayPoint(False, None, None)
+
+        self.id = id
+        self.full_visible = full_visible
+        self.start_left = start_left
+        self.start_right = start_right
+        self.end_left = end_left
+        self.end_right = end_right
+        self.threshold_left = threshold_left
+        self.threshold_right = threshold_right
+
+    def validate_visibility(self):
+        """Returns None if runway visibility is valid, error message otherwise"""
+        if not self.full_visible:
+            return None
+        violators = set()
+        for point_name in ('start_left', 'start_right', 'end_left', 'end_right'):
+            point = getattr(self, point_name)
+            if not point.visible:
+                name = point_name.replace('_', ' ')
+                violators.add(name)
+        if not violators:
+            return None
+        return "Runway is visible, but its {} points is not".format(', '.join(violators))
 
 
 label_by_class_id = {

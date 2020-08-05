@@ -4,7 +4,7 @@ import re
 import zipfile
 from pathlib import Path
 
-from cvat.apps.annotation.structures import LabeledBoundingBox
+from cvat.apps.annotation.structures import LabeledBoundingBox, Runway, RunwayPoint
 
 
 class CsvZipImporter:
@@ -53,6 +53,16 @@ class FrameReader:
                 bbox.source = source
                 bbox.score = score
             yield bbox
+
+    def iterate_runways(self):
+        for row in self._reader:
+            runway_id, full_visible, *pts_data = row
+            full_visible = bool(int(full_visible))
+            assert len(pts_data) == 18  # 6 points, each point having 3 values
+            start_left, start_right = RunwayPoint.from_row(pts_data[0:3]), RunwayPoint.from_row(pts_data[3:6])
+            end_left, end_right = RunwayPoint.from_row(pts_data[6:9]), RunwayPoint.from_row(pts_data[9:12])
+            threshold_left, threshold_right = RunwayPoint.from_row(pts_data[12:15]), RunwayPoint.from_row(pts_data[15:18])
+            yield Runway(runway_id, full_visible, start_left, start_right, end_left, end_right, threshold_left, threshold_right)
 
 
 _filename_regex = re.compile(r"(.*)/(.*)_y.csv")
