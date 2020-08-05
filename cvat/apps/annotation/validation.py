@@ -1,8 +1,7 @@
 import io
 from itertools import groupby
 
-from cvat.apps.annotation.ddln_spotter_importer import label_by_class_id
-from cvat.apps.annotation.structures import BoundingBox
+from cvat.apps.annotation.structures import BoundingBox, label_by_class_id
 
 
 def validate(sequences):

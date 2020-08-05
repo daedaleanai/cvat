@@ -46,7 +46,7 @@ def writeToCsv(dirname, filename, data):
 def dump(file_object, annotations):
     from cvat.apps.dataset_manager.util import make_zip_archive
     from cvat.apps.annotation.structures import load_sequences
-    from cvat.apps.annotation.ddln_spotter_importer import CsvDirectoryImporter
+    from cvat.apps.annotation.transports.csv import CsvDirectoryImporter
     from cvat.apps.annotation.validation import validate
     from tempfile import TemporaryDirectory
 
@@ -119,9 +119,9 @@ def dump(file_object, annotations):
 def load(file_object, annotations):
     from cvat.apps.annotation.ddln_spotter_importer import (
         build_frame_id_mapping,
-        CsvZipImporter,
         add_bbox,
     )
+    from cvat.apps.annotation.transports.csv import CsvZipImporter
 
     frame_id_by_names = build_frame_id_mapping(annotations)
 

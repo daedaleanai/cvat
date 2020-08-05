@@ -107,3 +107,12 @@ class BoundingBox:
 
     def __repr__(self):
         return "BoundingBox({}, {}, {}, {})".format(self.left, self.top, self.width, self.height)
+
+
+label_by_class_id = {
+    "1": "Drone",
+    "3": "Flying bird",
+    "4": "Fixed wing aircraft",
+    "5": "Helicopter",
+    "100": "Unknown",
+}
