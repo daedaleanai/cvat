@@ -60,21 +60,23 @@ class CVATImporter:
     def iterate_frames(self):
         for frame_annotation in self._annotations.group_by_frame(omit_empty_frames=False):
             frame_name, sequence_name = parse_frame_name(frame_annotation.name)
+            frame_index = frame_annotation.frame
 
             if any(
                 shape.label.lower() == "empty" for shape in frame_annotation.labeled_shapes
             ):
-                yield CVATFrameReader(None, frame_name, sequence_name)
+                yield CVATFrameReader(None, frame_name, sequence_name, frame_index)
                 continue
 
-            yield CVATFrameReader(frame_annotation, frame_name, sequence_name)
+            yield CVATFrameReader(frame_annotation, frame_name, sequence_name, frame_index)
 
 
 class CVATFrameReader:
-    def __init__(self, frame_annotation, frame_name, sequence_name):
+    def __init__(self, frame_annotation, frame_name, sequence_name, index):
         self._frame_annotation = frame_annotation
         self.name = frame_name
         self.sequence_name = sequence_name
+        self.index = index
 
     def iterate_bboxes(self):
         if not self._frame_annotation:

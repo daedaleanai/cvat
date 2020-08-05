@@ -15,6 +15,7 @@ def validate(sequences):
 
         for frame in seq.frames:
             reporter.frame = frame.name
+            reporter.frame_index = frame.index
             reporter.count_frame(seq.name)
 
             frame_track_ids = set()
@@ -38,6 +39,7 @@ def validate(sequences):
             previous_frame = frame
 
         reporter.frame = None
+        reporter.frame_index = None
         _validate_track_id_are_consecutive(sequence_track_ids, reporter)
     return reporter
 
@@ -108,6 +110,7 @@ class ValidationReporter:
     def __init__(self):
         self.sequence = None
         self.frame = None
+        self.frame_index = None
         self.bbox_index = None
         self._violations = []
         self._frames_count_by_sequence = {}
@@ -177,7 +180,12 @@ class ValidationReporter:
         self._frames_count_by_sequence[sequence_name] = self._frames_count_by_sequence.get(sequence_name, 0) + 1
 
     def _report(self, message):
-        self._violations.append((self.sequence, self.frame, self.bbox_index, message))
+        frame_name = self.frame
+        if self.frame_index is not None:
+            index = "({})".format(self.frame_index)
+            index = index.rjust(6, ' ')
+            frame_name = "{}{}".format(frame_name, index)
+        self._violations.append((self.sequence, frame_name, self.bbox_index, message))
 
 
 def _group_violations(data):

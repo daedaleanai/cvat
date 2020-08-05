@@ -7,6 +7,8 @@ def load_sequences(importer):
     frames_by_sequence_name = defaultdict(list)
     for raw_frame in importer.iterate_frames():
         frame = Frame(raw_frame.name, list(raw_frame.iterate_bboxes()))
+        if hasattr(raw_frame, 'index'):
+            frame.index = raw_frame.index
         frames_by_sequence_name[raw_frame.sequence_name].append(frame)
 
     sequences = []
@@ -28,6 +30,7 @@ class Sequence:
 class Frame:
     def __init__(self, name, bboxes):
         self.name = name
+        self.index = None
         self.bboxes = bboxes
         self.bbox_by_track_id = {b.track_id: b for b in bboxes}
 
