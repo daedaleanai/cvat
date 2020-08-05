@@ -1,10 +1,9 @@
-from types import SimpleNamespace
-
 from django.contrib.auth.models import AnonymousUser
 from django.db import transaction
 
 from cvat.apps.annotation.annotation import Annotation
 from cvat.apps.engine.annotation import TaskAnnotation
+from cvat.apps.annotation.structures import LabeledBoundingBox
 from .utils import parse_frame_name, build_attrs_dict
 
 
@@ -71,13 +70,8 @@ class CVATFrameReader:
             xbr = xbr / width
             ybr = ybr / height
 
-            yield SimpleNamespace(
-                xtl=xtl,
-                ytl=ytl,
-                xbr=xbr,
-                ybr=ybr,
-                class_id=class_id,
-                track_id=track_id,
-                score=score,
-                source=source,
-            )
+            bbox = LabeledBoundingBox.from_two_corners(xtl, ytl, xbr, ybr, class_id, track_id)
+            if source:
+                bbox.source = source
+                bbox.score = score
+            yield bbox

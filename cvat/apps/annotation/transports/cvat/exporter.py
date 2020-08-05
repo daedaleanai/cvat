@@ -40,10 +40,10 @@ class CVATFrameWriter:
         width = self._annotations._frame_info[self._frame_id]["width"]
         height = self._annotations._frame_info[self._frame_id]["height"]
 
-        xtl = float(bbox.xtl) * width
-        ytl = float(bbox.ytl) * height
-        xbr = float(bbox.xbr) * width
-        ybr = float(bbox.ybr) * height
+        xtl = float(bbox.left) * width
+        ytl = float(bbox.top) * height
+        xbr = float(bbox.right) * width
+        ybr = float(bbox.bottom) * height
 
         attributes = [
             self._annotations.Attribute(name="Object_class", value=bbox.class_id),

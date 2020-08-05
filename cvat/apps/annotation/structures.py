@@ -109,6 +109,20 @@ class BoundingBox:
         return "BoundingBox({}, {}, {}, {})".format(self.left, self.top, self.width, self.height)
 
 
+class LabeledBoundingBox(BoundingBox):
+    def __init__(self, left, top, width, height, class_id, track_id):
+        super().__init__(left, top, width, height)
+        self.class_id = class_id
+        self.track_id = track_id
+        self.score = None
+        self.source = None
+
+    @classmethod
+    def from_two_corners(cls, xtl, ytl, xbr, ybr, class_id, track_id):
+        assert xbr >= xtl and ybr >= ytl
+        return cls(xtl, ytl, xbr - xtl, ybr - ytl, class_id, track_id)
+
+
 label_by_class_id = {
     "1": "Drone",
     "3": "Flying bird",

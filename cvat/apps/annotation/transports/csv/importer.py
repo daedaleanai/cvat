@@ -3,7 +3,8 @@ import io
 import re
 import zipfile
 from pathlib import Path
-from types import SimpleNamespace
+
+from cvat.apps.annotation.structures import LabeledBoundingBox
 
 
 class CsvZipImporter:
@@ -47,16 +48,11 @@ class FrameReader:
                 *row, score, source = row
             *points, class_id, track_id = row
             xtl, ytl, xbr, ybr = map(float, points)
-            yield SimpleNamespace(
-                xtl=xtl,
-                ytl=ytl,
-                xbr=xbr,
-                ybr=ybr,
-                class_id=class_id,
-                track_id=track_id,
-                score=score,
-                source=source,
-            )
+            bbox = LabeledBoundingBox.from_two_corners(xtl, ytl, xbr, ybr, class_id, track_id)
+            if source:
+                bbox.source = source
+                bbox.score = score
+            yield bbox
 
 
 _filename_regex = re.compile(r"(.*)/(.*)_y.csv")
