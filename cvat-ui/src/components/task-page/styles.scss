@@ -56,7 +56,7 @@
     }
 }
 
-.cvat-task-job-list {
+.cvat-task-job-list, .validation-report-block {
     width: 100%;
     height: auto;
     border: 1px solid $border-color-1;
@@ -96,7 +96,7 @@
     margin-left: 15px;
 }
 
-.ant-typography.cvat-jobs-header {
+.ant-typography.cvat-jobs-header, .ant-typography.cvat-validation-header {
     margin-bottom: 0px;
     font-size: 20px;
     font-weight: bold;

@@ -1235,6 +1235,22 @@
         }
 
         /**
+            * Method validates a task
+            * @method validate
+            * @memberof module:API.cvat.classes.Task
+            * @readonly
+            * @instance
+            * @async
+            * @throws {module:API.cvat.exceptions.ServerError}
+            * @throws {module:API.cvat.exceptions.PluginError}
+        */
+        async validate() {
+            const result = await PluginRegistry
+                .apiWrapper.call(this, Task.prototype.validate);
+            return result;
+        }
+
+        /**
             * Method deletes a task from a server
             * @method delete
             * @memberof module:API.cvat.classes.Task
@@ -1506,6 +1522,11 @@
 
     Task.prototype.delete.implementation = async function () {
         const result = await serverProxy.tasks.deleteTask(this.id);
+        return result;
+    };
+
+    Task.prototype.validate.implementation = async function () {
+        const result = await serverProxy.tasks.validateTask(this.id);
         return result;
     };
 
