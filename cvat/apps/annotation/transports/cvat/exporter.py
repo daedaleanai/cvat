@@ -1,4 +1,4 @@
-from cvat.apps.annotation.structures import label_by_class_id
+from cvat.apps.annotation.structures import label_by_class_id, Runway, LabeledBoundingBox
 from .utils import parse_frame_name
 
 
@@ -36,7 +36,7 @@ class CVATFrameWriter:
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
 
-    def write_bbox(self, bbox):
+    def write_bbox(self, bbox: LabeledBoundingBox):
         width = self._annotations._frame_info[self._frame_id]["width"]
         height = self._annotations._frame_info[self._frame_id]["height"]
 
@@ -64,5 +64,21 @@ class CVATFrameWriter:
             "occluded": False,
             "type": "rectangle",
             "label": label_by_class_id[bbox.class_id],
+        }
+        self._annotations.add_shape(self._annotations.LabeledShape(**shape))
+
+    def write_runway(self, runway: Runway):
+        attributes = runway.get_attributes()
+        attributes = [self._annotations.Attribute(name=name, value=value) for name, value in attributes.items()]
+
+        shape = {
+            "attributes": attributes,
+            "points": runway.get_points_list(),
+            "frame": self._frame_id,
+            "group": 0,
+            "z_order": 0,
+            "occluded": False,
+            "type": "polyline",
+            "label": "Runway",
         }
         self._annotations.add_shape(self._annotations.LabeledShape(**shape))

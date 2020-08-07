@@ -131,6 +131,14 @@ class RunwayPoint:
         self.x = x
         self.y = y
 
+    def has_valid_coordinates(self):
+        return self.x is not None and self.y is not None
+
+    def get_midpoint(self, other: 'RunwayPoint', visible=False):
+        x = self.x + (other.x - self.x) // 2
+        y = self.y + (other.y - self.y) // 2
+        return RunwayPoint(visible, x, y)
+
     @classmethod
     def from_row(cls, row):
         visible, x, y = row
@@ -190,6 +198,34 @@ class Runway:
         if not violators:
             return None
         return "Runway is visible, but its {} points is not".format(', '.join(violators))
+
+    def get_points_list(self):
+        threshold_left = self.threshold_left
+        if not threshold_left.has_valid_coordinates():
+            threshold_left = self.start_left.get_midpoint(self.end_left)
+
+        threshold_right = self.threshold_right
+        if not threshold_right.has_valid_coordinates():
+            threshold_right = self.start_right.get_midpoint(self.end_right)
+
+        result = []
+        points = [self.start_left, self.start_right, self.end_left, self.end_right, threshold_left, threshold_right]
+        for point in points:
+            result.append(point.x)
+            result.append(point.y)
+        return result
+
+    def get_attributes(self):
+        return {
+            "Runway_visibility": str(self.full_visible).lower(),
+            "Runway_ID": self.id,
+            "Left_D(1)": int(self.start_left.visible),
+            "Right_D(2)": int(self.start_right.visible),
+            "Left_U(3)": int(self.end_left.visible),
+            "Right_U(4)": int(self.end_right.visible),
+            "Left_M(5)": int(self.threshold_left.visible),
+            "Right_M(6)": int(self.threshold_right.visible),
+        }
 
 
 label_by_class_id = {
