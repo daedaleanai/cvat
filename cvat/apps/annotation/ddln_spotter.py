@@ -46,7 +46,7 @@ def writeToCsv(dirname, filename, data):
 def dump(file_object, annotations):
     from cvat.apps.dataset_manager.util import make_zip_archive
     from cvat.apps.annotation.structures import load_sequences
-    from cvat.apps.annotation.ddln_spotter_importer import CsvDirectoryImporter
+    from cvat.apps.annotation.transports.csv import CsvDirectoryImporter
     from cvat.apps.annotation.validation import validate
     from tempfile import TemporaryDirectory
 
@@ -116,18 +116,14 @@ def dump(file_object, annotations):
         reporter.write_text_report(open(validation_file, 'wt'))
         make_zip_archive(temp_dir, file_object)
 
-def load(file_object, annotations):
-    from cvat.apps.annotation.ddln_spotter_importer import (
-        build_frame_id_mapping,
-        CsvZipImporter,
-        add_bbox,
-    )
 
-    frame_id_by_names = build_frame_id_mapping(annotations)
+def load(file_object, annotations):
+    from cvat.apps.annotation.transports.csv import CsvZipImporter
+    from cvat.apps.annotation.transports.cvat import CVATExporter
 
     importer = CsvZipImporter(file_object)
-    for frame_reader in importer.iterate_frames():
-        frame_id = frame_id_by_names[frame_reader.name, frame_reader.sequence_name]
-        for bbox in frame_reader.iterate_bboxes():
-            add_bbox(bbox, frame_id, annotations)
-
+    with CVATExporter(annotations) as exporter:
+        for frame_reader in importer.iterate_frames():
+            with exporter.begin_frame(frame_reader.name, frame_reader.sequence_name) as frame_writer:
+                for bbox in frame_reader.iterate_bboxes():
+                    frame_writer.write_bbox(bbox)

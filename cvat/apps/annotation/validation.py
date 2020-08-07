@@ -1,8 +1,7 @@
 import io
 from itertools import groupby
 
-from cvat.apps.annotation.ddln_spotter_importer import label_by_class_id
-from cvat.apps.annotation.structures import BoundingBox
+from cvat.apps.annotation.structures import BoundingBox, label_by_class_id
 
 
 def validate(sequences):
@@ -73,8 +72,6 @@ def _validate_position_change(bbox, previous_frame, jump_threshold, reporter):
     if not (previous_bbox and is_valid_bbox(previous_bbox) and is_valid_bbox(bbox)):
         return
 
-    bbox = BoundingBox.from_two_corners(bbox.xtl, bbox.ytl, bbox.xbr, bbox.ybr)
-    previous_bbox = BoundingBox.from_two_corners(previous_bbox.xtl, previous_bbox.ytl, previous_bbox.xbr, previous_bbox.ybr)
     if bbox.almost_equals(previous_bbox, abs_tol=1e-5):
         reporter.report_no_move()
         return
@@ -87,22 +84,22 @@ def _validate_position_change(bbox, previous_frame, jump_threshold, reporter):
 
 
 def _validate_coordinates(bbox, reporter):
-    for coordinate in ('xtl', 'ytl', 'xbr', 'ybr'):
+    for coordinate in ('left', 'top', 'right', 'bottom'):
         value = getattr(bbox, coordinate)
         if not (0 <= value <= 1):
             reporter.report_out_of_bounds(coordinate, value)
 
-    if bbox.xtl > bbox.xbr:
-        reporter.report_xtl_gt_xbr()
-    if bbox.ytl > bbox.ybr:
-        reporter.report_ytl_gt_ybr()
+    if bbox.left > bbox.right:
+        reporter.report_left_gt_right()
+    if bbox.top > bbox.bottom:
+        reporter.report_top_gt_bottom()
 
 
 def is_valid_bbox(bbox):
     return (
-        all(0 <= getattr(bbox, c) <= 1 for c in ('xtl', 'ytl', 'xbr', 'ybr'))
-        and bbox.xtl <= bbox.xbr
-        and bbox.ytl <= bbox.ybr
+        all(0 <= getattr(bbox, c) <= 1 for c in ('left', 'top', 'right', 'bottom'))
+        and bbox.left <= bbox.right
+        and bbox.top <= bbox.bottom
     )
 
 
@@ -149,11 +146,11 @@ class ValidationReporter:
     def report_out_of_bounds(self, coordinate, value):
         self._report("{} value {} is not within [0, 1] interval".format(coordinate, value))
 
-    def report_xtl_gt_xbr(self):
-        self._report("xtl value is greater than xbr value")
+    def report_left_gt_right(self):
+        self._report("left coordinate is greater than right value")
 
-    def report_ytl_gt_ybr(self):
-        self._report("ytl value is greater than ybr value")
+    def report_top_gt_bottom(self):
+        self._report("top coordinate is greater than bottom coordinate")
 
     def report_track_id_duplication(self, track_id):
         self._report("track-id '{}' is duplicated on the frame".format(track_id))

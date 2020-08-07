@@ -47,7 +47,7 @@ from cvat.apps.authentication import auth
 from rest_framework.permissions import SAFE_METHODS
 from cvat.apps.annotation.models import AnnotationDumper, AnnotationLoader
 from cvat.apps.annotation.format import get_annotation_formats
-from cvat.apps.annotation.ddln_spotter_importer import CVATImporter
+from cvat.apps.annotation.transports.cvat import CVATImporter
 from cvat.apps.annotation.structures import load_sequences
 from cvat.apps.annotation.validation import validate
 import cvat.apps.dataset_manager.task as DatumaroTask

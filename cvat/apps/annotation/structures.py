@@ -1,6 +1,7 @@
 import math
 import sys
 from collections import defaultdict
+from typing import Optional
 
 
 def load_sequences(importer):
@@ -107,3 +108,134 @@ class BoundingBox:
 
     def __repr__(self):
         return "BoundingBox({}, {}, {}, {})".format(self.left, self.top, self.width, self.height)
+
+
+class LabeledBoundingBox(BoundingBox):
+    def __init__(self, left, top, width, height, class_id, track_id):
+        super().__init__(left, top, width, height)
+        self.class_id = class_id
+        self.track_id = track_id
+        self.score = None
+        self.source = None
+
+    @classmethod
+    def from_two_corners(cls, xtl, ytl, xbr, ybr, class_id, track_id):
+        assert xbr >= xtl and ybr >= ytl
+        return cls(xtl, ytl, xbr - xtl, ybr - ytl, class_id, track_id)
+
+
+class RunwayPoint:
+    def __init__(self, visible: bool, x: Optional[int], y: Optional[int]):
+        # for non-visible threshold points coordinates are not specified, i.e. their values are set to None
+        self.visible = visible
+        self.x = x
+        self.y = y
+
+    def has_valid_coordinates(self):
+        return self.x is not None and self.y is not None
+
+    def get_midpoint(self, other: 'RunwayPoint', visible=False):
+        x = self.x + (other.x - self.x) // 2
+        y = self.y + (other.y - self.y) // 2
+        return RunwayPoint(visible, x, y)
+
+    @classmethod
+    def from_row(cls, row):
+        visible, x, y = row
+        visible = bool(int(visible))
+        x = _deserialize(x)
+        y = _deserialize(y)
+        return cls(visible, x, y)
+
+    def as_row(self):
+        return int(self.visible), _serialize(self.x), _serialize(self.y)
+
+
+def _serialize(coordinate):
+    return '' if coordinate is None else coordinate
+
+
+def _deserialize(input):
+    return None if input == '' else int(input)
+
+
+class Runway:
+    def __init__(
+        self,
+        id: str,
+        full_visible: bool,
+        start_left: RunwayPoint,
+        start_right: RunwayPoint,
+        end_left: RunwayPoint,
+        end_right: RunwayPoint,
+        threshold_left: RunwayPoint,
+        threshold_right: RunwayPoint
+    ):
+        # non-visible threshold points coordinates are not exported, so unset them
+        if not threshold_left.visible:
+            threshold_left = RunwayPoint(False, None, None)
+        if not threshold_right.visible:
+            threshold_right = RunwayPoint(False, None, None)
+
+        self.id = id
+        self.full_visible = full_visible
+        self.start_left = start_left
+        self.start_right = start_right
+        self.end_left = end_left
+        self.end_right = end_right
+        self.threshold_left = threshold_left
+        self.threshold_right = threshold_right
+
+    def validate_visibility(self):
+        """Returns None if runway visibility is valid, error message otherwise"""
+        if not self.full_visible:
+            return None
+        violators = set()
+        for point_name in ('start_left', 'start_right', 'end_left', 'end_right'):
+            point = getattr(self, point_name)
+            if not point.visible:
+                name = point_name.replace('_', ' ')
+                violators.add(name)
+        if not violators:
+            return None
+        return "Runway is visible, but its {} points are not".format(', '.join(violators))
+
+    def get_points_list(self):
+        # have to provide valid coordinates for all points to pass cvat validation,
+        # but coordinates for non-visible threshold points are not stored in csv,
+        # so have to interpolate them
+        threshold_left = self.threshold_left
+        if not threshold_left.has_valid_coordinates():
+            threshold_left = self.start_left.get_midpoint(self.end_left)
+
+        threshold_right = self.threshold_right
+        if not threshold_right.has_valid_coordinates():
+            threshold_right = self.start_right.get_midpoint(self.end_right)
+
+        result = []
+        points = [self.start_left, self.start_right, self.end_left, self.end_right, threshold_left, threshold_right]
+        for point in points:
+            result.append(point.x)
+            result.append(point.y)
+        return result
+
+    def get_attributes(self):
+        return {
+            "Runway_visibility": str(self.full_visible).lower(),
+            "Runway_ID": self.id,
+            "Left_D(1)": int(self.start_left.visible),
+            "Right_D(2)": int(self.start_right.visible),
+            "Left_U(3)": int(self.end_left.visible),
+            "Right_U(4)": int(self.end_right.visible),
+            "Left_M(5)": int(self.threshold_left.visible),
+            "Right_M(6)": int(self.threshold_right.visible),
+        }
+
+
+label_by_class_id = {
+    "1": "Drone",
+    "3": "Flying bird",
+    "4": "Fixed wing aircraft",
+    "5": "Helicopter",
+    "100": "Unknown",
+}
