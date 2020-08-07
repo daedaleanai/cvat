@@ -31,6 +31,9 @@ class CsvZipExporter:
         path = '{}/{}_y.csv'.format(sequence_name, frame_name)
         return FrameZipWriter(self._archive, path)
 
+    def get_archive(self):
+        return self._archive
+
 
 class BaseWriter:
     def write_bbox(self, bbox):

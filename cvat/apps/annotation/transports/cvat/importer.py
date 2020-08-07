@@ -78,10 +78,20 @@ class CVATFrameReader:
                 bbox.score = score
             yield bbox
 
+    def get_log_prefix(self):
+        if self.index:
+            index = self.index
+            index = str(index).rjust(6, ' ')
+            index = " ({})".format(index)
+        else:
+            index = ''
+        return "seq {!r} frame {!r} {}: ".format(self.sequence_name, self.name, index)
+
     def iterate_runways(self):
         if not self._frame_annotation:
             return
 
+        self._logger.prefix = self.get_log_prefix()
         try:
             runway = runway_module.parse_points(self._frame_annotation.labeled_shapes)
             if runway:
