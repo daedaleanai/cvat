@@ -171,6 +171,7 @@ class Runway:
         threshold_left: RunwayPoint,
         threshold_right: RunwayPoint
     ):
+        # non-visible threshold points coordinates are not exported, so unset them
         if not threshold_left.visible:
             threshold_left = RunwayPoint(False, None, None)
         if not threshold_right.visible:
@@ -200,6 +201,9 @@ class Runway:
         return "Runway is visible, but its {} points are not".format(', '.join(violators))
 
     def get_points_list(self):
+        # have to provide valid coordinates for all points to pass cvat validation,
+        # but coordinates for non-visible threshold points are not stored in csv,
+        # so have to interpolate them
         threshold_left = self.threshold_left
         if not threshold_left.has_valid_coordinates():
             threshold_left = self.start_left.get_midpoint(self.end_left)
