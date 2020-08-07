@@ -197,7 +197,7 @@ class Runway:
                 violators.add(name)
         if not violators:
             return None
-        return "Runway is visible, but its {} points is not".format(', '.join(violators))
+        return "Runway is visible, but its {} points are not".format(', '.join(violators))
 
     def get_points_list(self):
         threshold_left = self.threshold_left
