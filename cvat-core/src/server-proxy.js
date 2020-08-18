@@ -290,7 +290,7 @@
                 });
             }
 
-            async function createTask(taskData, files, onUpdate) {
+            async function createTask(taskData, files, splitOnSequence, onUpdate) {
                 const { backendAPI } = config;
 
                 async function wait(id) {
@@ -355,7 +355,8 @@
 
                 onUpdate('The data is being uploaded to the server..');
                 try {
-                    await Axios.post(`${backendAPI}/tasks/${response.data.id}/data`, batchOfFiles, {
+                    const endpoint = `${backendAPI}/tasks/${response.data.id}/data?split_on_sequence=${splitOnSequence}`;
+                    await Axios.post(endpoint, batchOfFiles, {
                         proxy: config.proxy,
                     });
                 } catch (errorData) {
