@@ -400,9 +400,11 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
         """
         db_task = self.get_object() # call check_object_permissions as well
         serializer = TaskDataSerializer(db_task, data=request.data)
+        split_on_sequence = request.query_params.get('split_on_sequence', 'false')
+        split_on_sequence = serializers.BooleanField().to_internal_value(split_on_sequence)
         if serializer.is_valid(raise_exception=True):
             serializer.save()
-            task.create(db_task.id, serializer.data)
+            task.create(db_task.id, serializer.data, split_on_sequence)
             return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
 
     @swagger_auto_schema(method='get', operation_summary='Method returns annotations for a specific task')
