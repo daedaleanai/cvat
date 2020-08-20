@@ -1,4 +1,5 @@
 import ast
+import itertools
 import re
 from collections import namedtuple
 import importlib
@@ -59,6 +60,20 @@ def execute_python_code(source_code, global_vars=None, local_vars=None):
         _, _, tb = sys.exc_info()
         line_number = traceback.extract_tb(tb)[-1][1]
         raise InterpreterError("{} at line {}: {}".format(error_class, line_number, details))
+
+
+def load_instances(model, primary_keys):
+    """Load model instances preserving order of keys in the list."""
+    instance_by_pk = model.objects.in_bulk(primary_keys)
+    return [instance_by_pk[pk] for pk in primary_keys]
+
+
+def group_on_delimiter(iterable, delimiter):
+    """Group elements separated by delimiter into chunks.
+
+    group(['a', 'b', '', 'c', 'd', '', 'e'], '') => [['a', 'b'], ['c', 'd'], ['e']]
+    """
+    return [list(g) for is_delimiter, g in itertools.groupby(iterable, lambda el: el == delimiter) if not is_delimiter]
 
 
 def natural_order(text):
