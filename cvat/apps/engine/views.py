@@ -40,6 +40,7 @@ from cvat.apps.engine.serializers import (TaskSerializer, UserSerializer,
    RqStatusSerializer, TaskDataSerializer, LabeledDataSerializer,
    PluginSerializer, FileInfoSerializer, LogEventSerializer,
    ProjectSerializer, BasicUserSerializer)
+from cvat.apps.engine.utils import natural_order
 from cvat.apps.annotation.serializers import AnnotationFileSerializer, AnnotationFormatSerializer
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
@@ -201,7 +202,7 @@ class ServerViewSet(viewsets.ViewSet):
                 if entry_type:
                     data.append({"name": entry.name, "type": entry_type})
 
-            data.sort(key=lambda e: (e["type"], e["name"]))
+            data.sort(key=lambda e: (e["type"], natural_order(e["name"])))
 
             serializer = FileInfoSerializer(many=True, data=data)
             if serializer.is_valid(raise_exception=True):
