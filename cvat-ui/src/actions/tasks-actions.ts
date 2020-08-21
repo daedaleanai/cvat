@@ -419,6 +419,8 @@ ThunkAction<Promise<void>, {}, {}, AnyAction> {
         taskInstance.remoteFiles = data.files.remote;
         taskInstance.creationOptions = {
             splitOnSequence: data.advanced.splitOnSequence,
+            chunkSize: data.advanced.chunkSize,
+            assignees: data.advanced.assignees,
         };
 
         if (data.advanced.repository) {

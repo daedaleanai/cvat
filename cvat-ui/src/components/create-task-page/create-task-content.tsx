@@ -43,6 +43,8 @@ const defaultState = {
     advanced: {
         zOrder: false,
         splitOnSequence: true,
+        chunkSize: 1000,
+        assignees: [],
         lfs: false,
     },
     labels: [],
