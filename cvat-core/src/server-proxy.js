@@ -290,7 +290,7 @@
                 });
             }
 
-            async function createTask(taskData, files, splitOnSequence, onUpdate) {
+            async function createTask(taskData, files, options, onUpdate) {
                 const { backendAPI } = config;
 
                 async function wait(id) {
@@ -355,8 +355,9 @@
 
                 onUpdate('The data is being uploaded to the server..');
                 try {
-                    const endpoint = `${backendAPI}/tasks/${response.data.id}/data?split_on_sequence=${splitOnSequence}`;
-                    await Axios.post(endpoint, batchOfFiles, {
+                    const queryParams = new URLSearchParams();
+                    queryParams.append('split_on_sequence', options.splitOnSequence);
+                    await Axios.post(`${backendAPI}/tasks/${response.data.id}/data?${queryParams}`, batchOfFiles, {
                         proxy: config.proxy,
                     });
                 } catch (errorData) {

@@ -417,7 +417,9 @@ ThunkAction<Promise<void>, {}, {}, AnyAction> {
         taskInstance.clientFiles = data.files.local;
         taskInstance.serverFiles = data.files.share;
         taskInstance.remoteFiles = data.files.remote;
-        taskInstance.splitOnSequence = data.advanced.splitOnSequence;
+        taskInstance.creationOptions = {
+            splitOnSequence: data.advanced.splitOnSequence,
+        };
 
         if (data.advanced.repository) {
             const [gitPlugin] = (await cvat.plugins.list()).filter(
