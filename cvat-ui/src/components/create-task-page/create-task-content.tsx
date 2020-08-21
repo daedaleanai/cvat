@@ -42,6 +42,7 @@ const defaultState = {
     },
     advanced: {
         zOrder: false,
+        splitOnSequence: true,
         lfs: false,
     },
     labels: [],

@@ -84,6 +84,24 @@ class AdvancedConfigurationForm extends React.PureComponent<Props> {
         );
     }
 
+    private renderSplitOnSequence(): JSX.Element {
+        const { form } = this.props;
+        return (
+            <Form.Item help='Create separate job for each sequence'>
+                {form.getFieldDecorator('splitOnSequence', {
+                    initialValue: true,
+                    valuePropName: 'checked',
+                })(
+                    <Checkbox>
+                        <Text className='cvat-text-color'>
+                            Split on sequence
+                        </Text>
+                    </Checkbox>,
+                )}
+            </Form.Item>
+        );
+    }
+
     private renderImageQuality(): JSX.Element {
         const { form } = this.props;
 
@@ -297,6 +315,12 @@ class AdvancedConfigurationForm extends React.PureComponent<Props> {
                 <Row>
                     <Col>
                         {this.renderZOrder()}
+                    </Col>
+                </Row>
+
+                <Row>
+                    <Col>
+                        {this.renderSplitOnSequence()}
                     </Col>
                 </Row>
 

@@ -1,4 +1,5 @@
 import ast
+import re
 from collections import namedtuple
 import importlib
 import sys
@@ -58,3 +59,14 @@ def execute_python_code(source_code, global_vars=None, local_vars=None):
         _, _, tb = sys.exc_info()
         line_number = traceback.extract_tb(tb)[-1][1]
         raise InterpreterError("{} at line {}: {}".format(error_class, line_number, details))
+
+
+def natural_order(text):
+    """Key function for sorting in 'human' order.
+    That way string "TP14_a2a2_13_1" goes after "TP14_a2a2_2_0", not before.
+    """
+    return [_try_int(c) for c in re.split(r'(\d+)', text)]
+
+
+def _try_int(text):
+    return int(text) if text.isdigit() else text

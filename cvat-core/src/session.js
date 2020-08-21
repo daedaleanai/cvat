@@ -1516,7 +1516,7 @@
             remote_files: this.remoteFiles,
         };
 
-        const task = await serverProxy.tasks.createTask(taskData, taskFiles, onUpdate);
+        const task = await serverProxy.tasks.createTask(taskData, taskFiles, this.splitOnSequence, onUpdate);
         return new Task(task);
     };
 

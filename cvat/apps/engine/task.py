@@ -3,6 +3,7 @@
 #
 # SPDX-License-Identifier: MIT
 
+import itertools
 import os
 import sys
 import rq
@@ -23,13 +24,14 @@ from distutils.dir_util import copy_tree
 
 from . import models
 from .log import slogger
+from ..annotation.transports.cvat.utils import parse_frame_name
 
 ############################# Low Level server API
 
-def create(tid, data):
+def create(tid, data, split_on_sequence):
     """Schedule the task"""
     q = django_rq.get_queue('default')
-    q.enqueue_call(func=_create_thread, args=(tid, data),
+    q.enqueue_call(func=_create_thread, args=(tid, data, split_on_sequence),
         job_id="/api/v1/tasks/{}".format(tid))
 
 @transaction.atomic
@@ -100,10 +102,18 @@ def _copy_data_from_share(server_files, upload_dir):
                 os.makedirs(target_dir)
             shutil.copyfile(source_path, target_path)
 
-def _save_task_to_db(db_task):
+def _save_task_to_db(db_task, segments):
     job = rq.get_current_job()
     job.meta['status'] = 'Task is being saved in database'
     job.save_meta()
+
+    if segments:
+        for images_batch in segments:
+            start_frame = images_batch[0].frame
+            stop_frame = images_batch[-1].frame
+            _create_job(db_task, start_frame, stop_frame)
+        db_task.save()
+        return
 
     segment_size = db_task.segment_size
     segment_step = segment_size
@@ -124,21 +134,23 @@ def _save_task_to_db(db_task):
     for x in range(0, db_task.size, segment_step):
         start_frame = x
         stop_frame = min(x + segment_size - 1, db_task.size - 1)
-
-        slogger.glob.info("New segment for task #{}: start_frame = {}, \
-            stop_frame = {}".format(db_task.id, start_frame, stop_frame))
-
-        db_segment = models.Segment()
-        db_segment.task = db_task
-        db_segment.start_frame = start_frame
-        db_segment.stop_frame = stop_frame
-        db_segment.save()
-
-        db_job = models.Job()
-        db_job.segment = db_segment
-        db_job.save()
+        _create_job(db_task, start_frame, stop_frame)
 
     db_task.save()
+
+
+def _create_job(db_task, start_frame, stop_frame):
+    message = "New segment for task #{}: start_frame = {}, stop_frame = {}".format(db_task.id, start_frame, stop_frame)
+    slogger.glob.info(message)
+    db_segment = models.Segment()
+    db_segment.task = db_task
+    db_segment.start_frame = start_frame
+    db_segment.stop_frame = stop_frame
+    db_segment.save()
+    db_job = models.Job()
+    db_job.segment = db_segment
+    db_job.save()
+
 
 def _validate_data(data):
     share_root = settings.SHARE_ROOT
@@ -233,7 +245,7 @@ def _download_data(urls, upload_dir):
     return list(local_files.keys())
 
 @transaction.atomic
-def _create_thread(tid, data):
+def _create_thread(tid, data, split_on_sequence):
     slogger.glob.info("create task #{}".format(tid))
 
     db_task = models.Task.objects.select_for_update().get(pk=tid)
@@ -309,4 +321,9 @@ def _create_thread(tid, data):
         models.Image.objects.bulk_create(db_images)
 
     slogger.glob.info("Founded frames {} for task #{}".format(db_task.size, tid))
-    _save_task_to_db(db_task)
+
+    if split_on_sequence:
+        segments = [list(group) for seq_name, group in itertools.groupby(db_images, lambda i: parse_frame_name(i.path)[1])]
+    else:
+        segments = []
+    _save_task_to_db(db_task, segments)
