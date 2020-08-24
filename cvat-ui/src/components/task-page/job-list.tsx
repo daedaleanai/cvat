@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-import React from 'react';
+import React, { useState } from 'react';
 
 import { RouteComponentProps } from 'react-router';
 import { withRouter } from 'react-router-dom';
@@ -31,6 +31,7 @@ const baseURL = core.config.backendAPI.slice(0, -7);
 interface Props {
     taskInstance: any;
     registeredUsers: any[];
+    me: any;
     onJobUpdate(jobInstance: any): void;
 }
 
@@ -38,11 +39,13 @@ function JobListComponent(props: Props & RouteComponentProps): JSX.Element {
     const {
         taskInstance,
         registeredUsers,
+        me,
         onJobUpdate,
         history: {
             push,
         },
     } = props;
+    const [onlyMine, setOnlyMine] = useState(false);
 
     const { jobs, id: taskId } = taskInstance;
     const columns = [{
@@ -105,6 +108,8 @@ function JobListComponent(props: Props & RouteComponentProps): JSX.Element {
         title: 'Assignee',
         dataIndex: 'assignee',
         key: 'assignee',
+        filteredValue: onlyMine ? [me.id] : null,
+        onFilter: (value, record) => (record.assignee.assignee || {}).id === value,
         render: (jobInstance: any): JSX.Element => {
             const assignee = jobInstance.assignee ? jobInstance.assignee.username : null;
 
@@ -150,6 +155,10 @@ function JobListComponent(props: Props & RouteComponentProps): JSX.Element {
         return acc;
     }, []);
 
+    const jobsMessage = onlyMine ?
+        `${data.filter(r => (r.assignee.assignee || {}).id === me.id).length} mine jobs` :
+        `${completed} of ${data.length} jobs`;
+
     return (
         <div className='cvat-task-job-list'>
             <Row type='flex' justify='space-between' align='middle'>
@@ -182,9 +191,12 @@ function JobListComponent(props: Props & RouteComponentProps): JSX.Element {
                     </Tooltip>
                 </Col>
                 <Col>
-                    <Text className='cvat-text-color'>
-                        {`${completed} of ${data.length} jobs`}
-                    </Text>
+                    <Button
+                        type='link'
+                        onClick={() => setOnlyMine(value => !value)}
+                    >
+                        {jobsMessage}
+                    </Button>
                 </Col>
             </Row>
             <Table
