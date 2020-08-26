@@ -14,6 +14,19 @@ from cvat.apps.engine.log import slogger
 
 
 class CommaSeparatedValuesField(serializers.ListField):
+    """
+    `ListField`-like field, but instead of deserializing an array storing raw values,
+    it deserializes a string storing raw values delimited by 'separator' (defaults to comma).
+
+    It is useful for processing `request.query_params`, as `URLSearchParams()` serializes lists that way:
+    ```js
+        const queryParams = new URLSearchParams();
+        queryParams.append('items', [1, 2, 3]);
+        queryParams.toString(); // -> "items=1%2C2%2C3"
+    ```
+
+    Might also work for query params passed the following way: "?items=1&items=2&items=3" but I haven't tested that.
+    """
     default_error_messages = {
         'not_a_string': 'Expected a string.',
     }
