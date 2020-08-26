@@ -2,6 +2,7 @@
 /share
 /data
 /media
+/sensitive-data
 /.env
 /.vscode
 /db.sqlite3

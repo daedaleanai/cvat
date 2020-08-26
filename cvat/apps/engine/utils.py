@@ -5,6 +5,7 @@ from collections import namedtuple
 import importlib
 import sys
 import traceback
+from functools import wraps
 
 Import = namedtuple("Import", ["module", "name", "alias"])
 
@@ -60,6 +61,20 @@ def execute_python_code(source_code, global_vars=None, local_vars=None):
         _, _, tb = sys.exc_info()
         line_number = traceback.extract_tb(tb)[-1][1]
         raise InterpreterError("{} at line {}: {}".format(error_class, line_number, details))
+
+
+def singleton(constructor):
+    """Decorator for turning function into singleton constructor. Function should take no arguments. Not thread-safe."""
+    instance = None
+
+    @wraps(constructor)
+    def inner():
+        nonlocal instance
+        if instance is None:
+            instance = constructor()
+        return instance
+
+    return inner
 
 
 def load_instances(model, primary_keys):

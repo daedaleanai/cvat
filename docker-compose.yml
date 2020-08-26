@@ -58,6 +58,7 @@ services:
       - cvat_keys:/home/django/keys
       - cvat_logs:/home/django/logs
       - cvat_models:/home/django/models
+      - ./sensitive-data:/home/django/sensitive-data
 
   cvat_ui:
     container_name: cvat_ui
