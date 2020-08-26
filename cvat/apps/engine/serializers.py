@@ -13,6 +13,48 @@ from cvat.apps.engine import models
 from cvat.apps.engine.log import slogger
 
 
+class CommaSeparatedValuesField(serializers.ListField):
+    """
+    `ListField`-like field, but instead of deserializing an array storing raw values,
+    it deserializes a string storing raw values delimited by 'separator' (defaults to comma).
+
+    It is useful for processing `request.query_params`, as `URLSearchParams()` serializes lists that way:
+    ```js
+        const queryParams = new URLSearchParams();
+        queryParams.append('items', [1, 2, 3]);
+        queryParams.toString(); // -> "items=1%2C2%2C3"
+    ```
+
+    Might also work for query params passed the following way: "?items=1&items=2&items=3" but I haven't tested that.
+    """
+    default_error_messages = {
+        'not_a_string': 'Expected a string.',
+    }
+
+    def __init__(self, *args, **kwargs):
+        self.separator = kwargs.pop('separator', ',')
+        super().__init__(*args, **kwargs)
+
+    def get_value(self, dictionary):
+        value = super().get_value(dictionary)
+        if isinstance(value, list):
+            return self.separator.join(value)
+        return value
+
+    def to_internal_value(self, data):
+        if not isinstance(data, str):
+            self.fail('not_a_string')
+        if data:
+            data = data.split(self.separator)
+        else:
+            data = []
+        return super().to_internal_value(data)
+
+    def to_representation(self, data):
+        data = super().to_representation(data)
+        return self.separator.join(data)
+
+
 class AttributeSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.AttributeSpec
@@ -147,6 +189,23 @@ class TaskDataSerializer(serializers.ModelSerializer):
             remote_file.save()
 
         return instance
+
+
+class DataOptionsSerializer(serializers.Serializer):
+    split_on_sequence = serializers.BooleanField(default=False)
+    assignees = CommaSeparatedValuesField(
+            child=serializers.IntegerField(),
+            default=[],
+        )
+    chunk_size = serializers.IntegerField(default=None, min_value=1)
+
+    def validate(self, data):
+        if not data['split_on_sequence'] and data['assignees']:
+            raise serializers.ValidationError("When split on sequence is off, assignees are ignored")
+        if data['assignees'] and data['chunk_size'] is None:
+            raise serializers.ValidationError("When assignees are provided chunk size should be provided as well")
+        return data
+
 
 class WriteOnceMixin:
     """Adds support for write once fields to serializers.

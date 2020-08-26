@@ -18,6 +18,7 @@ interface OwnProps {
 
 interface StateToProps {
     registeredUsers: any[];
+    me: any;
 }
 
 interface DispatchToProps {
@@ -27,6 +28,7 @@ interface DispatchToProps {
 function mapStateToProps(state: CombinedState): StateToProps {
     return {
         registeredUsers: state.users.users,
+        me: state.auth.user,
     };
 }
 
@@ -39,6 +41,7 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
 function TaskPageContainer(props: StateToProps & DispatchToProps & OwnProps): JSX.Element {
     const {
         task,
+        me,
         registeredUsers,
         onJobUpdate,
     } = props;
@@ -46,6 +49,7 @@ function TaskPageContainer(props: StateToProps & DispatchToProps & OwnProps): JS
     return (
         <JobListComponent
             taskInstance={task.instance}
+            me={me}
             registeredUsers={registeredUsers}
             onJobUpdate={onJobUpdate}
         />

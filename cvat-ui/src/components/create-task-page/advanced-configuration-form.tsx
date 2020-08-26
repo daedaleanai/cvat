@@ -3,12 +3,14 @@
 // SPDX-License-Identifier: MIT
 
 import React from 'react';
+import { connect } from 'react-redux';
 
 import {
     Row,
     Col,
     Icon,
     Input,
+    Select,
     Checkbox,
     Tooltip,
 } from 'antd';
@@ -17,6 +19,7 @@ import Form, { FormComponentProps } from 'antd/lib/form/Form';
 import Text from 'antd/lib/typography/Text';
 
 import patterns from 'utils/validation-patterns';
+import { CombinedState } from 'reducers/interfaces';
 
 export interface AdvancedConfiguration {
     bugTracker?: string;
@@ -31,10 +34,20 @@ export interface AdvancedConfiguration {
     repository?: string;
 }
 
-type Props = FormComponentProps & {
+interface StateToProps {
+    users: any[];
+}
+
+type Props = FormComponentProps & StateToProps & {
     onSubmit(values: AdvancedConfiguration): void;
     installedGit: boolean;
 };
+
+function mapStateToProps(state: CombinedState): StateToProps {
+    return {
+        users: state.users.users,
+    };
+}
 
 class AdvancedConfigurationForm extends React.PureComponent<Props> {
     public submit(): Promise<void> {
@@ -98,6 +111,50 @@ class AdvancedConfigurationForm extends React.PureComponent<Props> {
                         </Text>
                     </Checkbox>,
                 )}
+            </Form.Item>
+        );
+    }
+
+    private renderAssigneesSelector(): JSX.Element {
+        const { form, users } = this.props;
+
+        return (
+            <Form.Item label={<span>Assign annotators</span>}>
+                <Tooltip title='Assign jobs to annotators in round-robin manner'>
+                    {form.getFieldDecorator('assignees', {
+                        initialValue: [],
+                    })(
+                        <Select mode='multiple' size='large'>
+                            { users.map((user): JSX.Element => (
+                                <Select.Option key={user.id} value={user.id}>
+                                    {user.username}
+                                </Select.Option>
+                            ))}
+                        </Select>,
+                    )}
+                </Tooltip>
+            </Form.Item>
+        );
+    }
+
+    private renderChunkSize(): JSX.Element {
+        const { form } = this.props;
+
+        return (
+            <Form.Item label={<span>Chunk size</span>}>
+                <Tooltip title='Desired amount of frames to be assigned to one annotator'>
+                    {form.getFieldDecorator('chunkSize', {
+                        initialValue: 1000,
+                    })(
+                        <Input
+                            size='large'
+                            type='number'
+                            min={100}
+                            max={10000}
+                            step={50}
+                        />,
+                    )}
+                </Tooltip>
             </Form.Item>
         );
     }
@@ -308,8 +365,7 @@ class AdvancedConfigurationForm extends React.PureComponent<Props> {
     }
 
     public render(): JSX.Element {
-        const { installedGit } = this.props;
-
+        const { installedGit, form } = this.props;
         return (
             <Form>
                 <Row>
@@ -323,6 +379,17 @@ class AdvancedConfigurationForm extends React.PureComponent<Props> {
                         {this.renderSplitOnSequence()}
                     </Col>
                 </Row>
+
+                {form.getFieldValue("splitOnSequence") &&
+                    <Row type='flex' justify='start'>
+                        <Col span={15}>
+                            {this.renderAssigneesSelector()}
+                        </Col>
+                        <Col span={7} offset={1}>
+                            {this.renderChunkSize()}
+                        </Col>
+                    </Row>
+                }
 
                 <Row type='flex' justify='start'>
                     <Col span={7}>
@@ -360,4 +427,4 @@ class AdvancedConfigurationForm extends React.PureComponent<Props> {
     }
 }
 
-export default Form.create<Props>()(AdvancedConfigurationForm);
+export default connect(mapStateToProps)(Form.create<Props>()(AdvancedConfigurationForm));

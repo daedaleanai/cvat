@@ -19,19 +19,22 @@ from cvat.apps.engine.media_extractors import get_mime, MEDIA_TYPES
 
 import django_rq
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.db import transaction
 from distutils.dir_util import copy_tree
 
 from . import models
+from .ddln.sequences import group, distribute
 from .log import slogger
+from .utils import load_instances
 from ..annotation.transports.cvat.utils import parse_frame_name
 
 ############################# Low Level server API
 
-def create(tid, data, split_on_sequence):
+def create(tid, data, options):
     """Schedule the task"""
     q = django_rq.get_queue('default')
-    q.enqueue_call(func=_create_thread, args=(tid, data, split_on_sequence),
+    q.enqueue_call(func=_create_thread, args=(tid, data, options),
         job_id="/api/v1/tasks/{}".format(tid))
 
 @transaction.atomic
@@ -108,10 +111,9 @@ def _save_task_to_db(db_task, segments):
     job.save_meta()
 
     if segments:
-        for images_batch in segments:
-            start_frame = images_batch[0].frame
-            stop_frame = images_batch[-1].frame
-            _create_job(db_task, start_frame, stop_frame)
+        for seg in segments:
+            _, _, start_frame, stop_frame, assignee = seg
+            _create_job(db_task, start_frame, stop_frame, assignee)
         db_task.save()
         return
 
@@ -139,7 +141,7 @@ def _save_task_to_db(db_task, segments):
     db_task.save()
 
 
-def _create_job(db_task, start_frame, stop_frame):
+def _create_job(db_task, start_frame, stop_frame, assignee=None):
     message = "New segment for task #{}: start_frame = {}, stop_frame = {}".format(db_task.id, start_frame, stop_frame)
     slogger.glob.info(message)
     db_segment = models.Segment()
@@ -149,6 +151,8 @@ def _create_job(db_task, start_frame, stop_frame):
     db_segment.save()
     db_job = models.Job()
     db_job.segment = db_segment
+    if assignee:
+        db_job.assignee = assignee
     db_job.save()
 
 
@@ -245,7 +249,7 @@ def _download_data(urls, upload_dir):
     return list(local_files.keys())
 
 @transaction.atomic
-def _create_thread(tid, data, split_on_sequence):
+def _create_thread(tid, data, options):
     slogger.glob.info("create task #{}".format(tid))
 
     db_task = models.Task.objects.select_for_update().get(pk=tid)
@@ -322,8 +326,26 @@ def _create_thread(tid, data, split_on_sequence):
 
     slogger.glob.info("Founded frames {} for task #{}".format(db_task.size, tid))
 
-    if split_on_sequence:
-        segments = [list(group) for seq_name, group in itertools.groupby(db_images, lambda i: parse_frame_name(i.path)[1])]
+    if options['split_on_sequence']:
+        segments = _build_segments(db_images)
+        assignees = load_instances(User, options['assignees'])
+        chunk_size = options['chunk_size']
+        if assignees:
+            chunks = group(segments, chunk_size)
+            for chunk, assignee in distribute(chunks, assignees):
+                for segment in chunk:
+                    segment[4] = assignee
     else:
         segments = []
     _save_task_to_db(db_task, segments)
+
+
+def _build_segments(images):
+    result = []
+    for seq_name, group in itertools.groupby(images, lambda i: parse_frame_name(i.path)[1]):
+        group = list(group)
+        start_frame = group[0].frame
+        stop_frame = group[-1].frame
+        size = stop_frame + 1 - start_frame
+        result.append([seq_name, size, start_frame, stop_frame, None])  # segment[4] (None) is an assignee
+    return result
