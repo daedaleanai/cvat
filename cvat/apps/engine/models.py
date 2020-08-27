@@ -2,17 +2,23 @@
 #
 # SPDX-License-Identifier: MIT
 
+from datetime import date
 from enum import Enum
 
 import re
 import shlex
 import os
 
-from django.db import models
+from django.db import models, connection
 from django.conf import settings
 
 from django.contrib.auth.models import User
 from django.core.files.storage import FileSystemStorage
+
+from cvat.apps.engine.ddln.inventory_client import create_inventory_client
+from cvat.apps.engine.ddln.utils import parse_frame_name
+from cvat.apps.engine.log import slogger
+
 
 class SafeCharField(models.CharField):
     def get_prep_value(self, value):
@@ -192,6 +198,29 @@ class Job(models.Model):
 
     class Meta:
         default_permissions = ()
+
+    def complete(self):
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT task.name, image.path
+                FROM engine_segment segment
+                JOIN engine_task task ON segment.task_id = task.id
+                JOIN engine_image image ON task.id = image.task_id AND image.frame = segment.start_frame
+                WHERE segment.id = %s
+            """, [self.segment_id])
+            task_name, image_path = cursor.fetchone()
+
+        _, sequence_name = parse_frame_name(image_path)
+        annotator = self.assignee.username if self.assignee else ''
+        annotation_date = date.today()
+
+        try:
+            client = create_inventory_client()
+            affected_cells = client.record_sequence_completion(sequence_name, task_name, annotator, annotation_date)
+            slogger.glob.info("Job %s completed. Made a record in inventory file: '%s'", self.id, affected_cells)
+        except Exception:
+            slogger.glob.exception("Error while making the job completion record")
+
 
 class Label(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
