@@ -39,7 +39,7 @@ from cvat.apps.engine.serializers import (TaskSerializer, UserSerializer,
    ExceptionSerializer, AboutSerializer, JobSerializer, ImageMetaSerializer,
    RqStatusSerializer, TaskDataSerializer, DataOptionsSerializer, LabeledDataSerializer,
    PluginSerializer, FileInfoSerializer, LogEventSerializer,
-   ProjectSerializer, BasicUserSerializer)
+   ProjectSerializer, BasicUserSerializer, TaskDumpSerializer)
 from cvat.apps.engine.utils import natural_order
 from cvat.apps.annotation.serializers import AnnotationFileSerializer, AnnotationFormatSerializer
 from django.contrib.auth.models import User
@@ -485,17 +485,11 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
         username = request.user.username
         db_task = self.get_object() # call check_object_permissions as well
         timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-        action = request.query_params.get("action")
-        if action not in [None, "download"]:
-            raise serializers.ValidationError(
-                "Please specify a correct 'action' for the request")
-
-        dump_format = request.query_params.get("format", "")
-        try:
-            db_dumper = AnnotationDumper.objects.get(display_name=dump_format)
-        except ObjectDoesNotExist:
-            raise serializers.ValidationError(
-                "Please specify a correct 'format' parameter for the request")
+        params_serializer = TaskDumpSerializer(data=request.query_params)
+        params_serializer.is_valid(raise_exception=True)
+        dump_format = params_serializer.data["format"]
+        action = params_serializer.validated_data["action"]
+        db_dumper = params_serializer.validated_data["format"]
 
         file_path = os.path.join(db_task.get_task_dirname(),
             "{}.{}.{}.{}".format(filename, username, timestamp, db_dumper.format.lower()))
