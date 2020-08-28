@@ -52,7 +52,7 @@ class CommaSeparatedValuesField(serializers.ListField):
 
     def to_representation(self, data):
         data = super().to_representation(data)
-        return self.separator.join(data)
+        return self.separator.join(map(str, data))
 
 
 class AttributeSerializer(serializers.ModelSerializer):
