@@ -114,6 +114,7 @@ def _save_task_to_db(db_task, segments):
         for seg in segments:
             _, _, start_frame, stop_frame, assignee = seg
             _create_job(db_task, start_frame, stop_frame, assignee)
+        db_task.overlap = 0
         db_task.save()
         return
 
