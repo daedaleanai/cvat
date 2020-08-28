@@ -208,7 +208,13 @@ class DataOptionsSerializer(serializers.Serializer):
         return data
 
 
-class TaskDumpSerializer(serializers.Serializer):
+class JobsSelectionSerializer(serializers.Serializer):
+    jobs = CommaSeparatedValuesField(
+        child=serializers.IntegerField(min_value=1),
+        default=[],
+    )
+
+class TaskDumpSerializer(JobsSelectionSerializer):
     action = serializers.CharField(default=None)
     format = serializers.SlugRelatedField('display_name', queryset=AnnotationDumper.objects.all())
 

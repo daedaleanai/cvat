@@ -38,7 +38,7 @@ from cvat.apps.engine.models import StatusChoice, Task, Job, Plugin
 from cvat.apps.engine.serializers import (TaskSerializer, UserSerializer,
    ExceptionSerializer, AboutSerializer, JobSerializer, ImageMetaSerializer,
    RqStatusSerializer, TaskDataSerializer, DataOptionsSerializer, LabeledDataSerializer,
-   PluginSerializer, FileInfoSerializer, LogEventSerializer,
+   PluginSerializer, FileInfoSerializer, LogEventSerializer, JobsSelectionSerializer,
    ProjectSerializer, BasicUserSerializer, TaskDumpSerializer)
 from cvat.apps.engine.utils import natural_order
 from cvat.apps.annotation.serializers import AnnotationFileSerializer, AnnotationFormatSerializer
@@ -418,6 +418,10 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
         serializer_class=LabeledDataSerializer)
     def annotations(self, request, pk):
         self.get_object() # force to call check_object_permissions
+        params_serializer = JobsSelectionSerializer(data=request.query_params)
+        params_serializer.is_valid(raise_exception=True)
+        job_ids = params_serializer.validated_data['jobs']
+
         if request.method == 'GET':
             data = annotation.get_task_data(pk, request.user)
             serializer = LabeledDataSerializer(data=data)
@@ -430,14 +434,15 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
                     rq_id="{}@/api/v1/tasks/{}/annotations/upload".format(request.user, pk),
                     rq_func=annotation.load_task_data,
                     pk=pk,
+                    job_ids=job_ids,
                 )
             else:
                 serializer = LabeledDataSerializer(data=request.data)
                 if serializer.is_valid(raise_exception=True):
-                    data = annotation.put_task_data(pk, request.user, serializer.data)
+                    data = annotation.put_task_data(pk, request.user, serializer.data, job_ids)
                     return Response(data)
         elif request.method == 'DELETE':
-            annotation.delete_task_data(pk, request.user)
+            annotation.delete_task_data(pk, request.user, job_ids)
             return Response(status=status.HTTP_204_NO_CONTENT)
         elif request.method == 'PATCH':
             action = self.request.query_params.get("action", None)
@@ -447,7 +452,7 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
             serializer = LabeledDataSerializer(data=request.data)
             if serializer.is_valid(raise_exception=True):
                 try:
-                    data = annotation.patch_task_data(pk, request.user, serializer.data, action)
+                    data = annotation.patch_task_data(pk, request.user, serializer.data, action, job_ids)
                 except (AttributeError, IntegrityError) as e:
                     return Response(data=str(e), status=status.HTTP_400_BAD_REQUEST)
                 return Response(data)
@@ -457,7 +462,11 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
     def validate(self, request, pk):
         self.get_object() # force to call check_object_permissions
 
-        importer = CVATImporter.for_task(pk)
+        params_serializer = JobsSelectionSerializer(data=request.query_params)
+        params_serializer.is_valid(raise_exception=True)
+        job_ids = params_serializer.validated_data['jobs']
+
+        importer = CVATImporter.for_task(pk, job_ids)
         sequences = load_sequences(importer)
         reporter = validate(sequences)
         report = reporter.get_text_report()
@@ -487,12 +496,15 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
         timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
         params_serializer = TaskDumpSerializer(data=request.query_params)
         params_serializer.is_valid(raise_exception=True)
-        dump_format = params_serializer.data["format"]
+        dump_format = request.query_params["format"]
         action = params_serializer.validated_data["action"]
         db_dumper = params_serializer.validated_data["format"]
+        job_ids = params_serializer.validated_data['jobs']
 
-        file_path = os.path.join(db_task.get_task_dirname(),
-            "{}.{}.{}.{}".format(filename, username, timestamp, db_dumper.format.lower()))
+        if job_ids:
+            filename = "{}-{}".format(filename, "-".join(map(str, job_ids)))
+        full_filename = "{}.{}.{}.{}".format(filename, username, timestamp, db_dumper.format.lower())
+        file_path = os.path.join(db_task.get_task_dirname(), full_filename)
 
         queue = django_rq.get_queue("default")
         rq_id = "{}@/api/v1/tasks/{}/annotations/{}/{}".format(username, pk, dump_format, filename)
@@ -524,7 +536,7 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
 
         rq_job = queue.enqueue_call(
             func=annotation.dump_task_data,
-            args=(pk, request.user, file_path, db_dumper,
+            args=(pk, request.user, file_path, db_dumper, job_ids,
                   request.scheme, request.get_host()),
             job_id=rq_id,
         )
@@ -828,7 +840,7 @@ def rq_handler(job, exc_type, exc_value, tb):
 #         '201': openapi.Response(description='Annotations have been uploaded')},
 #     tags=['tasks'])
 # @api_view(['PUT'])
-def load_data_proxy(request, rq_id, rq_func, pk):
+def load_data_proxy(request, rq_id, rq_func, pk, job_ids=()):
     queue = django_rq.get_queue("default")
     rq_job = queue.fetch_job(rq_id)
     upload_format = request.query_params.get("format", "")
@@ -847,9 +859,12 @@ def load_data_proxy(request, rq_id, rq_func, pk):
             with open(filename, 'wb+') as f:
                 for chunk in anno_file.chunks():
                     f.write(chunk)
+            rq_job_args = [pk, request.user, filename, db_parser]
+            if job_ids:
+                rq_job_args.append(job_ids)
             rq_job = queue.enqueue_call(
                 func=rq_func,
-                args=(pk, request.user, filename, db_parser),
+                args=rq_job_args,
                 job_id=rq_id
             )
             rq_job.meta['tmp_file'] = filename

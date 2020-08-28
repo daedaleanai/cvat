@@ -87,16 +87,16 @@ def get_task_data(pk, user):
 
 @silk_profile(name="POST task data")
 @transaction.atomic
-def put_task_data(pk, user, data):
-    annotation = TaskAnnotation(pk, user)
+def put_task_data(pk, user, data, job_ids=()):
+    annotation = TaskAnnotation(pk, user, job_ids)
     annotation.put(data)
 
     return annotation.data
 
 @silk_profile(name="UPDATE task data")
 @transaction.atomic
-def patch_task_data(pk, user, data, action):
-    annotation = TaskAnnotation(pk, user)
+def patch_task_data(pk, user, data, action, job_ids=()):
+    annotation = TaskAnnotation(pk, user, job_ids)
     if action == PatchAction.CREATE:
         annotation.create(data)
     elif action == PatchAction.UPDATE:
@@ -107,8 +107,8 @@ def patch_task_data(pk, user, data, action):
     return annotation.data
 
 @transaction.atomic
-def load_task_data(pk, user, filename, loader):
-    annotation = TaskAnnotation(pk, user)
+def load_task_data(pk, user, filename, loader, job_ids=()):
+    annotation = TaskAnnotation(pk, user, job_ids)
     annotation.upload(filename, loader)
 
 @transaction.atomic
@@ -118,18 +118,18 @@ def load_job_data(pk, user, filename, loader):
 
 @silk_profile(name="DELETE task data")
 @transaction.atomic
-def delete_task_data(pk, user):
-    annotation = TaskAnnotation(pk, user)
+def delete_task_data(pk, user, job_ids=()):
+    annotation = TaskAnnotation(pk, user, job_ids)
     annotation.delete()
 
-def dump_task_data(pk, user, filename, dumper, scheme, host):
+def dump_task_data(pk, user, filename, dumper, job_ids, scheme, host):
     # For big tasks dump function may run for a long time and
     # we dont need to acquire lock after _AnnotationForTask instance
     # has been initialized from DB.
     # But there is the bug with corrupted dump file in case 2 or more dump request received at the same time.
     # https://github.com/opencv/cvat/issues/217
     with transaction.atomic():
-        annotation = TaskAnnotation(pk, user)
+        annotation = TaskAnnotation(pk, user, job_ids)
         annotation.init_from_db()
 
     annotation.dump(filename, dumper, scheme, host)
@@ -654,12 +654,14 @@ class JobAnnotation:
         self.create(annotation_importer.data.slice(self.start_frame, self.stop_frame).serialize())
 
 class TaskAnnotation:
-    def __init__(self, pk, user):
+    def __init__(self, pk, user, job_ids=()):
         self.user = user
         self.db_task = models.Task.objects.prefetch_related("image_set").get(id=pk)
 
         # Postgres doesn't guarantee an order by default without explicit order_by
         self.db_jobs = models.Job.objects.select_related("segment").filter(segment__task_id=pk).order_by('id')
+        if job_ids:
+            self.db_jobs = self.db_jobs.filter(id__in=job_ids)
         self.ir_data = AnnotationIR()
 
     def reset(self):
