@@ -357,8 +357,10 @@
                 try {
                     const queryParams = new URLSearchParams();
                     queryParams.append('split_on_sequence', options.splitOnSequence);
-                    queryParams.append('chunk_size', options.chunkSize);
-                    queryParams.append('assignees', options.assignees);
+                    if (options.splitOnSequence) {
+                        queryParams.append('chunk_size', options.chunkSize);
+                        queryParams.append('assignees', options.assignees);
+                    }
                     await Axios.post(`${backendAPI}/tasks/${response.data.id}/data?${queryParams}`, batchOfFiles, {
                         proxy: config.proxy,
                     });

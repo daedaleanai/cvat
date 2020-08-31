@@ -6,6 +6,9 @@ services:
   cvat:
     environment:
       CVAT_SHARE_URL: "Mounted from grey"
+      UI_SCHEME: https
+      UI_HOST: cvat.daedalean.ai
+      UI_PORT: 443
     volumes:
       - cvat_share:/home/django/share:ro
 volumes:
