@@ -55,6 +55,7 @@ class TaskPageComponent extends React.PureComponent<Props> {
 
     public render(): JSX.Element {
         const {
+            me,
             task,
             fetching,
             getTask,
@@ -82,6 +83,8 @@ class TaskPageComponent extends React.PureComponent<Props> {
             );
         }
 
+        const mineJobs = onlyMine ? task.instance.jobs.filter(j => (j.assignee || {}).id === me.id).map(j => j.id) : null;
+
         return (
             <>
                 <Row type='flex' justify='center' align='top' className='cvat-task-details-wrapper'>
@@ -90,10 +93,11 @@ class TaskPageComponent extends React.PureComponent<Props> {
                             taskInstance={(task as Task).instance}
                             setOnlyMine={(v) => this.setState({onlyMine: v})}
                             onlyMine={onlyMine}
+                            jobs={mineJobs}
                         />
                         <DetailsContainer task={(task as Task)} />
                         <JobListContainer task={(task as Task)} onlyMine={onlyMine}/>
-                        <ValidationReportComponent taskInstance={(task as Task).instance} />
+                        <ValidationReportComponent taskInstance={(task as Task).instance} jobs={mineJobs} />
                     </Col>
                 </Row>
                 <ModelRunnerModalContainer />

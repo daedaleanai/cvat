@@ -164,12 +164,12 @@ function dumpAnnotationFailed(task: any, dumper: any, error: any): AnyAction {
     return action;
 }
 
-export function dumpAnnotationsAsync(task: any, dumper: any):
+export function dumpAnnotationsAsync(task: any, dumper: any, jobs: any[] | null):
 ThunkAction<Promise<void>, {}, {}, AnyAction> {
     return async (dispatch: ActionCreator<Dispatch>): Promise<void> => {
         try {
             dispatch(dumpAnnotation(task, dumper));
-            const url = await task.annotations.dump(task.name, dumper);
+            const url = await task.annotations.dump(task.name, dumper, jobs);
             const downloadAnchor = (window.document.getElementById('downloadAnchor') as HTMLAnchorElement);
             downloadAnchor.href = url;
             downloadAnchor.click();
@@ -217,7 +217,7 @@ function loadAnnotationsFailed(task: any, error: any): AnyAction {
     return action;
 }
 
-export function loadAnnotationsAsync(task: any, loader: any, file: File):
+export function loadAnnotationsAsync(task: any, loader: any, file: File, jobs: any[] | null):
 ThunkAction<Promise<void>, {}, {}, AnyAction> {
     return async (dispatch: ActionCreator<Dispatch>): Promise<void> => {
         try {
@@ -227,7 +227,7 @@ ThunkAction<Promise<void>, {}, {}, AnyAction> {
                 throw Error('Only one loading of annotations for a task allowed at the same time');
             }
             dispatch(loadAnnotations(task, loader));
-            await task.annotations.upload(file, loader);
+            await task.annotations.upload(file, loader, jobs);
         } catch (error) {
             dispatch(loadAnnotationsFailed(task, error));
             return;

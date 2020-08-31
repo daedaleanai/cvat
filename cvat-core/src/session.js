@@ -20,9 +20,9 @@
         Object.defineProperties(prototype, {
             annotations: Object.freeze({
                 value: {
-                    async upload(file, loader) {
+                    async upload(file, loader, jobs) {
                         const result = await PluginRegistry
-                            .apiWrapper.call(this, prototype.annotations.upload, file, loader);
+                            .apiWrapper.call(this, prototype.annotations.upload, file, loader, jobs);
                         return result;
                     },
 
@@ -38,9 +38,9 @@
                         return result;
                     },
 
-                    async dump(name, dumper) {
+                    async dump(name, dumper, jobs) {
                         const result = await PluginRegistry
-                            .apiWrapper.call(this, prototype.annotations.dump, name, dumper);
+                            .apiWrapper.call(this, prototype.annotations.dump, name, dumper, jobs);
                         return result;
                     },
 
@@ -1244,9 +1244,9 @@
             * @throws {module:API.cvat.exceptions.ServerError}
             * @throws {module:API.cvat.exceptions.PluginError}
         */
-        async validate() {
+        async validate(jobs) {
             const result = await PluginRegistry
-                .apiWrapper.call(this, Task.prototype.validate);
+                .apiWrapper.call(this, Task.prototype.validate, jobs);
             return result;
         }
 
@@ -1438,8 +1438,8 @@
         return result;
     };
 
-    Job.prototype.annotations.dump.implementation = async function (name, dumper) {
-        const result = await dumpAnnotations(this, name, dumper);
+    Job.prototype.annotations.dump.implementation = async function (name, dumper, jobs) {
+        const result = await dumpAnnotations(this, name, dumper, jobs);
         return result;
     };
 
@@ -1525,8 +1525,8 @@
         return result;
     };
 
-    Task.prototype.validate.implementation = async function () {
-        const result = await serverProxy.tasks.validateTask(this.id);
+    Task.prototype.validate.implementation = async function (jobs) {
+        const result = await serverProxy.tasks.validateTask(this.id, jobs);
         return result;
     };
 
@@ -1650,13 +1650,13 @@
         return result;
     };
 
-    Task.prototype.annotations.upload.implementation = async function (file, loader) {
-        const result = await uploadAnnotations(this, file, loader);
+    Task.prototype.annotations.upload.implementation = async function (file, loader, jobs) {
+        const result = await uploadAnnotations(this, file, loader, jobs);
         return result;
     };
 
-    Task.prototype.annotations.dump.implementation = async function (name, dumper) {
-        const result = await dumpAnnotations(this, name, dumper);
+    Task.prototype.annotations.dump.implementation = async function (name, dumper, jobs) {
+        const result = await dumpAnnotations(this, name, dumper, jobs);
         return result;
     };
 

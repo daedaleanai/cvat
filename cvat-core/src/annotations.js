@@ -217,17 +217,17 @@
         );
     }
 
-    async function uploadAnnotations(session, file, loader) {
+    async function uploadAnnotations(session, file, loader, jobs) {
         const sessionType = session instanceof Task ? 'task' : 'job';
         if (!(loader instanceof Loader)) {
             throw new ArgumentError(
                 'A loader must be instance of Loader class',
             );
         }
-        await serverProxy.annotations.uploadAnnotations(sessionType, session.id, file, loader.name);
+        await serverProxy.annotations.uploadAnnotations(sessionType, session.id, file, loader.name, jobs);
     }
 
-    async function dumpAnnotations(session, name, dumper) {
+    async function dumpAnnotations(session, name, dumper, jobs) {
         if (!(dumper instanceof Dumper)) {
             throw new ArgumentError(
                 'A dumper must be instance of Dumper class',
@@ -238,10 +238,10 @@
         const sessionType = session instanceof Task ? 'task' : 'job';
         if (sessionType === 'job') {
             result = await serverProxy.annotations
-                .dumpAnnotations(session.task.id, name, dumper.name);
+                .dumpAnnotations(session.task.id, name, dumper.name, jobs);
         } else {
             result = await serverProxy.annotations
-                .dumpAnnotations(session.id, name, dumper.name);
+                .dumpAnnotations(session.id, name, dumper.name, jobs);
         }
 
         return result;

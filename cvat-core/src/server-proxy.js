@@ -249,12 +249,19 @@
                 }
             }
 
-            async function validateTask(id) {
+            async function validateTask(id, jobs) {
                 const { backendAPI } = config;
+
+                let query = "";
+                if (jobs !== null) {
+                    const queryParams = new URLSearchParams();
+                    queryParams.append("jobs", jobs);
+                    query = `?${queryParams}`;
+                }
 
                 let response = null;
                 try {
-                    response = await Axios.get(`${backendAPI}/tasks/${id}/validate`, {
+                    response = await Axios.get(`${backendAPI}/tasks/${id}/validate${query}`, {
                         proxy: config.proxy,
                     });
                 } catch (errorData) {
@@ -546,7 +553,7 @@
             }
 
             // Session is 'task' or 'job'
-            async function uploadAnnotations(session, id, file, format) {
+            async function uploadAnnotations(session, id, file, format, jobs) {
                 const { backendAPI } = config;
 
                 let annotationData = new FormData();
@@ -554,9 +561,14 @@
 
                 return new Promise((resolve, reject) => {
                     async function request() {
+                        const query = new URLSearchParams();
+                        query.append("format", format);
+                        if (jobs != null && session !== "job") {
+                            query.append("jobs", jobs);
+                        }
                         try {
                             const response = await Axios
-                                .put(`${backendAPI}/${session}s/${id}/annotations?format=${format}`, annotationData, {
+                                .put(`${backendAPI}/${session}s/${id}/annotations?${query}`, annotationData, {
                                     proxy: config.proxy,
                                 });
                             if (response.status === 202) {
@@ -575,11 +587,15 @@
             }
 
             // Session is 'task' or 'job'
-            async function dumpAnnotations(id, name, format) {
+            async function dumpAnnotations(id, name, format, jobs) {
                 const { backendAPI } = config;
                 const filename = name.replace(/\//g, '_');
                 const baseURL = `${backendAPI}/tasks/${id}/annotations/${encodeURIComponent(filename)}`;
-                let query = `format=${encodeURIComponent(format)}`;
+                const query = new URLSearchParams();
+                query.append("format", format);
+                if (jobs != null) {
+                    query.append("jobs", jobs);
+                }
                 let url = `${baseURL}?${query}`;
 
                 return new Promise((resolve, reject) => {
@@ -590,7 +606,7 @@
                             if (response.status === 202) {
                                 setTimeout(request, 3000);
                             } else {
-                                query = `${query}&action=download`;
+                                query.append("action", "download");
                                 url = `${baseURL}?${query}`;
                                 resolve(url);
                             }

@@ -21,6 +21,7 @@ import { ClickParam } from 'antd/lib/menu';
 
 interface OwnProps {
     taskInstance: any;
+    jobs: any[] | null;
 }
 
 interface StateToProps {
@@ -36,8 +37,8 @@ interface StateToProps {
 }
 
 interface DispatchToProps {
-    loadAnnotations: (taskInstance: any, loader: any, file: File) => void;
-    dumpAnnotations: (taskInstance: any, dumper: any) => void;
+    loadAnnotations: (taskInstance: any, loader: any, file: File, jobs: any[] | null) => void;
+    dumpAnnotations: (taskInstance: any, dumper: any, jobs: any[] | null) => void;
     exportDataset: (taskInstance: any, exporter: any) => void;
     deleteTask: (taskInstance: any) => void;
     openRunModelWindow: (taskInstance: any) => void;
@@ -86,11 +87,11 @@ function mapStateToProps(state: CombinedState, own: OwnProps): StateToProps {
 
 function mapDispatchToProps(dispatch: any): DispatchToProps {
     return {
-        loadAnnotations: (taskInstance: any, loader: any, file: File): void => {
-            dispatch(loadAnnotationsAsync(taskInstance, loader, file));
+        loadAnnotations: (taskInstance: any, loader: any, file: File, jobs: any[] | null): void => {
+            dispatch(loadAnnotationsAsync(taskInstance, loader, file, jobs));
         },
-        dumpAnnotations: (taskInstance: any, dumper: any): void => {
-            dispatch(dumpAnnotationsAsync(taskInstance, dumper));
+        dumpAnnotations: (taskInstance: any, dumper: any, jobs: any[] | null): void => {
+            dispatch(dumpAnnotationsAsync(taskInstance, dumper, jobs));
         },
         exportDataset: (taskInstance: any, exporter: any): void => {
             dispatch(exportDatasetAsync(taskInstance, exporter));
@@ -106,6 +107,7 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
 
 function ActionsMenuContainer(props: OwnProps & StateToProps & DispatchToProps): JSX.Element {
     const {
+        jobs,
         taskInstance,
         annotationFormats,
         exporters,
@@ -139,14 +141,14 @@ function ActionsMenuContainer(props: OwnProps & StateToProps & DispatchToProps):
                 const [dumper] = dumpers
                     .filter((_dumper: any): boolean => _dumper.name === format);
                 if (dumper) {
-                    dumpAnnotations(taskInstance, dumper);
+                    dumpAnnotations(taskInstance, dumper, jobs);
                 }
             } else if (action === Actions.LOAD_TASK_ANNO) {
                 const [format] = additionalKey.split('::');
                 const [loader] = loaders
                     .filter((_loader: any): boolean => _loader.name === format);
                 if (loader && file) {
-                    loadAnnotations(taskInstance, loader, file);
+                    loadAnnotations(taskInstance, loader, file, jobs);
                 }
             } else if (action === Actions.EXPORT_TASK_DATASET) {
                 const format = additionalKey;
