@@ -29,6 +29,7 @@ export interface TaskItemProps {
     previewImage: string;
     deleted: boolean;
     hidden: boolean;
+    allowLoad: boolean;
     activeInference: ActiveInference | null;
     cancelAutoAnnotation(): void;
 }
@@ -177,6 +178,7 @@ class TaskItemComponent extends React.PureComponent<TaskItemProps & RouteCompone
         const {
             taskInstance,
             history,
+            allowLoad,
         } = this.props;
         const { id } = taskInstance;
 
@@ -198,7 +200,7 @@ class TaskItemComponent extends React.PureComponent<TaskItemProps & RouteCompone
                 <Row type='flex' justify='end'>
                     <Col className='cvat-item-open-task-actions'>
                         <Text className='cvat-text-color'>Actions</Text>
-                        <Dropdown overlay={<ActionsMenuContainer taskInstance={taskInstance} />}>
+                        <Dropdown overlay={<ActionsMenuContainer taskInstance={taskInstance} allowLoad={allowLoad} />}>
                             <Icon className='cvat-menu-icon' component={MenuIcon} />
                         </Dropdown>
                     </Col>

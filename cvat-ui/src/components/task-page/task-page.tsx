@@ -84,6 +84,7 @@ class TaskPageComponent extends React.PureComponent<Props> {
         }
 
         const mineJobs = onlyMine ? task.instance.jobs.filter(j => (j.assignee || {}).id === me.id).map(j => j.id) : null;
+        const allowLoad = me.isAdmin | onlyMine;
 
         return (
             <>
@@ -94,6 +95,7 @@ class TaskPageComponent extends React.PureComponent<Props> {
                             setOnlyMine={(v) => this.setState({onlyMine: v})}
                             onlyMine={onlyMine}
                             jobs={mineJobs}
+                            allowLoad={allowLoad}
                         />
                         <DetailsContainer task={(task as Task)} />
                         <JobListContainer task={(task as Task)} onlyMine={onlyMine}/>

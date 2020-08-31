@@ -22,6 +22,7 @@ interface StateToProps {
     previewImage: string;
     taskInstance: any;
     activeInference: ActiveInference | null;
+    allowLoad: boolean;
 }
 
 interface DispatchToProps {
@@ -32,6 +33,7 @@ interface DispatchToProps {
 interface OwnProps {
     idx: number;
     taskID: number;
+    allowLoad: boolean;
 }
 
 function mapStateToProps(state: CombinedState, own: OwnProps): StateToProps {
@@ -45,6 +47,7 @@ function mapStateToProps(state: CombinedState, own: OwnProps): StateToProps {
         previewImage: task.preview,
         taskInstance: task.instance,
         activeInference: state.models.inferences[id] || null,
+        allowLoad: own.allowLoad,
     };
 }
 

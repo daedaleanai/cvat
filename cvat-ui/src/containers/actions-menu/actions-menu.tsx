@@ -22,6 +22,7 @@ import { ClickParam } from 'antd/lib/menu';
 interface OwnProps {
     taskInstance: any;
     jobs: any[] | null;
+    allowLoad: boolean;
 }
 
 interface StateToProps {
@@ -108,6 +109,7 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
 function ActionsMenuContainer(props: OwnProps & StateToProps & DispatchToProps): JSX.Element {
     const {
         jobs,
+        allowLoad,
         taskInstance,
         annotationFormats,
         exporters,
@@ -187,9 +189,14 @@ function ActionsMenuContainer(props: OwnProps & StateToProps & DispatchToProps):
             installedTFAnnotation={installedTFAnnotation}
             installedTFSegmentation={installedTFSegmentation}
             onClickMenu={onClickMenu}
+            allowLoad={allowLoad}
         />
     );
 }
+
+ActionsMenuContainer.defaultProps = {
+    allowLoad: true,
+};
 
 export default connect(
     mapStateToProps,

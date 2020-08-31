@@ -18,6 +18,7 @@ interface Props {
     loaders: string[];
     loadActivity: string | null;
     onFileUpload(file: File): void;
+    disabled: boolean;
 }
 
 export default function LoadSubmenu(props: Props): JSX.Element {
@@ -26,10 +27,11 @@ export default function LoadSubmenu(props: Props): JSX.Element {
         loaders,
         loadActivity,
         onFileUpload,
+        disabled,
     } = props;
 
     return (
-        <Menu.SubMenu key={menuKey} title='Upload annotations'>
+        <Menu.SubMenu key={menuKey} title='Upload annotations' disabled={disabled}>
             {
                 loaders.map((_loader: string): JSX.Element => {
                     const [loader, accept] = _loader.split('::');
@@ -63,3 +65,7 @@ export default function LoadSubmenu(props: Props): JSX.Element {
         </Menu.SubMenu>
     );
 }
+
+LoadSubmenu.defaultProps = {
+    disabled: false,
+};

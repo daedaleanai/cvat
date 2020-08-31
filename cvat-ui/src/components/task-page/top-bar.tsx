@@ -24,10 +24,11 @@ interface DetailsComponentProps {
     onlyMine: boolean;
     setOnlyMine(value: boolean): void;
     jobs: any[] | null;
+    allowLoad: boolean;
 }
 
 export default function DetailsComponent(props: DetailsComponentProps): JSX.Element {
-    const { taskInstance, onlyMine, setOnlyMine, jobs } = props;
+    const { taskInstance, onlyMine, setOnlyMine, jobs, allowLoad } = props;
     const { id } = taskInstance;
 
     return (
@@ -46,6 +47,7 @@ export default function DetailsComponent(props: DetailsComponentProps): JSX.Elem
                         <ActionsMenuContainer
                             taskInstance={taskInstance}
                             jobs={jobs}
+                            allowLoad={allowLoad}
                         />
                     )
                 }

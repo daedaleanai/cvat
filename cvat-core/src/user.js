@@ -146,6 +146,9 @@
                 isAnnotator: {
                     get: () => data.groups.some(group => group === "annotator")
                 },
+                isAdmin: {
+                    get: () => data.is_staff || data.groups.some(group => group === "admin")
+                },
             }));
         }
     }
