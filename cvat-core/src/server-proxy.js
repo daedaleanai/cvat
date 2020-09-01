@@ -253,7 +253,7 @@
                 const { backendAPI } = config;
 
                 let query = "";
-                if (jobs !== null) {
+                if (jobs) {
                     const queryParams = new URLSearchParams();
                     queryParams.append("jobs", jobs);
                     query = `?${queryParams}`;
@@ -563,7 +563,7 @@
                     async function request() {
                         const query = new URLSearchParams();
                         query.append("format", format);
-                        if (jobs != null && session !== "job") {
+                        if (jobs && session !== "job") {
                             query.append("jobs", jobs);
                         }
                         try {
@@ -593,7 +593,7 @@
                 const baseURL = `${backendAPI}/tasks/${id}/annotations/${encodeURIComponent(filename)}`;
                 const query = new URLSearchParams();
                 query.append("format", format);
-                if (jobs != null) {
+                if (jobs) {
                     query.append("jobs", jobs);
                 }
                 let url = `${baseURL}?${query}`;

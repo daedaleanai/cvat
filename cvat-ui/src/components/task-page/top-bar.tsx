@@ -37,7 +37,7 @@ export default function DetailsComponent(props: DetailsComponentProps): JSX.Elem
                 <Text className='cvat-title'>{`Task details #${id}`}</Text>
             </Col>
             <Col>
-                <Tooltip title='Show, dump, upload, validate only mine jobs'>
+                <Tooltip title='Show, dump, upload, validate only my jobs'>
                     <Switch checked={onlyMine} onChange={setOnlyMine} />
                 </Tooltip>
             </Col>

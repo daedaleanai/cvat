@@ -83,7 +83,11 @@ class TaskPageComponent extends React.PureComponent<Props> {
             );
         }
 
-        const mineJobs = onlyMine ? task.instance.jobs.filter(j => (j.assignee || {}).id === me.id).map(j => j.id) : null;
+        const mineJobs = onlyMine ?
+            task.instance.jobs
+                .filter(j => (j.assignee || {}).id === me.id)
+                .map(j => j.id)
+            : null;
         const allowLoad = me.isAdmin | onlyMine;
 
         return (
