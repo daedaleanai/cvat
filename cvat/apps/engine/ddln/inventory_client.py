@@ -4,8 +4,8 @@ from django.conf import settings
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
-from ..log import slogger
-from ..utils import singleton
+from cvat.apps.engine.log import slogger
+from cvat.apps.engine.utils import singleton
 
 
 @singleton
