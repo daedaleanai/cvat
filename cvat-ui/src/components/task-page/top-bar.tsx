@@ -9,6 +9,8 @@ import {
     Col,
     Button,
     Dropdown,
+    Tooltip,
+    Switch,
     Icon,
 } from 'antd';
 
@@ -19,18 +21,25 @@ import { MenuIcon } from 'icons';
 
 interface DetailsComponentProps {
     taskInstance: any;
+    onlyMine: boolean;
+    setOnlyMine(value: boolean): void;
 }
 
 export default function DetailsComponent(props: DetailsComponentProps): JSX.Element {
-    const { taskInstance } = props;
+    const { taskInstance, onlyMine, setOnlyMine } = props;
     const { id } = taskInstance;
 
     return (
-        <Row className='cvat-task-top-bar' type='flex' justify='space-between' align='middle'>
+        <Row className='cvat-task-top-bar' type='flex' justify='end' align='middle'>
             <Col>
                 <Text className='cvat-title'>{`Task details #${id}`}</Text>
             </Col>
             <Col>
+                <Tooltip title='Show, dump, upload, validate only mine jobs'>
+                    <Switch checked={onlyMine} onChange={setOnlyMine} />
+                </Tooltip>
+            </Col>
+            <Col offset={1}>
                 <Dropdown overlay={
                     (
                         <ActionsMenuContainer

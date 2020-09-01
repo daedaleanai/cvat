@@ -143,6 +143,9 @@
                     */
                     get: () => data.is_active,
                 },
+                isAnnotator: {
+                    get: () => data.groups.some(group => group === "annotator")
+                },
             }));
         }
     }

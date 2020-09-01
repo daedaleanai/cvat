@@ -22,6 +22,7 @@ interface StateToProps {
     fetching: boolean;
     deleteActivity: boolean | null;
     installedGit: boolean;
+    me: any;
 }
 
 interface DispatchToProps {
@@ -33,6 +34,7 @@ function mapStateToProps(state: CombinedState, own: Props): StateToProps {
     const { tasks } = state;
     const { gettingQuery } = tasks;
     const { deletes } = tasks.activities;
+    const me = state.auth.user;
 
     const id = +own.match.params.id;
 
@@ -48,6 +50,7 @@ function mapStateToProps(state: CombinedState, own: Props): StateToProps {
     }
 
     return {
+        me,
         task,
         deleteActivity,
         fetching: state.tasks.fetching,

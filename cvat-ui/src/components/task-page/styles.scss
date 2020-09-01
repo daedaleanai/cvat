@@ -75,6 +75,10 @@
     margin-bottom: 10px;
 }
 
+.cvat-task-top-bar div:first-child {
+  margin-right: auto;
+}
+
 .cvat-task-preview-wrapper {
     display: flex;
     justify-content: flex-start;
