@@ -25,9 +25,9 @@ from distutils.dir_util import copy_tree
 
 from . import models
 from .ddln.sequences import group, distribute
+from .ddln.utils import parse_frame_name
 from .log import slogger
 from .utils import load_instances
-from ..annotation.transports.cvat.utils import parse_frame_name
 
 ############################# Low Level server API
 

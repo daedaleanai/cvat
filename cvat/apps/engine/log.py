@@ -5,15 +5,17 @@
 import os
 import logging
 from cvat.settings.base import LOGGING
-from .models import Job, Task
+
 
 def _get_task(tid):
+    from .models import Task
     try:
         return Task.objects.get(pk=tid)
     except Exception:
         raise Exception('{} key must be a task identifier'.format(tid))
 
 def _get_job(jid):
+    from .models import Job
     try:
         return Job.objects.select_related("segment__task").get(id=jid)
     except Exception:

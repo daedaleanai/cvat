@@ -696,6 +696,15 @@ class JobViewSet(viewsets.GenericViewSet,
 
         return [perm() for perm in permissions]
 
+    def perform_update(self, serializer):
+        job = serializer.instance
+        current_status = job.status
+        next_status = serializer.validated_data.get('status')
+        super().perform_update(serializer)
+        if next_status != current_status and next_status == StatusChoice.COMPLETED:
+            job.complete()
+
+
     @swagger_auto_schema(method='get', operation_summary='Method returns annotations for a specific job')
     @swagger_auto_schema(method='put', operation_summary='Method performs an update of all annotations in a specific job')
     @swagger_auto_schema(method='patch', manual_parameters=[

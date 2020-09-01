@@ -24,6 +24,7 @@ from pathlib import Path
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = str(Path(__file__).parents[2])
+SENSITIVE_DATA_DIR = Path(BASE_DIR) / 'sensitive-data'
 
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 INTERNAL_IPS = ['127.0.0.1']
@@ -396,6 +397,18 @@ os.makedirs(SHARE_ROOT, exist_ok=True)
 
 MODELS_ROOT = os.path.join(BASE_DIR, 'models')
 os.makedirs(MODELS_ROOT, exist_ok=True)
+
+# Inventory client configuration
+
+# Instructions for getting spreadsheet id:
+# https://developers.google.com/sheets/api/guides/concepts#spreadsheet_id
+INVENTORY_SPREADSHEET_ID = os.environ.get('INVENTORY_SPREADSHEET_ID')
+
+# Instructions for getting credentials:
+# https://github.com/googleapis/google-api-python-client/blob/master/docs/oauth-server.md
+INVENTORY_CREDENTIALS_FILENAME = os.environ.get('INVENTORY_CREDENTIALS_FILENAME')
+if INVENTORY_CREDENTIALS_FILENAME:
+    INVENTORY_CREDENTIALS_FILENAME = str(SENSITIVE_DATA_DIR / INVENTORY_CREDENTIALS_FILENAME)
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 100 * 1024 * 1024  # 100 MB
 DATA_UPLOAD_MAX_NUMBER_FIELDS = None   # this django check disabled

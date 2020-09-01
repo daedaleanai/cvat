@@ -3,6 +3,7 @@
 /models/
 /share/
 /static/
+/sensitive-data
 /db.sqlite3
 /.env
 /keys

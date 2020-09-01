@@ -1,5 +1,5 @@
 from cvat.apps.annotation.structures import label_by_class_id, Runway, LabeledBoundingBox
-from .utils import parse_frame_name
+from cvat.apps.engine.ddln.utils import parse_frame_name
 
 
 class CVATExporter:

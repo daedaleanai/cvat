@@ -2,9 +2,10 @@ from django.contrib.auth.models import AnonymousUser
 from django.db import transaction
 
 from cvat.apps.annotation.annotation import Annotation
-from cvat.apps.engine.annotation import TaskAnnotation
 from cvat.apps.annotation.structures import LabeledBoundingBox
-from .utils import parse_frame_name, build_attrs_dict
+from cvat.apps.engine.annotation import TaskAnnotation
+from cvat.apps.engine.ddln.utils import parse_frame_name
+from .utils import build_attrs_dict
 from . import runway as runway_module
 
 
