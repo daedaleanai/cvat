@@ -32,6 +32,16 @@ interface TaskPageComponentProps {
 type Props = TaskPageComponentProps & RouteComponentProps<{id: string}>;
 
 class TaskPageComponent extends React.PureComponent<Props> {
+    public constructor(props: Props) {
+        super(props);
+
+        const { me } = this.props;
+        this.state = {
+            // By default show only user's own jobs for annotators, show all jobs for admins
+            onlyMine: me.isAnnotator,
+        };
+    }
+
     public componentDidUpdate(): void {
         const {
             deleteActivity,
@@ -45,10 +55,12 @@ class TaskPageComponent extends React.PureComponent<Props> {
 
     public render(): JSX.Element {
         const {
+            me,
             task,
             fetching,
             getTask,
         } = this.props;
+        const { onlyMine } = this.state;
 
         if (task === null) {
             if (!fetching) {
@@ -71,14 +83,27 @@ class TaskPageComponent extends React.PureComponent<Props> {
             );
         }
 
+        const mineJobs = onlyMine ?
+            task.instance.jobs
+                .filter(j => (j.assignee || {}).id === me.id)
+                .map(j => j.id)
+            : null;
+        const allowLoad = me.isAdmin | onlyMine;
+
         return (
             <>
                 <Row type='flex' justify='center' align='top' className='cvat-task-details-wrapper'>
                     <Col md={22} lg={18} xl={16} xxl={14}>
-                        <TopBarComponent taskInstance={(task as Task).instance} />
+                        <TopBarComponent
+                            taskInstance={(task as Task).instance}
+                            setOnlyMine={(v) => this.setState({onlyMine: v})}
+                            onlyMine={onlyMine}
+                            jobs={mineJobs}
+                            allowLoad={allowLoad}
+                        />
                         <DetailsContainer task={(task as Task)} />
-                        <JobListContainer task={(task as Task)} />
-                        <ValidationReportComponent taskInstance={(task as Task).instance} />
+                        <JobListContainer task={(task as Task)} onlyMine={onlyMine}/>
+                        <ValidationReportComponent taskInstance={(task as Task).instance} jobs={mineJobs} />
                     </Col>
                 </Row>
                 <ModelRunnerModalContainer />

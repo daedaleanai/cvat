@@ -9,6 +9,7 @@ import shutil
 from rest_framework import serializers
 from django.contrib.auth.models import User, Group
 
+from cvat.apps.annotation.models import AnnotationDumper
 from cvat.apps.engine import models
 from cvat.apps.engine.log import slogger
 
@@ -205,6 +206,22 @@ class DataOptionsSerializer(serializers.Serializer):
         if data['assignees'] and data['chunk_size'] is None:
             raise serializers.ValidationError("When assignees are provided chunk size should be provided as well")
         return data
+
+
+class JobsSelectionSerializer(serializers.Serializer):
+    jobs = CommaSeparatedValuesField(
+        child=serializers.IntegerField(min_value=1),
+        default=[],
+    )
+
+class TaskDumpSerializer(JobsSelectionSerializer):
+    action = serializers.CharField(default=None)
+    format = serializers.SlugRelatedField('display_name', queryset=AnnotationDumper.objects.all())
+
+    def validate_action(self, value):
+        if value not in [None, "download"]:
+            raise serializers.ValidationError("Please specify a correct 'action' for the request")
+        return value
 
 
 class WriteOnceMixin:

@@ -18,17 +18,19 @@ export interface ContentListProps {
     currentTasksIndexes: number[];
     currentPage: number;
     numberOfTasks: number;
+    allowLoad: boolean;
 }
 
 export default function TaskListComponent(props: ContentListProps): JSX.Element {
     const {
+        allowLoad,
         currentTasksIndexes,
         numberOfTasks,
         currentPage,
         onSwitchPage,
     } = props;
     const taskViews = currentTasksIndexes.map(
-        (tid, id): JSX.Element => <TaskItem idx={id} taskID={tid} key={tid} />,
+        (tid, id): JSX.Element => <TaskItem idx={id} taskID={tid} key={tid} allowLoad={allowLoad} />,
     );
 
     return (

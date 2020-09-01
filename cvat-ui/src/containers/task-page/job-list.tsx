@@ -14,6 +14,7 @@ import {
 
 interface OwnProps {
     task: Task;
+    onlyMine: boolean;
 }
 
 interface StateToProps {
@@ -42,6 +43,7 @@ function TaskPageContainer(props: StateToProps & DispatchToProps & OwnProps): JS
     const {
         task,
         me,
+        onlyMine,
         registeredUsers,
         onJobUpdate,
     } = props;
@@ -50,6 +52,7 @@ function TaskPageContainer(props: StateToProps & DispatchToProps & OwnProps): JS
         <JobListComponent
             taskInstance={task.instance}
             me={me}
+            onlyMine={onlyMine}
             registeredUsers={registeredUsers}
             onJobUpdate={onJobUpdate}
         />

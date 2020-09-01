@@ -9,16 +9,17 @@ import Text from 'antd/lib/typography/Text';
 
 interface Props {
     taskInstance: any;
+    jobs: any[] | null;
 }
 
 function ValidationReportComponent(props: Props): JSX.Element {
     const [loading, setLoading] = useState(false);
     const [report, setReport] = useState(null);
-    const { taskInstance } = props;
+    const { taskInstance, jobs } = props;
 
     const loadData = () : void => {
       setLoading(true);
-      taskInstance.validate().then(responseData => {
+      taskInstance.validate(jobs).then(responseData => {
           setReport(responseData.report);
           setLoading(false);
       })

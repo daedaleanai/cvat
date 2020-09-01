@@ -19,6 +19,7 @@ import {
 
 interface StateToProps {
     tasks: TasksState;
+    me: any;
 }
 
 interface DispatchToProps {
@@ -32,6 +33,7 @@ interface OwnProps {
 function mapStateToProps(state: CombinedState): StateToProps {
     return {
         tasks: state.tasks,
+        me: state.auth.user,
     };
 }
 
@@ -47,6 +49,7 @@ type TasksListContainerProps = StateToProps & DispatchToProps & OwnProps;
 
 function TasksListContainer(props: TasksListContainerProps): JSX.Element {
     const {
+        me,
         tasks,
         onSwitchPage,
     } = props;
@@ -57,6 +60,7 @@ function TasksListContainer(props: TasksListContainerProps): JSX.Element {
             currentTasksIndexes={tasks.current.map((task): number => task.instance.id)}
             currentPage={tasks.gettingQuery.page}
             numberOfTasks={tasks.count}
+            allowLoad={me.isAdmin}
         />
     );
 }

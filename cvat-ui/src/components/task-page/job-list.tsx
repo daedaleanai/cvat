@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-import React, { useState } from 'react';
+import React from 'react';
 
 import { RouteComponentProps } from 'react-router';
 import { withRouter } from 'react-router-dom';
@@ -32,6 +32,7 @@ interface Props {
     taskInstance: any;
     registeredUsers: any[];
     me: any;
+    onlyMine: boolean;
     onJobUpdate(jobInstance: any): void;
 }
 
@@ -40,12 +41,12 @@ function JobListComponent(props: Props & RouteComponentProps): JSX.Element {
         taskInstance,
         registeredUsers,
         me,
+        onlyMine,
         onJobUpdate,
         history: {
             push,
         },
     } = props;
-    const [onlyMine, setOnlyMine] = useState(false);
 
     const { jobs, id: taskId } = taskInstance;
     const columns = [{
@@ -191,12 +192,9 @@ function JobListComponent(props: Props & RouteComponentProps): JSX.Element {
                     </Tooltip>
                 </Col>
                 <Col>
-                    <Button
-                        type='link'
-                        onClick={() => setOnlyMine(value => !value)}
-                    >
+                    <Text className='cvat-text-color'>
                         {jobsMessage}
-                    </Button>
+                    </Text>
                 </Col>
             </Row>
             <Table

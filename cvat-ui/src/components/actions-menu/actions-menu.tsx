@@ -20,6 +20,7 @@ interface Props {
     taskID: number;
     taskMode: string;
     bugTracker: string;
+    allowLoad: boolean;
 
     loaders: string[];
     dumpers: string[];
@@ -50,6 +51,7 @@ export default function ActionsMenuComponent(props: Props): JSX.Element {
         taskID,
         taskMode,
         bugTracker,
+        allowLoad,
 
         installedAutoAnnotation,
         installedTFAnnotation,
@@ -134,6 +136,7 @@ export default function ActionsMenuComponent(props: Props): JSX.Element {
                         onClickMenuWrapper(null, file);
                     },
                     menuKey: Actions.LOAD_TASK_ANNO,
+                    disabled: !allowLoad,
                 })
             }
             {

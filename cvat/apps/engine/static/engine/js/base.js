@@ -134,10 +134,12 @@ async function dumpAnnotationRequest(tid, taskName, format) {
     // URL Router on the server doesn't work correctly with slashes.
     // So, we have to replace them on the client side
     taskName = taskName.replace(/\//g, '_');
-    const name = encodeURIComponent(`${tid}_${taskName}`);
+    const name = encodeURIComponent(taskName);
     return new Promise((resolve, reject) => {
         const url = `/api/v1/tasks/${tid}/annotations/${name}`;
-        let queryString = `format=${format}`;
+        const queryString = new URLSearchParams();
+        queryString.append("format", format);
+        queryString.append("jobs", [window.cvat.job.id]);
 
         async function request() {
             $.get(`${url}?${queryString}`)
@@ -146,7 +148,7 @@ async function dumpAnnotationRequest(tid, taskName, format) {
                         setTimeout(request, 3000);
                     } else {
                         const a = document.createElement('a');
-                        queryString = `${queryString}&action=download`;
+                        queryString.append("action", "download");
                         a.href = `${url}?${queryString}`;
                         document.body.appendChild(a);
                         a.click();

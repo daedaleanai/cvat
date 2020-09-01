@@ -15,9 +15,9 @@ class CVATImporter:
         self._logger = logger
 
     @classmethod
-    def for_task(cls, task_id, logger=None):
+    def for_task(cls, task_id, job_ids=(), logger=None):
         with transaction.atomic():
-            annotation = TaskAnnotation(task_id, AnonymousUser())
+            annotation = TaskAnnotation(task_id, AnonymousUser(), job_ids)
             annotation.init_from_db()
 
         anno_exporter = Annotation(
