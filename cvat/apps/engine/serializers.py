@@ -106,10 +106,18 @@ class SimpleJobSerializer(serializers.ModelSerializer):
 
 class SegmentSerializer(serializers.ModelSerializer):
     jobs = SimpleJobSerializer(many=True, source='job_set')
+    sequence_name = serializers.SerializerMethodField()
+
+    def get_sequence_name(self, obj):
+        sequence_by_segment_id = self.context.get('sequence_by_segment_id')
+        if not sequence_by_segment_id:
+            return ''
+        return sequence_by_segment_id.get(obj.id, '')
 
     class Meta:
         model = models.Segment
-        fields = ('start_frame', 'stop_frame', 'jobs')
+        fields = ('start_frame', 'stop_frame', 'jobs', 'sequence_name')
+        read_only_fields = ('sequence_name',)
 
 class ClientFileSerializer(serializers.ModelSerializer):
     class Meta:
