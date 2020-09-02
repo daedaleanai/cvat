@@ -120,6 +120,26 @@ class Task(models.Model):
     def get_task_dirname(self):
         return os.path.join(settings.DATA_ROOT, str(self.id))
 
+    def get_assignment_data(self):
+        """Find out to whom each sequence in each version is assigned.
+        Returns a list of (version, sequence_name, user) tuples.
+        User is None if the sequence doesn't have the assignee.
+        """
+        # TODO: do not support multiple versions for now
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT image.path, auth_user.username
+                FROM engine_segment segment
+                JOIN engine_image image ON image.task_id = segment.task_id AND image.frame = segment.start_frame
+                JOIN engine_job job ON job.segment_id = segment.id
+                LEFT JOIN auth_user ON auth_user.id = job.assignee_id
+                WHERE segment.task_id = %s
+            """, [self.id])
+            return [
+                (0, parse_frame_name(image_path)[1], annotator_name)
+                for image_path, annotator_name in cursor.fetchall()
+            ]
+
     def __str__(self):
         return self.name
 

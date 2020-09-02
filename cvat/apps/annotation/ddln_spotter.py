@@ -47,6 +47,7 @@ def dump(file_object, annotations):
     from cvat.apps.dataset_manager.util import make_zip_archive
     from cvat.apps.annotation.structures import load_sequences
     from cvat.apps.annotation.transports.csv import CsvDirectoryImporter
+    from cvat.apps.annotation.transports.cvat.utils import write_task_mapping_file
     from cvat.apps.annotation.validation import validate
     from tempfile import TemporaryDirectory
 
@@ -114,6 +115,8 @@ def dump(file_object, annotations):
         reporter = validate(sequences)
         validation_file = os.path.join(temp_dir, 'validation.txt')
         reporter.write_text_report(open(validation_file, 'wt'))
+        task_mapping_filename = os.path.join(temp_dir, 'task_mapping.csv')
+        write_task_mapping_file(annotations._db_task, open(task_mapping_filename, 'wt'))
         make_zip_archive(temp_dir, file_object)
 
 
