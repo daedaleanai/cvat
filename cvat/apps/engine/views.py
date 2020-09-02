@@ -33,8 +33,9 @@ from django.utils import timezone
 from . import annotation, task, models
 from cvat.settings.base import JS_3RDPARTY, CSS_3RDPARTY
 from cvat.apps.authentication.decorators import login_required
+from .ddln.utils import parse_frame_name
 from .log import slogger, clogger
-from cvat.apps.engine.models import StatusChoice, Task, Job, Plugin
+from cvat.apps.engine.models import StatusChoice, Task, Job, Plugin, Segment
 from cvat.apps.engine.serializers import (TaskSerializer, UserSerializer,
    ExceptionSerializer, AboutSerializer, JobSerializer, ImageMetaSerializer,
    RqStatusSerializer, TaskDataSerializer, DataOptionsSerializer, LabeledDataSerializer,
@@ -370,6 +371,13 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
             permissions.append(auth.AdminRolePermission)
 
         return [perm() for perm in permissions]
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        task_queryset = self.filter_queryset(self.get_queryset())
+        sequence_by_segment_id = get_sequences_by_segments(task_queryset)
+        context['sequence_by_segment_id'] = sequence_by_segment_id
+        return context
 
     def perform_create(self, serializer):
         if self.request.data.get('owner', None):
@@ -830,6 +838,19 @@ class PluginViewSet(viewsets.ModelViewSet):
         serializer_class=RqStatusSerializer, url_path='requests/(?P<id>\d+)')
     def request_detail(self, request, name, rq_id):
         pass
+
+
+def get_sequences_by_segments(task_queryset):
+    """Get segment_id -> sequence_name mapping only for the task listed in task_queryset"""
+    task_ids = tuple(task_queryset.values_list('id', flat=True))
+    segments = Segment.objects.raw("""
+        SELECT segment.id, image.path as image_path
+        FROM engine_segment segment
+        JOIN engine_image image ON image.task_id = segment.task_id AND image.frame = segment.start_frame
+        WHERE segment.task_id in %s
+    """, [task_ids])
+    return {s.id: parse_frame_name(s.image_path)[1] for s in segments}
+
 
 def rq_handler(job, exc_type, exc_value, tb):
     job.exc_info = "".join(

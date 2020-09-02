@@ -73,6 +73,11 @@ function JobListComponent(props: Props & RouteComponentProps): JSX.Element {
             </div>
         ),
     }, {
+        title: 'Sequence name',
+        dataIndex: 'sequenceName',
+        key: 'sequenceName',
+        className: 'cvat-text-color',
+    }, {
         title: 'Frames',
         dataIndex: 'frames',
         key: 'frames',
@@ -146,6 +151,7 @@ function JobListComponent(props: Props & RouteComponentProps): JSX.Element {
         acc.push({
             key: job.id,
             job: job.id,
+            sequenceName: job.sequenceName,
             frames: `${job.startFrame}-${job.stopFrame}`,
             status: `${job.status}`,
             started: `${created.format('MMMM Do YYYY HH:MM')}`,
