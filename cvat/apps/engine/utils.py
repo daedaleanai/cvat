@@ -1,6 +1,7 @@
 import ast
 import itertools
 import re
+import threading
 from collections import namedtuple
 import importlib
 import sys
@@ -64,15 +65,14 @@ def execute_python_code(source_code, global_vars=None, local_vars=None):
 
 
 def singleton(constructor):
-    """Decorator for turning function into singleton constructor. Function should take no arguments. Not thread-safe."""
-    instance = None
+    """Decorator for turning function into singleton constructor. Function should take no arguments."""
+    storage = threading.local()
 
     @wraps(constructor)
     def inner():
-        nonlocal instance
-        if instance is None:
-            instance = constructor()
-        return instance
+        if getattr(storage, "instance", None) is None:
+            storage.instance = constructor()
+        return storage.instance
 
     return inner
 
