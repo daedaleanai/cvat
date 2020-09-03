@@ -20,6 +20,23 @@ format_spec = {
     ],
 }
 
+YML_TEMPLATE = """sources:
+  - {ddln_id}
+date: {curr_date}
+team: {team}
+  - group: {group}
+  - mapping: {map_file}
+phabricator: {task}
+tool:
+  - name: CVAT
+    version: 2.3
+  - name: merge tool https://git-ng.daedalean.ai/daedalean/exp-devtools/src/branch/master/annotations/multi/process_annotations_msq.py
+    version: pre-commit
+invalid:
+comment:
+quality:
+recommendations: """
+
 def extractFileParams(filename):
     directoryName, csvFilename = os.path.split(filename)
     if directoryName:
@@ -51,11 +68,45 @@ def dump(file_object, annotations):
     from cvat.apps.annotation.validation import validate
     from tempfile import TemporaryDirectory
 
+    ddln_id = None
+    team = "msq"
+    group = "msq"
+    map_file = "task_mapping.csv"
+    id_file_path = None
+
+    task = annotations.meta['task']['name']
+    task = task.split('_')[0]
+    curr_date = annotations.meta['dumped'][:10]
+
+    dir_prefix = "/home/django/share/incoming/{}/"
+    for dirp, dirn, files in os.walk(dir_prefix.format(task)):
+        if "spo_" in dirp:
+            for filename in [x for x in files if x == "ddln_id"]:
+                id_file_path = os.path.join(dirp, filename)
+
+    if not id_file_path:
+        #TODO: need to figure out how to handle missing ddln_id file
+        pass
+    else:
+        with open(id_file_path, 'r', newline='') as id_file:
+            ddln_id = id_file.read().splitlines()[0]
+
+    yml_data = YML_TEMPLATE.format( ddln_id=ddln_id,
+                                    curr_date=curr_date,
+                                    team=team,
+                                    group=group,
+                                    map_file=map_file,
+                                    task=task)  
+
     with TemporaryDirectory() as temp_dir:
         log_file_path = os.path.join(temp_dir, "export.log")
+        yml_file_path = os.path.join(temp_dir, "ddln.yaml")
         totalSucceed = 0
         totalFailed = 0
         boxIndex = 0
+        
+        with open(yml_file_path, 'w', newline='') as yml_file:
+            yml_file.write(yml_data)
 
         with open(log_file_path, 'w', newline='') as log_file:
             for frame_annotation in annotations.group_by_frame(omit_empty_frames=False):
