@@ -667,6 +667,13 @@ class TaskAnnotation:
     def reset(self):
         self.ir_data.reset()
 
+    def get_frames_set(self):
+        result = set()
+        for job in self.db_jobs:
+            segment_frames = range(job.segment.start_frame, job.segment.stop_frame + 1)
+            result = result.union(segment_frames)
+        return result
+
     def _patch_data(self, data, action):
         _data = data if isinstance(data, AnnotationIR) else AnnotationIR(data)
         splitted_data = {}
@@ -727,6 +734,7 @@ class TaskAnnotation:
             db_task=self.db_task,
             scheme=scheme,
             host=host,
+            frames_set=self.get_frames_set(),
         )
         db_format = dumper.annotation_format
 

@@ -111,7 +111,7 @@ class Annotation:
     Tag.__new__.__defaults__ = (0, )
     Frame = namedtuple('Frame', 'frame, name, width, height, labeled_shapes, tags')
 
-    def __init__(self, annotation_ir, db_task, scheme='', host='', create_callback=None):
+    def __init__(self, annotation_ir, db_task, scheme='', host='', create_callback=None, frames_set=None):
         self._annotation_ir = annotation_ir
         self._db_task = db_task
         self._scheme = scheme
@@ -142,7 +142,7 @@ class Annotation:
                 **attr_mapping['immutable'],
             }
 
-        self._init_frame_info()
+        self._init_frame_info(frames_set)
         self._init_meta()
 
     def _get_label_id(self, label_name):
@@ -176,7 +176,7 @@ class Annotation:
     def _get_immutable_attribute_id(self, label_id, attribute_name):
         return self._get_attribute_id(label_id, attribute_name, 'immutable')
 
-    def _init_frame_info(self):
+    def _init_frame_info(self, frames_set):
         if self._db_task.mode == "interpolation":
             self._frame_info = {
                 frame: {
@@ -191,6 +191,9 @@ class Annotation:
                 "width": db_image.width,
                 "height": db_image.height,
             } for db_image in self._db_task.image_set.all()}
+
+        if frames_set:
+            self._frame_info = {frame: info for frame, info in self._frame_info.items() if frame in frames_set}
 
         self._frame_mapping = {
             self._get_filename(info["path"]): frame for frame, info in self._frame_info.items()
