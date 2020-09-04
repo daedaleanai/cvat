@@ -9,12 +9,12 @@ from cvat.apps.engine.log import slogger
 from cvat.apps.engine.utils import singleton
 
 
-def record_sequence_completion(job_id, sequence_name, task_name, annotation_date=None):
+def record_sequence_completion(job_id, sequence_name, task_name, annotator, annotation_date=None):
     if annotation_date is None:
         annotation_date = dt.date.today()
     try:
         client = create_inventory_client()
-        affected_cells = client.record_sequence_completion(sequence_name, task_name, annotation_date)
+        affected_cells = client.record_sequence_completion(sequence_name, task_name, annotator, annotation_date)
         slogger.glob.info("Job %s completed. Made a record in inventory file: '%s'", job_id, affected_cells)
     except Exception:
         slogger.glob.exception("Error while making the job completion record")
@@ -55,15 +55,15 @@ class InventoryClient:
         self._service = build('sheets', 'v4', credentials=credentials)
         self.spreadsheet_id = spreadsheet_id
 
-    def record_sequence_completion(self, sequence_name: str, task_name: str, completion_date: dt.date):
+    def record_sequence_completion(self, sequence_name: str, task_name: str, annotator: str, completion_date: dt.date):
         row_index = self._get_row_index(sequence_name, task_name)
         if row_index == -1:
             raise ValueError("sequence {!r} for task {!r} is not found.".format(sequence_name, task_name))
         completion_date = "{:%d.%m.%Y}".format(completion_date)
-        row = [completion_date]
+        row = [annotator, completion_date]
         request = self._service.spreadsheets().values().update(
             spreadsheetId=self.spreadsheet_id,
-            range='F{}:F{}'.format(row_index, row_index),
+            range='E{}:F{}'.format(row_index, row_index),
             valueInputOption='USER_ENTERED',
             body={
                 'values': [row]
@@ -110,7 +110,7 @@ class InventoryClient:
 
 
 class DummyInventoryClient:
-    def record_sequence_completion(self, sequence_name: str, task_name: str, completion_date: dt.date):
+    def record_sequence_completion(self, sequence_name: str, task_name: str, annotator: str, completion_date: dt.date):
         return ''
 
     def record_task_creation(self, task_name: str, sequence_annotator_pairs: List[Tuple[str, str]]):
