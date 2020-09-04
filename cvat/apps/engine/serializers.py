@@ -222,6 +222,11 @@ class JobsSelectionSerializer(serializers.Serializer):
         default=[],
     )
 
+
+class TaskValidateSerializer(JobsSelectionSerializer):
+    jump_threshold = serializers.FloatField(required=False, min_value=1.0)
+
+
 class TaskDumpSerializer(JobsSelectionSerializer):
     action = serializers.CharField(default=None)
     format = serializers.SlugRelatedField('display_name', queryset=AnnotationDumper.objects.all())

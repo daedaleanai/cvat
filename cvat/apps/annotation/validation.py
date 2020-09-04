@@ -4,7 +4,7 @@ from itertools import groupby
 from cvat.apps.annotation.structures import BoundingBox, label_by_class_id
 
 
-def validate(sequences):
+def validate(sequences, jump_threshold=10):
     reporter = ValidationReporter()
     for seq in sequences:
         reporter.sequence = seq.name
@@ -30,7 +30,7 @@ def validate(sequences):
                 _validate_coordinates(bbox, reporter)
                 _validate_attributes(bbox, reporter)
                 _validate_class_immutability(bbox, class_id_by_track_id, reporter)
-                _validate_position_change(bbox, previous_frame, jump_threshold=2, reporter=reporter)
+                _validate_position_change(bbox, previous_frame, jump_threshold, reporter)
 
             reporter.bbox_index = None
             for track_id in duplicated_track_ids:

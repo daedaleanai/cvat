@@ -40,7 +40,7 @@ from cvat.apps.engine.serializers import (TaskSerializer, UserSerializer,
    ExceptionSerializer, AboutSerializer, JobSerializer, ImageMetaSerializer,
    RqStatusSerializer, TaskDataSerializer, DataOptionsSerializer, LabeledDataSerializer,
    PluginSerializer, FileInfoSerializer, LogEventSerializer, JobsSelectionSerializer,
-   ProjectSerializer, BasicUserSerializer, TaskDumpSerializer)
+   ProjectSerializer, BasicUserSerializer, TaskDumpSerializer, TaskValidateSerializer)
 from cvat.apps.engine.utils import natural_order
 from cvat.apps.annotation.serializers import AnnotationFileSerializer, AnnotationFormatSerializer
 from django.contrib.auth.models import User
@@ -470,13 +470,14 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
     def validate(self, request, pk):
         self.get_object() # force to call check_object_permissions
 
-        params_serializer = JobsSelectionSerializer(data=request.query_params)
+        params_serializer = TaskValidateSerializer(data=request.query_params)
         params_serializer.is_valid(raise_exception=True)
-        job_ids = params_serializer.validated_data['jobs']
+        job_ids = params_serializer.validated_data.pop('jobs')
+        options = params_serializer.validated_data
 
         importer = CVATImporter.for_task(pk, job_ids)
         sequences = load_sequences(importer)
-        reporter = validate(sequences)
+        reporter = validate(sequences, **options)
         report = reporter.get_text_report()
 
         return Response(data={"report": report}, status=status.HTTP_200_OK)
