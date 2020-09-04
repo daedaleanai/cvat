@@ -23,7 +23,7 @@ format_spec = {
 YML_TEMPLATE = """sources:
   - {ddln_id}
 date: {curr_date}
-team: {team}
+team:
   - group: {group}
   - mapping: {map_file}
 phabricator: {task}
@@ -69,7 +69,6 @@ def dump(file_object, annotations):
     from tempfile import TemporaryDirectory
 
     ddln_id = None
-    team = "msq"
     group = "msq"
     map_file = "task_mapping.csv"
     id_file_path = None
@@ -93,7 +92,6 @@ def dump(file_object, annotations):
 
     yml_data = YML_TEMPLATE.format( ddln_id=ddln_id,
                                     curr_date=curr_date,
-                                    team=team,
                                     group=group,
                                     map_file=map_file,
                                     task=task)  
