@@ -9,6 +9,8 @@ services:
       UI_SCHEME: https
       UI_HOST: cvat.daedalean.ai
       UI_PORT: 443
+      INVENTORY_CREDENTIALS_FILENAME: cvat-inentory-file-writer-948543f62305.json
+      INVENTORY_SPREADSHEET_ID: 11nn8OJlvMllfpF8qkcLqbvefclF0iIiawFO9xN-2MrI
     volumes:
       - cvat_share:/home/django/share:ro
 volumes:

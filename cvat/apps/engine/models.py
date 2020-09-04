@@ -2,22 +2,21 @@
 #
 # SPDX-License-Identifier: MIT
 
-from datetime import date
 from enum import Enum
 
 import re
 import shlex
 import os
 
+import django_rq
 from django.db import models, connection
 from django.conf import settings
 
 from django.contrib.auth.models import User
 from django.core.files.storage import FileSystemStorage
 
-from cvat.apps.engine.ddln.inventory_client import create_inventory_client
+from cvat.apps.engine.ddln.inventory_client import record_sequence_completion
 from cvat.apps.engine.ddln.utils import parse_frame_name
-from cvat.apps.engine.log import slogger
 
 
 class SafeCharField(models.CharField):
@@ -232,14 +231,12 @@ class Job(models.Model):
 
         _, sequence_name = parse_frame_name(image_path)
         annotator = self.assignee.username if self.assignee else ''
-        annotation_date = date.today()
 
-        try:
-            client = create_inventory_client()
-            affected_cells = client.record_sequence_completion(sequence_name, task_name, annotator, annotation_date)
-            slogger.glob.info("Job %s completed. Made a record in inventory file: '%s'", self.id, affected_cells)
-        except Exception:
-            slogger.glob.exception("Error while making the job completion record")
+        # making request to google sheet api might take a long time,
+        # so make api call in a worker rather than in request handler
+        q = django_rq.get_queue('default')
+        rq_job_id = "inventory.task.complete.{}".format(self.id)
+        q.enqueue_call(func=record_sequence_completion, args=(self.id, sequence_name, task_name, annotator), job_id=rq_job_id)
 
 
 class Label(models.Model):

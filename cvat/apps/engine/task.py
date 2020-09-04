@@ -24,6 +24,7 @@ from django.db import transaction
 from distutils.dir_util import copy_tree
 
 from . import models
+from .ddln.inventory_client import record_task_creation
 from .ddln.sequences import group, distribute
 from .ddln.utils import parse_frame_name
 from .log import slogger
@@ -339,6 +340,7 @@ def _create_thread(tid, data, options):
     else:
         segments = []
     _save_task_to_db(db_task, segments)
+    record_task_creation(db_task, segments)
 
 
 def _build_segments(images):
