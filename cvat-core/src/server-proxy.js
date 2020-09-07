@@ -301,6 +301,8 @@
                 const { backendAPI } = config;
 
                 async function wait(id) {
+                    const maxAttempts = 7;
+                    let failedResponses = 0;
                     return new Promise((resolve, reject) => {
                         async function checkStatus() {
                             try {
@@ -309,6 +311,7 @@
                                     if (response.data.message !== '') {
                                         onUpdate(response.data.message);
                                     }
+                                    failedResponses = 0;
                                     setTimeout(checkStatus, 1000);
                                 } else if (response.data.state === 'Finished') {
                                     resolve();
@@ -327,9 +330,14 @@
                                     ));
                                 }
                             } catch (errorData) {
-                                reject(
-                                    generateError(errorData),
-                                );
+                                failedResponses += 1;
+                                if (failedResponses < maxAttempts) {
+                                    setTimeout(checkStatus, 1000);
+                                } else {
+                                    reject(
+                                        generateError(errorData),
+                                    );
+                                }
                             }
                         }
 
