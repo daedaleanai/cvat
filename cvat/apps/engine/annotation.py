@@ -660,19 +660,17 @@ class TaskAnnotation:
 
         # Postgres doesn't guarantee an order by default without explicit order_by
         self.db_jobs = models.Job.objects.select_related("segment").filter(segment__task_id=pk).order_by('id')
+        self._partial = False
         if job_ids:
+            self._partial = True
             self.db_jobs = self.db_jobs.filter(id__in=job_ids)
         self.ir_data = AnnotationIR()
 
     def reset(self):
         self.ir_data.reset()
 
-    def get_frames_set(self):
-        result = set()
-        for job in self.db_jobs:
-            segment_frames = range(job.segment.start_frame, job.segment.stop_frame + 1)
-            result = result.union(segment_frames)
-        return result
+    def get_selected_jobs(self):
+        return self.db_jobs if self._partial else None
 
     def _patch_data(self, data, action):
         _data = data if isinstance(data, AnnotationIR) else AnnotationIR(data)
@@ -734,7 +732,7 @@ class TaskAnnotation:
             db_task=self.db_task,
             scheme=scheme,
             host=host,
-            frames_set=self.get_frames_set(),
+            selected_jobs=self.get_selected_jobs(),
         )
         db_format = dumper.annotation_format
 
