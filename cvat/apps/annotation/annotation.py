@@ -111,7 +111,7 @@ class Annotation:
     Tag.__new__.__defaults__ = (0, )
     Frame = namedtuple('Frame', 'frame, name, width, height, labeled_shapes, tags')
 
-    def __init__(self, annotation_ir, db_task, scheme='', host='', create_callback=None, frames_set=None):
+    def __init__(self, annotation_ir, db_task, scheme='', host='', create_callback=None, selected_jobs=None):
         self._annotation_ir = annotation_ir
         self._db_task = db_task
         self._scheme = scheme
@@ -121,6 +121,11 @@ class Annotation:
         self._frame_info = {}
         self._frame_mapping = {}
         self._frame_step = db_task.get_frame_step()
+
+        self._end_frame = self._db_task.size
+        frames_set = None
+        if selected_jobs is not None:
+            self._end_frame, frames_set = self._get_selected_frames(selected_jobs)
 
         db_labels = self._db_task.label_set.all().prefetch_related('attributespec_set').order_by('pk')
 
@@ -144,6 +149,16 @@ class Annotation:
 
         self._init_frame_info(frames_set)
         self._init_meta()
+
+    def _get_selected_frames(self, selected_jobs):
+        frames_set = set()
+        end_frames = []
+        for job in selected_jobs:
+            end_frames.append(job.segment.stop_frame + 1)
+            segment_frames = range(job.segment.start_frame, job.segment.stop_frame + 1)
+            frames_set = frames_set.union(segment_frames)
+        end_frames.sort()
+        return end_frames, frames_set
 
     def _get_label_id(self, label_name):
         for db_label in self._label_mapping.values():
@@ -330,7 +345,7 @@ class Annotation:
                 _get_frame(annotations, frame_index)
 
         data_manager = DataManager(self._annotation_ir)
-        for shape in sorted(data_manager.to_shapes(self._db_task.size), key=lambda s: s.get("z_order", 0)):
+        for shape in sorted(data_manager.to_shapes(self._end_frame), key=lambda s: s.get("z_order", 0)):
             _get_frame(annotations, shape["frame"]).labeled_shapes.append(self._export_labeled_shape(shape))
 
         for tag in self._annotation_ir.tags:
@@ -346,7 +361,7 @@ class Annotation:
     @property
     def tracks(self):
         for track in self._annotation_ir.tracks:
-            tracked_shapes = TrackManager.get_interpolated_shapes(track, 0, self._db_task.size)
+            tracked_shapes = TrackManager.get_interpolated_shapes(track, 0, self._end_frame)
             for tracked_shape in tracked_shapes:
                 tracked_shape["attributes"] += track["attributes"]
 

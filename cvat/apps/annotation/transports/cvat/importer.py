@@ -25,7 +25,7 @@ class CVATImporter:
             db_task=annotation.db_task,
             scheme='https',
             host='',
-            frames_set=annotation.get_frames_set(),
+            selected_jobs=annotation.get_selected_jobs(),
         )
         return cls(anno_exporter, logger)
 

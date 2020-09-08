@@ -284,7 +284,7 @@ class TrackManager(ObjectManager):
         shape = obj["shapes"][-1]
         if not shape["outside"]:
             shape = copy.deepcopy(shape)
-            shape["frame"] = end_frame
+            shape["frame"] += 1
             shape["outside"] = True
             obj["shapes"].append(shape)
 
@@ -305,6 +305,11 @@ class TrackManager(ObjectManager):
 
     @staticmethod
     def get_interpolated_shapes(track, start_frame, end_frame):
+        """
+        If end_frame is an int, that's the end of the task and we should interpolate till that value.
+        I end_frame is a list of ints, that's the ends of segments
+        and we should interpolate till the closest value in the list.
+        """
         def interpolate(shape0, shape1):
             shapes = []
             is_same_type = shape0["type"] == shape1["type"]
@@ -335,8 +340,11 @@ class TrackManager(ObjectManager):
                 shapes.append(shape)
             return shapes
 
-        if track.get("interpolated_shapes"):
-            return track["interpolated_shapes"]
+        if isinstance(end_frame, list):
+            end_frame = next(v for v in end_frame if v > track['frame'])
+
+        if track.get("interpolated_shapes", {}).get(end_frame):
+            return track["interpolated_shapes"][end_frame]
 
         # TODO: should be return an iterator?
         shapes = []
@@ -363,7 +371,7 @@ class TrackManager(ObjectManager):
             shape["frame"] = end_frame
             shapes.extend(interpolate(prev_shape, shape))
 
-        track["interpolated_shapes"] = shapes
+        track.setdefault("interpolated_shapes", {})[end_frame] = shapes
 
         return shapes
 
@@ -381,6 +389,6 @@ class TrackManager(ObjectManager):
 
         track["frame"] = min(obj0["frame"], obj1["frame"])
         track["shapes"] = list(sorted(shapes.values(), key=lambda shape: shape["frame"]))
-        track["interpolated_shapes"] = []
+        track["interpolated_shapes"] = {}
 
         return track
