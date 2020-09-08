@@ -307,7 +307,7 @@ class TrackManager(ObjectManager):
     def get_interpolated_shapes(track, start_frame, end_frame):
         """
         If end_frame is an int, that's the end of the task and we should interpolate till that value.
-        I end_frame is a list of ints, that's the ends of segments
+        If end_frame is a list of ints, that's the ends of segments
         and we should interpolate till the closest value in the list.
         """
         def interpolate(shape0, shape1):
