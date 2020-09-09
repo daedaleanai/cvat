@@ -409,7 +409,8 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
         """
         db_task = self.get_object() # call check_object_permissions as well
         serializer = TaskDataSerializer(db_task, data=request.data)
-        options_serializer = DataOptionsSerializer(data=request.query_params)
+        context = {"times_annotated": db_task.times_annotated}
+        options_serializer = DataOptionsSerializer(data=request.query_params, context=context)
         options_serializer.is_valid(raise_exception=True)
         if serializer.is_valid(raise_exception=True):
             serializer.save()

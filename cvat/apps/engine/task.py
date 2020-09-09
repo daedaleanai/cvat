@@ -113,8 +113,8 @@ def _save_task_to_db(db_task, segments):
 
     if segments:
         for seg in segments:
-            _, _, start_frame, stop_frame, assignee = seg
-            _create_job(db_task, start_frame, stop_frame, assignee)
+            _, _, start_frame, stop_frame, assignees = seg
+            _create_job(db_task, start_frame, stop_frame, assignees)
         db_task.overlap = 0
         db_task.save()
         return
@@ -143,7 +143,7 @@ def _save_task_to_db(db_task, segments):
     db_task.save()
 
 
-def _create_job(db_task, start_frame, stop_frame, assignee=None):
+def _create_job(db_task, start_frame, stop_frame, assignees=()):
     message = "New segment for task #{}: start_frame = {}, stop_frame = {}".format(db_task.id, start_frame, stop_frame)
     slogger.glob.info(message)
     db_segment = models.Segment()
@@ -151,11 +151,14 @@ def _create_job(db_task, start_frame, stop_frame, assignee=None):
     db_segment.start_frame = start_frame
     db_segment.stop_frame = stop_frame
     db_segment.save()
-    db_job = models.Job()
-    db_job.segment = db_segment
-    if assignee:
+    if not assignees:
+        assignees = [None]
+    for version, assignee in enumerate(assignees):
+        db_job = models.Job()
+        db_job.segment = db_segment
+        db_job.version = version
         db_job.assignee = assignee
-    db_job.save()
+        db_job.save()
 
 
 def _validate_data(data):
@@ -334,9 +337,9 @@ def _create_thread(tid, data, options):
         chunk_size = options['chunk_size']
         if assignees:
             chunks = group(segments, chunk_size)
-            for chunk, assignee in distribute(chunks, assignees):
+            for chunk, chunk_assignees in distribute(chunks, assignees, db_task.times_annotated):
                 for segment in chunk:
-                    segment[4] = assignee
+                    segment[4] = chunk_assignees
     else:
         segments = []
     _save_task_to_db(db_task, segments)
@@ -355,5 +358,5 @@ def _build_segments(images):
         start_frame = group[0].frame
         stop_frame = group[-1].frame
         size = stop_frame + 1 - start_frame
-        result.append([seq_name, size, start_frame, stop_frame, None])  # segment[4] (None) is an assignee
+        result.append([seq_name, size, start_frame, stop_frame, []])  # segment[4] (empty list) is a list of assignees
     return result

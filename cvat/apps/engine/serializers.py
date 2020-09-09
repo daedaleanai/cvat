@@ -213,6 +213,10 @@ class DataOptionsSerializer(serializers.Serializer):
             raise serializers.ValidationError("When split on sequence is off, assignees are ignored")
         if data['assignees'] and data['chunk_size'] is None:
             raise serializers.ValidationError("When assignees are provided chunk size should be provided as well")
+        times_annotated = self.context['times_annotated']
+        if times_annotated > 1 and len(data['assignees']) < times_annotated:
+            raise serializers.ValidationError("Not enough assignees to annotate task {} times".format(times_annotated))
+
         return data
 
 
