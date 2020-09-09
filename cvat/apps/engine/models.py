@@ -237,7 +237,7 @@ class Job(models.Model):
         # so make api call in a worker rather than in request handler
         q = django_rq.get_queue('default')
         rq_job_id = "inventory.task.complete.{}".format(self.id)
-        q.enqueue_call(func=record_sequence_completion, args=(self.id, sequence_name, task_name, annotator), job_id=rq_job_id)
+        q.enqueue_call(func=record_sequence_completion, args=(self.id, sequence_name, self.version, task_name, annotator), job_id=rq_job_id)
 
 
 class Label(models.Model):
