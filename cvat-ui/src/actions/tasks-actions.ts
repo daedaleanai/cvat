@@ -389,6 +389,7 @@ ThunkAction<Promise<void>, {}, {}, AnyAction> {
             labels: data.labels,
             z_order: data.advanced.zOrder,
             image_quality: 70,
+            times_annotated: !data.advanced.splitOnSequence ? 1 : data.advanced.isTripleAnnotated ? 3 : 1,
         };
 
         if (data.advanced.bugTracker) {

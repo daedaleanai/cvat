@@ -770,6 +770,7 @@
                 start_frame: undefined,
                 stop_frame: undefined,
                 frame_filter: undefined,
+                times_annotated: undefined,
             };
 
             for (const property in data) {
@@ -862,6 +863,16 @@
                 */
                 size: {
                     get: () => data.size,
+                },
+                /**
+                    * @name timesAnnotated
+                    * @type {integer}
+                    * @memberof module:API.cvat.classes.Task
+                    * @readonly
+                    * @instance
+                */
+                timesAnnotated: {
+                    get: () => data.times_annotated,
                 },
                 /**
                     * @name mode
@@ -1500,6 +1511,7 @@
             name: this.name,
             labels: this.labels.map((el) => el.toJSON()),
             image_quality: this.imageQuality,
+            times_annotated: this.timesAnnotated,
             z_order: Boolean(this.zOrder),
         };
 
