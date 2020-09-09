@@ -565,6 +565,7 @@
                 start_frame: undefined,
                 stop_frame: undefined,
                 sequence_name: undefined,
+                version: undefined,
                 task: undefined,
             };
 
@@ -669,6 +670,16 @@
                 */
                 sequenceName: {
                     get: () => data.sequence_name,
+                },
+                /**
+                    * @name version
+                    * @type {string}
+                    * @memberof module:API.cvat.classes.Job
+                    * @readonly
+                    * @instance
+                */
+                version: {
+                    get: () => data.version + 1,
                 },
                 /**
                     * @name task
@@ -800,6 +811,7 @@
                                 start_frame: segment.start_frame,
                                 stop_frame: segment.stop_frame,
                                 sequence_name: segment.sequence_name,
+                                version: job.version,
                                 task: this,
                             });
                             data.jobs.push(jobInstance);
