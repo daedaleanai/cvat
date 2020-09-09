@@ -71,6 +71,7 @@ class Task(models.Model):
     overlap = models.PositiveIntegerField(null=True)
     # Zero means that there are no limits (default)
     segment_size = models.PositiveIntegerField(default=0)
+    times_annotated = models.PositiveIntegerField(default=1)
     z_order = models.BooleanField(default=False)
     image_quality = models.PositiveSmallIntegerField(default=50)
     start_frame = models.PositiveIntegerField(default=0)
@@ -124,10 +125,9 @@ class Task(models.Model):
         Returns a list of (version, sequence_name, user) tuples.
         User is None if the sequence doesn't have the assignee.
         """
-        # TODO: do not support multiple versions for now
         with connection.cursor() as cursor:
             cursor.execute("""
-                SELECT image.path, auth_user.username
+                SELECT job.version, image.path, auth_user.username
                 FROM engine_segment segment
                 JOIN engine_image image ON image.task_id = segment.task_id AND image.frame = segment.start_frame
                 JOIN engine_job job ON job.segment_id = segment.id
@@ -135,8 +135,8 @@ class Task(models.Model):
                 WHERE segment.task_id = %s
             """, [self.id])
             return [
-                (0, parse_frame_name(image_path)[1], annotator_name)
-                for image_path, annotator_name in cursor.fetchall()
+                (version, parse_frame_name(image_path)[1], annotator_name)
+                for version, image_path, annotator_name in cursor.fetchall()
             ]
 
     def __str__(self):
@@ -214,6 +214,7 @@ class Job(models.Model):
     assignee = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
     status = models.CharField(max_length=32, choices=StatusChoice.choices(),
         default=StatusChoice.ANNOTATION)
+    version = models.PositiveIntegerField(default=0)
 
     class Meta:
         default_permissions = ()

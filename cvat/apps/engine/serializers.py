@@ -102,7 +102,7 @@ class JobSerializer(serializers.ModelSerializer):
 class SimpleJobSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Job
-        fields = ('url', 'id', 'assignee', 'status')
+        fields = ('url', 'id', 'assignee', 'status', 'version')
 
 class SegmentSerializer(serializers.ModelSerializer):
     jobs = SimpleJobSerializer(many=True, source='job_set')
@@ -286,6 +286,7 @@ class TaskSerializer(WriteOnceMixin, serializers.ModelSerializer):
     labels = LabelSerializer(many=True, source='label_set', partial=True)
     segments = SegmentSerializer(many=True, source='segment_set', read_only=True)
     image_quality = serializers.IntegerField(min_value=0, max_value=100)
+    times_annotated = serializers.IntegerField(default=1, min_value=1, max_value=10)
 
     class Meta:
         model = models.Task
@@ -293,10 +294,10 @@ class TaskSerializer(WriteOnceMixin, serializers.ModelSerializer):
             'bug_tracker', 'created_date', 'updated_date', 'overlap',
             'segment_size', 'z_order', 'status', 'labels', 'segments',
             'image_quality', 'start_frame', 'stop_frame', 'frame_filter',
-            'project')
+            'project', 'times_annotated')
         read_only_fields = ('size', 'mode', 'created_date', 'updated_date',
             'status')
-        write_once_fields = ('overlap', 'segment_size', 'image_quality')
+        write_once_fields = ('overlap', 'segment_size', 'image_quality', 'times_annotated')
         ordering = ['-id']
 
     def validate_frame_filter(self, value):
