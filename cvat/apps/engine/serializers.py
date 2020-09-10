@@ -226,18 +226,27 @@ class DataOptionsSerializer(serializers.Serializer):
         return data
 
 
-class JobsSelectionSerializer(serializers.Serializer):
+class JobSelectionSerializer(serializers.Serializer):
     jobs = CommaSeparatedValuesField(
         child=serializers.IntegerField(min_value=1),
         default=[],
     )
+    version = serializers.IntegerField(default=None, min_value=0)
+
+    def validate(self, data):
+        if data['jobs'] and data['version'] is not None:
+            raise serializers.ValidationError("'version' and 'jobs' should not be provided at the same time")
+        return data
+
+    def create(self, validated_data):
+        return dict(jobs=validated_data['jobs'], version=validated_data['version'])
 
 
-class TaskValidateSerializer(JobsSelectionSerializer):
+class TaskValidateSerializer(JobSelectionSerializer):
     jump_threshold = serializers.FloatField(required=False, min_value=1.0)
 
 
-class TaskDumpSerializer(JobsSelectionSerializer):
+class TaskDumpSerializer(JobSelectionSerializer):
     action = serializers.CharField(default=None)
     format = serializers.SlugRelatedField('display_name', queryset=AnnotationDumper.objects.all())
 
