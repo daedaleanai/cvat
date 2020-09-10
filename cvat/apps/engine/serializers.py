@@ -12,6 +12,7 @@ from django.contrib.auth.models import User, Group
 from cvat.apps.annotation.models import AnnotationDumper
 from cvat.apps.engine import models
 from cvat.apps.engine.log import slogger
+from cvat.apps.engine.utils import natural_order
 
 
 class CommaSeparatedValuesField(serializers.ListField):
@@ -108,16 +109,21 @@ class SegmentSerializer(serializers.ModelSerializer):
     jobs = SimpleJobSerializer(many=True, source='job_set')
     sequence_name = serializers.SerializerMethodField()
 
+    class Meta:
+        model = models.Segment
+        fields = ('start_frame', 'stop_frame', 'jobs', 'sequence_name')
+        read_only_fields = ('sequence_name',)
+
+    def to_representation(self, instance):
+        value = super().to_representation(instance)
+        value['jobs'].sort(key=lambda e: e['version'])
+        return value
+
     def get_sequence_name(self, obj):
         sequence_by_segment_id = self.context.get('sequence_by_segment_id')
         if not sequence_by_segment_id:
             return ''
         return sequence_by_segment_id.get(obj.id, '')
-
-    class Meta:
-        model = models.Segment
-        fields = ('start_frame', 'stop_frame', 'jobs', 'sequence_name')
-        read_only_fields = ('sequence_name',)
 
 class ClientFileSerializer(serializers.ModelSerializer):
     class Meta:
@@ -303,6 +309,11 @@ class TaskSerializer(WriteOnceMixin, serializers.ModelSerializer):
             'status')
         write_once_fields = ('overlap', 'segment_size', 'image_quality', 'times_annotated')
         ordering = ['-id']
+
+    def to_representation(self, instance):
+        value = super().to_representation(instance)
+        value['segments'].sort(key=lambda e: natural_order(e['sequence_name']))
+        return value
 
     def validate_frame_filter(self, value):
         match = re.search("step\s*=\s*([1-9]\d*)", value)
