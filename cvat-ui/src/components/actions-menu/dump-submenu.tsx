@@ -11,6 +11,8 @@ import {
 
 import Text from 'antd/lib/typography/Text';
 
+import versionSubmenu from './version-submenu';
+
 function isDefaultFormat(dumperName: string, taskMode: string): boolean {
     return (dumperName === 'CVAT XML 1.1 for videos' && taskMode === 'interpolation')
     || (dumperName === 'CVAT XML 1.1 for images' && taskMode === 'annotation');
@@ -21,6 +23,7 @@ interface Props {
     menuKey: string;
     dumpers: string[];
     dumpActivities: string[] | null;
+    versionsAmount: number;
 }
 
 export default function DumpSubmenu(props: Props): JSX.Element {
@@ -29,12 +32,13 @@ export default function DumpSubmenu(props: Props): JSX.Element {
         menuKey,
         dumpers,
         dumpActivities,
+        versionsAmount,
     } = props;
 
     return (
         <Menu.SubMenu key={menuKey} title='Dump annotations'>
-            {
-                dumpers.map((dumper: string): JSX.Element => {
+            {versionSubmenu(versionsAmount,
+                () => dumpers.map((dumper: string): JSX.Element => {
                     const pending = (dumpActivities || []).includes(dumper);
                     const isDefault = isDefaultFormat(dumper, taskMode);
                     return (
@@ -49,7 +53,7 @@ export default function DumpSubmenu(props: Props): JSX.Element {
                         </Menu.Item>
                     );
                 })
-            }
+            )}
         </Menu.SubMenu>
     );
 }

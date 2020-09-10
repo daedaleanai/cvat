@@ -26,6 +26,15 @@
         return new ServerError(message, 0);
     }
 
+    function applyJobSelection(jobSelection, queryParams) {
+        if (!jobSelection) return;
+        if (jobSelection.jobs) {
+            queryParams.append("jobs", jobSelection.jobs);
+        } else if (jobSelection.version) {
+            queryParams.append("version", jobSelection.version);
+        }
+    }
+
     class ServerProxy {
         constructor() {
             const Axios = require('axios');
@@ -249,15 +258,12 @@
                 }
             }
 
-            async function validateTask(id, jobs) {
+            async function validateTask(id, jobSelection) {
                 const { backendAPI } = config;
 
-                let query = "";
-                if (jobs) {
-                    const queryParams = new URLSearchParams();
-                    queryParams.append("jobs", jobs);
-                    query = `?${queryParams}`;
-                }
+                const queryParams = new URLSearchParams();
+                applyJobSelection(jobSelection, queryParams);
+                const query = [...queryParams].length > 0 ? `?${queryParams}` : "";
 
                 let response = null;
                 try {
@@ -563,7 +569,7 @@
             }
 
             // Session is 'task' or 'job'
-            async function uploadAnnotations(session, id, file, format, jobs) {
+            async function uploadAnnotations(session, id, file, format, jobSelection) {
                 const { backendAPI } = config;
 
                 let annotationData = new FormData();
@@ -573,8 +579,8 @@
                     async function request() {
                         const query = new URLSearchParams();
                         query.append("format", format);
-                        if (jobs && session !== "job") {
-                            query.append("jobs", jobs);
+                        if (session !== "job") {
+                            applyJobSelection(jobSelection, query);
                         }
                         try {
                             const response = await Axios
@@ -597,15 +603,13 @@
             }
 
             // Session is 'task' or 'job'
-            async function dumpAnnotations(id, name, format, jobs) {
+            async function dumpAnnotations(id, name, format, jobSelection) {
                 const { backendAPI } = config;
                 const filename = name.replace(/\//g, '_');
                 const baseURL = `${backendAPI}/tasks/${id}/annotations/${encodeURIComponent(filename)}`;
                 const query = new URLSearchParams();
                 query.append("format", format);
-                if (jobs) {
-                    query.append("jobs", jobs);
-                }
+                applyJobSelection(jobSelection, query);
                 let url = `${baseURL}?${query}`;
 
                 return new Promise((resolve, reject) => {

@@ -13,11 +13,14 @@ import {
 
 import Text from 'antd/lib/typography/Text';
 
+import versionSubmenu from "./version-submenu";
+
 interface Props {
     menuKey: string;
     loaders: string[];
     loadActivity: string | null;
     onFileUpload(file: File): void;
+    versionsAmount: number;
     disabled: boolean;
 }
 
@@ -28,12 +31,13 @@ export default function LoadSubmenu(props: Props): JSX.Element {
         loadActivity,
         onFileUpload,
         disabled,
+        versionsAmount,
     } = props;
 
     return (
         <Menu.SubMenu key={menuKey} title='Upload annotations' disabled={disabled}>
-            {
-                loaders.map((_loader: string): JSX.Element => {
+                {versionSubmenu(versionsAmount,
+                () => loaders.map((_loader: string): JSX.Element => {
                     const [loader, accept] = _loader.split('::');
                     const pending = loadActivity === loader;
                     return (
@@ -61,7 +65,7 @@ export default function LoadSubmenu(props: Props): JSX.Element {
                         </Menu.Item>
                     );
                 })
-            }
+            )}
         </Menu.SubMenu>
     );
 }
