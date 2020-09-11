@@ -116,7 +116,10 @@ class AdvancedConfigurationForm extends React.PureComponent<Props> {
     }
 
     private renderAssigneesSelector(): JSX.Element {
-        const { form, users } = this.props;
+        let { form, users } = this.props;
+        users = [...users].sort((a, b) => a.username.localeCompare(b.username));
+        const annotators = users.filter(u => u.isAnnotator);
+        const others = users.filter(u => !u.isAnnotator);
 
         return (
             <Form.Item label={<span>Assign annotators</span>}>
@@ -125,11 +128,18 @@ class AdvancedConfigurationForm extends React.PureComponent<Props> {
                         initialValue: [],
                     })(
                         <Select mode='multiple' size='large'>
-                            { users.map((user): JSX.Element => (
+                            { annotators.map((user): JSX.Element => (
                                 <Select.Option key={user.id} value={user.id}>
                                     {user.username}
                                 </Select.Option>
                             ))}
+                            <Select.OptGroup label="Others">
+                                { others.map((user): JSX.Element => (
+                                    <Select.Option key={user.id} value={user.id}>
+                                        {user.username}
+                                    </Select.Option>
+                                ))}
+                            </Select.OptGroup>
                         </Select>,
                     )}
                 </Tooltip>
