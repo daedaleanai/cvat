@@ -111,7 +111,7 @@ class Annotation:
     Tag.__new__.__defaults__ = (0, )
     Frame = namedtuple('Frame', 'frame, name, width, height, labeled_shapes, tags')
 
-    def __init__(self, annotation_ir, db_task, scheme='', host='', create_callback=None, selected_jobs=None):
+    def __init__(self, annotation_ir, db_task, scheme='', host='', create_callback=None, frame_container=None):
         self._annotation_ir = annotation_ir
         self._db_task = db_task
         self._scheme = scheme
@@ -122,10 +122,7 @@ class Annotation:
         self._frame_mapping = {}
         self._frame_step = db_task.get_frame_step()
 
-        self._end_frame = self._db_task.size
-        frames_set = None
-        if selected_jobs is not None:
-            self._end_frame, frames_set = self._get_selected_frames(selected_jobs)
+        self._frame_container = frame_container
 
         db_labels = self._db_task.label_set.all().prefetch_related('attributespec_set').order_by('pk')
 
@@ -147,18 +144,8 @@ class Annotation:
                 **attr_mapping['immutable'],
             }
 
-        self._init_frame_info(frames_set)
+        self._init_frame_info(frame_container)
         self._init_meta()
-
-    def _get_selected_frames(self, selected_jobs):
-        frames_set = set()
-        end_frames = []
-        for job in selected_jobs:
-            end_frames.append(job.segment.stop_frame + 1)
-            segment_frames = range(job.segment.start_frame, job.segment.stop_frame + 1)
-            frames_set = frames_set.union(segment_frames)
-        end_frames.sort()
-        return end_frames, frames_set
 
     def _get_label_id(self, label_name):
         for db_label in self._label_mapping.values():
@@ -191,7 +178,7 @@ class Annotation:
     def _get_immutable_attribute_id(self, label_id, attribute_name):
         return self._get_attribute_id(label_id, attribute_name, 'immutable')
 
-    def _init_frame_info(self, frames_set):
+    def _init_frame_info(self, frame_container):
         if self._db_task.mode == "interpolation":
             self._frame_info = {
                 frame: {
@@ -207,8 +194,8 @@ class Annotation:
                 "height": db_image.height,
             } for db_image in self._db_task.image_set.all()}
 
-        if frames_set:
-            self._frame_info = {frame: info for frame, info in self._frame_info.items() if frame in frames_set}
+        if frame_container:
+            self._frame_info = {frame: info for frame, info in self._frame_info.items() if frame_container.contains(frame)}
 
         self._frame_mapping = {
             self._get_filename(info["path"]): frame for frame, info in self._frame_info.items()
@@ -344,8 +331,8 @@ class Annotation:
             for frame_index in self._frame_info:
                 _get_frame(annotations, frame_index)
 
-        data_manager = DataManager(self._annotation_ir)
-        for shape in sorted(data_manager.to_shapes(self._end_frame), key=lambda s: s.get("z_order", 0)):
+        data_manager = DataManager(self._annotation_ir, self._frame_container)
+        for shape in sorted(data_manager.to_shapes(self._db_task.size), key=lambda s: s.get("z_order", 0)):
             _get_frame(annotations, shape["frame"]).labeled_shapes.append(self._export_labeled_shape(shape))
 
         for tag in self._annotation_ir.tags:
@@ -360,8 +347,9 @@ class Annotation:
 
     @property
     def tracks(self):
+        track_manager = TrackManager([], self._frame_container)
         for track in self._annotation_ir.tracks:
-            tracked_shapes = TrackManager.get_interpolated_shapes(track, 0, self._end_frame)
+            tracked_shapes = track_manager.get_interpolated_shapes(track, 0, self._db_task.size)
             for tracked_shape in tracked_shapes:
                 tracked_shape["attributes"] += track["attributes"]
 

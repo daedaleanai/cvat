@@ -18,6 +18,7 @@ from cvat.apps.engine.utils import execute_python_code, import_modules
 
 from . import models
 from .data_manager import DataManager
+from .ddln.utils import FrameContainer
 from .log import slogger
 from . import serializers
 
@@ -660,17 +661,14 @@ class TaskAnnotation:
 
         # Postgres doesn't guarantee an order by default without explicit order_by
         self.db_jobs = models.Job.objects.select_related("segment").filter(segment__task_id=pk).order_by('id')
-        self._partial = False
+        self._frame_container = None
         if job_ids:
-            self._partial = True
             self.db_jobs = self.db_jobs.filter(id__in=job_ids)
+            self._frame_container = FrameContainer.for_jobs(self.db_jobs)
         self.ir_data = AnnotationIR()
 
     def reset(self):
         self.ir_data.reset()
-
-    def get_selected_jobs(self):
-        return self.db_jobs if self._partial else None
 
     def _patch_data(self, data, action):
         _data = data if isinstance(data, AnnotationIR) else AnnotationIR(data)
@@ -694,7 +692,7 @@ class TaskAnnotation:
             self._merge_data(_data, jobs[jid]["start"], self.db_task.overlap)
 
     def _merge_data(self, data, start_frame, overlap):
-        data_manager = DataManager(self.ir_data)
+        data_manager = DataManager(self.ir_data, self._frame_container)
         data_manager.merge(data, start_frame, overlap)
 
     def put(self, data):
@@ -732,7 +730,7 @@ class TaskAnnotation:
             db_task=self.db_task,
             scheme=scheme,
             host=host,
-            selected_jobs=self.get_selected_jobs(),
+            frame_container=self._frame_container,
         )
         db_format = dumper.annotation_format
 

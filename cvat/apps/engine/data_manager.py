@@ -5,37 +5,40 @@ from scipy.optimize import linear_sum_assignment
 from shapely import geometry
 
 from . import models
+from .ddln.utils import FrameContainer
 
 
 class DataManager:
-    def __init__(self, data):
+    def __init__(self, data, frame_container=None):
         self.data = data
+        self.frame_container = frame_container
 
     def merge(self, data, start_frame, overlap):
-        tags = TagManager(self.data.tags)
+        tags = TagManager(self.data.tags, self.frame_container)
         tags.merge(data.tags, start_frame, overlap)
 
-        shapes = ShapeManager(self.data.shapes)
+        shapes = ShapeManager(self.data.shapes, self.frame_container)
         shapes.merge(data.shapes, start_frame, overlap)
 
-        tracks = TrackManager(self.data.tracks)
+        tracks = TrackManager(self.data.tracks, self.frame_container)
         tracks.merge(data.tracks, start_frame, overlap)
 
     def to_shapes(self, end_frame):
         shapes = self.data.shapes
-        tracks = TrackManager(self.data.tracks)
+        tracks = TrackManager(self.data.tracks, self.frame_container)
 
         return shapes + tracks.to_shapes(end_frame)
 
     def to_tracks(self):
         tracks = self.data.tracks
-        shapes = ShapeManager(self.data.shapes)
+        shapes = ShapeManager(self.data.shapes, self.frame_container)
 
         return tracks + shapes.to_tracks()
 
 class ObjectManager:
-    def __init__(self, objects):
+    def __init__(self, objects, frame_container=None):
         self.objects = objects
+        self.frame_container = frame_container
 
     @staticmethod
     def _get_objects_by_frame(objects, start_frame):
@@ -61,8 +64,7 @@ class ObjectManager:
     def _unite_objects(obj0, obj1):
         raise NotImplementedError()
 
-    @staticmethod
-    def _modify_unmached_object(obj, end_frame):
+    def _modify_unmached_object(self, obj, end_frame):
         raise NotImplementedError()
 
     def merge(self, objects, start_frame, overlap):
@@ -148,8 +150,7 @@ class TagManager(ObjectManager):
         # TODO: improve the trivial implementation
         return obj0 if obj0["frame"] < obj1["frame"] else obj1
 
-    @staticmethod
-    def _modify_unmached_object(obj, end_frame):
+    def _modify_unmached_object(self, obj, end_frame):
         pass
 
 def pairwise(iterable):
@@ -213,15 +214,14 @@ class ShapeManager(ObjectManager):
         # TODO: improve the trivial implementation
         return obj0 if obj0["frame"] < obj1["frame"] else obj1
 
-    @staticmethod
-    def _modify_unmached_object(obj, end_frame):
+    def _modify_unmached_object(self, obj, end_frame):
         pass
 
 class TrackManager(ObjectManager):
     def to_shapes(self, end_frame):
         shapes = []
         for idx, track in enumerate(self.objects):
-            for shape in TrackManager.get_interpolated_shapes(track, 0, end_frame):
+            for shape in self.get_interpolated_shapes(track, 0, end_frame):
                 if not shape["outside"]:
                     shape["label_id"] = track["label_id"]
                     shape["group"] = track["group"]
@@ -255,8 +255,9 @@ class TrackManager(ObjectManager):
             # and stop_frame is the stop frame of current segment
             # end_frame == stop_frame + 1
             end_frame = start_frame + overlap
-            obj0_shapes = TrackManager.get_interpolated_shapes(obj0, start_frame, end_frame)
-            obj1_shapes = TrackManager.get_interpolated_shapes(obj1, start_frame, end_frame)
+            track_manager = TrackManager([])
+            obj0_shapes = track_manager.get_interpolated_shapes(obj0, start_frame, end_frame)
+            obj1_shapes = track_manager.get_interpolated_shapes(obj1, start_frame, end_frame)
             obj0_shapes_by_frame = {shape["frame"]:shape for shape in obj0_shapes}
             obj1_shapes_by_frame = {shape["frame"]:shape for shape in obj1_shapes}
             assert obj0_shapes_by_frame and obj1_shapes_by_frame
@@ -279,12 +280,14 @@ class TrackManager(ObjectManager):
         else:
             return 0
 
-    @staticmethod
-    def _modify_unmached_object(obj, end_frame):
+    def _modify_unmached_object(self, obj, end_frame):
         shape = obj["shapes"][-1]
         if not shape["outside"]:
             shape = copy.deepcopy(shape)
-            shape["frame"] += 1
+            if self.frame_container:
+                shape["frame"] = self.frame_container.get_closest_boundary(shape["frame"])
+            else:
+                shape["frame"] = end_frame
             shape["outside"] = True
             obj["shapes"].append(shape)
 
@@ -303,13 +306,8 @@ class TrackManager(ObjectManager):
 
         return shape
 
-    @staticmethod
-    def get_interpolated_shapes(track, start_frame, end_frame):
-        """
-        If end_frame is an int, that's the end of the task and we should interpolate till that value.
-        If end_frame is a list of ints, that's the ends of segments
-        and we should interpolate till the closest value in the list.
-        """
+    def get_interpolated_shapes(self, track, start_frame, end_frame):
+        # If frame_container is set on TrackManager, end_frame param is ignored.
         def interpolate(shape0, shape1):
             shapes = []
             is_same_type = shape0["type"] == shape1["type"]
@@ -340,8 +338,8 @@ class TrackManager(ObjectManager):
                 shapes.append(shape)
             return shapes
 
-        if isinstance(end_frame, list):
-            end_frame = next(v for v in end_frame if v > track['frame'])
+        if self.frame_container:
+            end_frame = self.frame_container.get_closest_boundary(track['frame'])
 
         if track.get("interpolated_shapes", {}).get(end_frame):
             return track["interpolated_shapes"][end_frame]
