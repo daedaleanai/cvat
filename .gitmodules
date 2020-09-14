@@ -1,0 +1,3 @@
+[submodule "cvat/exp-devtools"]
+	path = cvat/exp-devtools
+	url = git@git-ng.daedalean.ai:daedalean/exp-devtools.git

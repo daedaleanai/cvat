@@ -11,6 +11,19 @@ CVAT is free, online, interactive video and image annotation tool for computer v
 
 ![CVAT screenshot](cvat/apps/documentation/static/documentation/images/cvat.jpg)
 
+## DDLN
+
+Update devtools hash in settings after submodule update:
+```bash
+new_exp_devtools_hash=$(git submodule status | grep exp-devtools | cut -d " " -f 2)
+sed -i -e "s/EXP_DEVTOOLS_HASH = '.*'/EXP_DEVTOOLS_HASH = '$new_exp_devtools_hash'/g" cvat/settings/base.py
+```
+
+Create a new git tag (should be run on `master` branch right before deployment):
+```bash
+git tag -m "$(git log --format=%s PREV_TAG..HEAD)" NEW_TAG
+```
+
 ## Documentation
 
 - [Installation guide](cvat/apps/documentation/installation.md)
