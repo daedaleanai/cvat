@@ -2,6 +2,7 @@ import io
 from itertools import groupby
 
 from cvat.apps.annotation.structures import BoundingBox, label_by_class_id
+from cvat.apps.engine.utils import natural_order
 
 
 def validate(sequences, jump_threshold=10):
@@ -129,7 +130,7 @@ class ValidationReporter:
                     for message in box["messages"]:
                         file.write("\t\tBox {}: {}\n".format(box["index"], message))
         file.write("Frame counts per sequence:\n")
-        for sequence, count in data['counts']['perSequence'].items():
+        for sequence, count in sorted(data['counts']['perSequence'].items(), key=lambda e: natural_order(e[0])):
             file.write("\t{}: {}\n".format(sequence, count))
         file.write("Total frames: {}\n".format(data['counts']['total']))
 
