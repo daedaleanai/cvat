@@ -374,7 +374,10 @@ LOGGING = {
             'handlers': ['console', 'server_file'],
             'level': 'INFO',
             'propagate': True
-        }
+        },
+        'cvat.apps.engine.ddln.multiannotation.ignored': {
+            'level': 'CRITICAL',
+        },
     },
 }
 

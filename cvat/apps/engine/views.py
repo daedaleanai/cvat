@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2019 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
-
+import json
 import os
 import os.path as osp
 import re
@@ -15,6 +15,7 @@ from django.views.generic import RedirectView
 from django.http import HttpResponseBadRequest, HttpResponseNotFound
 from django.shortcuts import render
 from django.conf import settings
+from rest_framework.reverse import reverse
 from sendfile import sendfile
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -33,7 +34,7 @@ from django.utils import timezone
 from . import annotation, task, models
 from cvat.settings.base import JS_3RDPARTY, CSS_3RDPARTY
 from cvat.apps.authentication.decorators import login_required
-from .ddln.multiannotation import request_extra_annotation, FailedAssignmentError
+from .ddln.multiannotation import request_extra_annotation, FailedAssignmentError, merge
 from .ddln.utils import parse_frame_name
 from .log import slogger, clogger
 from cvat.apps.engine.models import StatusChoice, Task, Job, Plugin, Segment
@@ -579,6 +580,45 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
             return Response(data=data, status=status.HTTP_406_NOT_ACCEPTABLE)
 
         return Response(status=status.HTTP_202_ACCEPTED)
+
+    @action(detail=True, methods=['POST'], url_path='merge-annotations')
+    def merge(self, request, pk):
+        file_path, filename = self._get_merge_file_path()
+
+        queue = django_rq.get_queue("default")
+        rq_id = "/api/v1/tasks/{}/merge/{}".format(pk, filename)
+        rq_job = queue.fetch_job(rq_id)
+        if rq_job:
+            if rq_job.is_finished:
+                data = json.load(open(file_path + ".json"))
+                data["download_url"] = reverse("cvat:task-merge-annotations-result", args=[pk], request=request)
+                rq_job.delete()
+                return Response(data, status=status.HTTP_201_CREATED)
+            elif rq_job.is_failed:
+                exc_info = str(rq_job.exc_info)
+                rq_job.delete()
+                return Response(data=exc_info, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            else:  # merge is still in progress
+                return Response(status=status.HTTP_202_ACCEPTED)
+
+        rq_job = queue.enqueue_call(
+            func=merge,
+            args=(pk, file_path),
+            job_id=rq_id,
+        )
+        return Response(status=status.HTTP_202_ACCEPTED)
+
+    @action(detail=True, methods=['GET'], url_path='merge-annotations-result', url_name='merge-annotations-result')
+    def get_merge_result(self, request, pk=None):
+        file_path, filename = self._get_merge_file_path()
+        return sendfile(request, file_path, attachment=True, attachment_filename=filename)
+
+    def _get_merge_file_path(self):
+        db_task = self.get_object()
+        filename = re.sub(r'[\\/*?:"<>|]', '_', db_task.name)
+        filename = "{}.zip".format(filename)
+        file_path = os.path.join(db_task.get_task_dirname(), filename)
+        return file_path, filename
 
     @swagger_auto_schema(method='get', operation_summary='When task is being created the method returns information about a status of the creation process')
     @action(detail=True, methods=['GET'], serializer_class=RqStatusSerializer)
