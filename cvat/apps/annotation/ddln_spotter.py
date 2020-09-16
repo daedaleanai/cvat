@@ -64,7 +64,7 @@ def dump(file_object, annotations):
     from cvat.apps.dataset_manager.util import make_zip_archive
     from cvat.apps.annotation.structures import load_sequences
     from cvat.apps.annotation.transports.csv import CsvDirectoryImporter
-    from cvat.apps.annotation.transports.cvat.utils import write_task_mapping_file
+    from cvat.apps.engine.ddln.utils import write_task_mapping_file
     from cvat.apps.annotation.validation import validate
     from tempfile import TemporaryDirectory
 

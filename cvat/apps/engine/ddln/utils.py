@@ -1,4 +1,7 @@
+import itertools
 from pathlib import PurePath
+
+from cvat.apps.engine.utils import natural_order
 
 
 def parse_frame_name(path):
@@ -36,3 +39,13 @@ class FrameContainer:
             if b > frame:
                 return b
         raise ValueError("Frame '{}' is greater than any boundary".format(frame))
+
+
+def write_task_mapping_file(task, file):
+    assignment_data = task.get_assignment_data()
+    assignment_data.sort(key=lambda row: (row[0], natural_order(row[1])))
+    for version, group in itertools.groupby(assignment_data, key=lambda row: row[0]):
+        file.write("V{}:\n".format(version + 1))
+        for _, sequence_name, annotator_name in group:
+            file.write("{}\t{}\n".format(sequence_name, annotator_name or ''))
+        file.write("\n")

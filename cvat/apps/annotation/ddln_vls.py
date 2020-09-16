@@ -26,7 +26,7 @@ def dump(file_object, annotations):
     from cvat.apps.annotation.transports.csv import CsvZipExporter
     from cvat.apps.annotation.transports.cvat import CVATImporter
     from cvat.apps.annotation.transports.cvat.utils import FileLogger
-    from cvat.apps.annotation.transports.cvat.utils import write_task_mapping_file
+    from cvat.apps.engine.ddln.utils import write_task_mapping_file
 
     buffer = io.StringIO()
     logger = FileLogger(buffer)
