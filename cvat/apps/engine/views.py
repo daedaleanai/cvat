@@ -33,14 +33,17 @@ from django.utils import timezone
 from . import annotation, task, models
 from cvat.settings.base import JS_3RDPARTY, CSS_3RDPARTY
 from cvat.apps.authentication.decorators import login_required
+from .ddln.multiannotation import request_extra_annotation, FailedAssignmentError
 from .ddln.utils import parse_frame_name
 from .log import slogger, clogger
 from cvat.apps.engine.models import StatusChoice, Task, Job, Plugin, Segment
-from cvat.apps.engine.serializers import (TaskSerializer, UserSerializer,
-   ExceptionSerializer, AboutSerializer, JobSerializer, ImageMetaSerializer,
-   RqStatusSerializer, TaskDataSerializer, DataOptionsSerializer, LabeledDataSerializer,
-   PluginSerializer, FileInfoSerializer, LogEventSerializer, JobSelectionSerializer,
-   ProjectSerializer, BasicUserSerializer, TaskDumpSerializer, TaskValidateSerializer)
+from cvat.apps.engine.serializers import (
+    TaskSerializer, UserSerializer, RequestExtraAnnotationSerializer,
+    ExceptionSerializer, AboutSerializer, JobSerializer, ImageMetaSerializer,
+    RqStatusSerializer, TaskDataSerializer, DataOptionsSerializer, LabeledDataSerializer,
+    PluginSerializer, FileInfoSerializer, LogEventSerializer, JobSelectionSerializer,
+    ProjectSerializer, BasicUserSerializer, TaskDumpSerializer, TaskValidateSerializer,
+)
 from cvat.apps.engine.utils import natural_order
 from cvat.apps.annotation.serializers import AnnotationFileSerializer, AnnotationFormatSerializer
 from django.contrib.auth.models import User
@@ -556,6 +559,24 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
         )
         rq_job.meta["file_path"] = file_path
         rq_job.save_meta()
+
+        return Response(status=status.HTTP_202_ACCEPTED)
+
+    @action(detail=AttributeError, methods=['POST'], url_path='request-extra-annotation',
+            serializer_class=RequestExtraAnnotationSerializer)
+    def request_extra_anno(self, request, pk):
+        db_task = self.get_object()
+        params_serializer = RequestExtraAnnotationSerializer(data=request.data, context={"task": db_task})
+        params_serializer.is_valid(raise_exception=True)
+        segments = params_serializer.validated_data["segments"]
+        assignees = params_serializer.validated_data["assignees"]
+
+        try:
+            request_extra_annotation(db_task, segments, assignees)
+        except FailedAssignmentError as e:
+            failed_segments = [s.id for s in e.failed_segments]
+            data = {"message": "Can't find assignees for the given segments", "segments": failed_segments}
+            return Response(data=data, status=status.HTTP_406_NOT_ACCEPTABLE)
 
         return Response(status=status.HTTP_202_ACCEPTED)
 

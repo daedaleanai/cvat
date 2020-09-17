@@ -209,6 +209,14 @@ class Segment(models.Model):
     class Meta:
         default_permissions = ()
 
+    @property
+    def length(self):
+        return self.stop_frame + 1 - self.start_frame
+
+    def get_performers(self):
+        """Return queryset of users which have worked on the given segment"""
+        return User.objects.filter(job__segment=self)
+
 class Job(models.Model):
     segment = models.ForeignKey(Segment, on_delete=models.CASCADE)
     assignee = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
