@@ -123,7 +123,7 @@ class AdvancedConfigurationForm extends React.PureComponent<Props> {
 
         return (
             <Form.Item label={<span>Assign annotators</span>}>
-                <Tooltip title='Assign jobs to annotators in round-robin manner'>
+                <Tooltip title='Auto-assign jobs to annotators'>
                     {form.getFieldDecorator('assignees', {
                         initialValue: [],
                     })(

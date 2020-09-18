@@ -31,5 +31,6 @@ def group(sequences, chunk_size):
 
 
 def distribute(chunks, assignees):
-    """Distribute chunks between assigness in Round-Robin manner"""
-    return [(ch, a) for ch, a in zip(chunks, itertools.cycle(assignees))]
+    """Distribute chunks between assignees. Leave some chunks unassigned to be picked up by any annotator."""
+    assignees = itertools.chain(assignees, itertools.repeat(None))
+    return [(ch, a) for ch, a in zip(chunks, assignees)]

@@ -18,8 +18,8 @@ class DistributeSequencesTest(TestCase):
 
         self.assertEqual(actual, [
             ('A', 'Alice'),
-            ('B', 'Alice'),
-            ('C', 'Alice'),
+            ('B', None),
+            ('C', None),
         ])
 
     def test_multiple_assignees(self):
@@ -32,11 +32,11 @@ class DistributeSequencesTest(TestCase):
             ('A', 'Alice'),
             ('B', 'Bob'),
             ('C', 'Chris'),
-            ('D', 'Alice'),
-            ('E', 'Bob'),
-            ('F', 'Chris'),
-            ('G', 'Alice'),
-            ('H', 'Bob'),
+            ('D', None),
+            ('E', None),
+            ('F', None),
+            ('G', None),
+            ('H', None),
         ])
 
 
