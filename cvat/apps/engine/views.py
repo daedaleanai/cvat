@@ -870,13 +870,8 @@ class PluginViewSet(viewsets.ModelViewSet):
 def get_sequences_by_segments(task_queryset):
     """Get segment_id -> sequence_name mapping only for the task listed in task_queryset"""
     task_ids = tuple(task_queryset.values_list('id', flat=True))
-    segments = Segment.objects.raw("""
-        SELECT segment.id, image.path as image_path
-        FROM engine_segment segment
-        JOIN engine_image image ON image.task_id = segment.task_id AND image.frame = segment.start_frame
-        WHERE segment.task_id in %s
-    """, [task_ids])
-    return {s.id: parse_frame_name(s.image_path)[1] for s in segments}
+    segments = Segment.objects.filter(task_id__in=task_ids).with_sequence_name()
+    return {s.id: s.sequence_name for s in segments}
 
 
 def rq_handler(job, exc_type, exc_value, tb):
