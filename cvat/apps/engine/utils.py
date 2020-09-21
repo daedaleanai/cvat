@@ -100,3 +100,10 @@ def natural_order(text):
 
 def _try_int(text):
     return int(text) if text.isdigit() else text
+
+
+def grouper(iterable, n):
+    """Collect data into fixed-length chunks or blocks"""
+    # grouper('ABCDEF', 3) --> ABC DEF
+    args = [iter(iterable)] * n
+    return zip(*args)
