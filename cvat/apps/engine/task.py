@@ -340,6 +340,11 @@ def _create_thread(tid, data, options):
     else:
         segments = []
     _save_task_to_db(db_task, segments)
+
+    job.meta['status'] = 'Image meta cache is being created'
+    job.save_meta()
+    make_image_meta_cache(db_task)
+
     record_task_creation(db_task, segments)
 
 
