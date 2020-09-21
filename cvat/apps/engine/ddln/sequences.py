@@ -31,6 +31,10 @@ def group(sequences, chunk_size):
 
 
 def distribute(chunks, assignees):
-    """Distribute chunks between assignees. Leave some chunks unassigned to be picked up by any annotator."""
-    assignees = itertools.chain(assignees, itertools.repeat(None))
-    return [(ch, a) for ch, a in zip(chunks, assignees)]
+    """Distribute chunks between assignees
+
+    Each assignee gets no more than 1 chunk,
+    extra chunks are left unassigned, so any annotator can pick them up.
+    """
+    assignees_pool = itertools.chain(assignees, itertools.repeat(None))
+    return [(ch, a) for ch, a in zip(chunks, assignees_pool)]
