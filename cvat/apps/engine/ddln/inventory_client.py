@@ -23,8 +23,8 @@ def record_sequence_completion(job_id, sequence_name, task_name, annotator, anno
 def record_task_creation(task, segments):
     if not segments:
         return
-    pairs = [(seq_name, (assignee.username if assignee else '')) for seq_name, _, _, _, assignee in segments]
     try:
+        pairs = [(seq_name, (assignee.username if assignee else '')) for seq_name, _, _, _, assignee in segments]
         client = create_inventory_client()
         affected_cells = client.record_task_creation(task.name, pairs)
         slogger.glob.info("Task %s has been created. Made a record in inventory file: '%s'", task.id, affected_cells)
