@@ -144,7 +144,9 @@
                     get: () => data.is_active,
                 },
                 isAnnotator: {
-                    get: () => data.groups.some(group => group === "annotator")
+                    // if the current user is not an admin, back-end won't return any groups.
+                    // Assume all users are annotators in this case.
+                    get: () => data.groups ? data.groups.some(group => group === "annotator") : true
                 },
                 isAdmin: {
                     get: () => data.is_staff || data.groups.some(group => group === "admin")

@@ -3,14 +3,12 @@
 // SPDX-License-Identifier: MIT
 
 import React from 'react';
-import { connect } from 'react-redux';
 
 import {
     Row,
     Col,
     Icon,
     Input,
-    Select,
     Checkbox,
     Tooltip,
 } from 'antd';
@@ -19,7 +17,7 @@ import Form, { FormComponentProps } from 'antd/lib/form/Form';
 import Text from 'antd/lib/typography/Text';
 
 import patterns from 'utils/validation-patterns';
-import { CombinedState } from 'reducers/interfaces';
+import MultipleUserSelector from "components/multiple-user-selector";
 
 export interface AdvancedConfiguration {
     bugTracker?: string;
@@ -34,20 +32,10 @@ export interface AdvancedConfiguration {
     repository?: string;
 }
 
-interface StateToProps {
-    users: any[];
-}
-
-type Props = FormComponentProps & StateToProps & {
+type Props = FormComponentProps & {
     onSubmit(values: AdvancedConfiguration): void;
     installedGit: boolean;
 };
-
-function mapStateToProps(state: CombinedState): StateToProps {
-    return {
-        users: state.users.users,
-    };
-}
 
 class AdvancedConfigurationForm extends React.PureComponent<Props> {
     public submit(): Promise<void> {
@@ -134,31 +122,14 @@ class AdvancedConfigurationForm extends React.PureComponent<Props> {
     }
 
     private renderAssigneesSelector(): JSX.Element {
-        let { form, users } = this.props;
-        users = [...users].sort((a, b) => a.username.localeCompare(b.username));
-        const annotators = users.filter(u => u.isAnnotator);
-        const others = users.filter(u => !u.isAnnotator);
-
+        let { form } = this.props;
         return (
             <Form.Item label={<span>Assign annotators</span>}>
                 <Tooltip title='Auto-assign jobs to annotators'>
                     {form.getFieldDecorator('assignees', {
                         initialValue: [],
                     })(
-                        <Select mode='multiple' size='large'>
-                            { annotators.map((user): JSX.Element => (
-                                <Select.Option key={user.id} value={user.id}>
-                                    {user.username}
-                                </Select.Option>
-                            ))}
-                            <Select.OptGroup label="Others">
-                                { others.map((user): JSX.Element => (
-                                    <Select.Option key={user.id} value={user.id}>
-                                        {user.username}
-                                    </Select.Option>
-                                ))}
-                            </Select.OptGroup>
-                        </Select>,
+                        <MultipleUserSelector />,
                     )}
                 </Tooltip>
             </Form.Item>
@@ -460,4 +431,4 @@ class AdvancedConfigurationForm extends React.PureComponent<Props> {
     }
 }
 
-export default connect(mapStateToProps)(Form.create<Props>()(AdvancedConfigurationForm));
+export default Form.create<Props>()(AdvancedConfigurationForm);
