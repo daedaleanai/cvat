@@ -17,6 +17,7 @@ import {
 import DetailsContainer from 'containers/task-page/details';
 import JobListContainer from 'containers/task-page/job-list';
 import ValidationReportComponent from 'components/task-page/validation-report';
+import AnnotationMergerComponent from 'components/task-page/annotation-merger';
 import ModelRunnerModalContainer from 'containers/model-runner-dialog/model-runner-dialog';
 import { Task } from 'reducers/interfaces';
 import TopBarComponent from './top-bar';
@@ -104,6 +105,7 @@ class TaskPageComponent extends React.PureComponent<Props> {
                         <DetailsContainer task={(task as Task)} />
                         <JobListContainer task={(task as Task)} onlyMine={onlyMine}/>
                         <ValidationReportComponent taskInstance={(task as Task).instance} jobs={mineJobs} />
+                        <AnnotationMergerComponent taskInstance={(task as Task).instance}/>
                     </Col>
                 </Row>
                 <ModelRunnerModalContainer />
