@@ -1295,9 +1295,9 @@
             * @throws {module:API.cvat.exceptions.ServerError}
             * @throws {module:API.cvat.exceptions.PluginError}
         */
-        async mergeAnnotations() {
+        async mergeAnnotations(acceptanceScore) {
             const result = await PluginRegistry
-                .apiWrapper.call(this, Task.prototype.mergeAnnotations);
+                .apiWrapper.call(this, Task.prototype.mergeAnnotations, acceptanceScore);
             return result;
         }
 
@@ -1603,8 +1603,8 @@
         return result;
     };
 
-    Task.prototype.mergeAnnotations.implementation = async function () {
-        const result = await serverProxy.tasks.mergeAnnotations(this.id);
+    Task.prototype.mergeAnnotations.implementation = async function (acceptanceScore) {
+        const result = await serverProxy.tasks.mergeAnnotations(this.id, acceptanceScore);
         return result;
     };
 

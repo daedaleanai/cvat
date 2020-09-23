@@ -50,7 +50,7 @@ class FailedAssignmentError(Exception):
         self.failed_segments = failed_segments
 
 
-def merge(task_id, file_path, acceptance_score=0.0):
+def merge(task_id, file_path, acceptance_score):
     task = Task.objects.get(pk=task_id)
 
     with TemporaryDirectory() as root_dir:

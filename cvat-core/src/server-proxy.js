@@ -279,9 +279,9 @@
                 return response.data;
             }
 
-            async function mergeAnnotations(taskId) {
+            async function mergeAnnotations(taskId, acceptanceScore) {
                 const { backendAPI } = config;
-                const url = `${backendAPI}/tasks/${taskId}/merge-annotations`;
+                const url = `${backendAPI}/tasks/${taskId}/merge-annotations?acceptance_score=${acceptanceScore}`;
                 const pollInterval = 3000;
 
                 return new Promise((resolve, reject) => {

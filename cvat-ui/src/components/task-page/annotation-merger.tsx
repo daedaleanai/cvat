@@ -6,6 +6,8 @@ import {
     Button,
     Spin,
     notification,
+    Tooltip,
+    InputNumber,
     Table,
     Form,
     Tag,
@@ -30,6 +32,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
 
 function AnnotationMergerComponent(props: Props & StateToProps): JSX.Element {
     const [loading, setLoading] = useState(false);
+    const [acceptanceScore, setAcceptanceScore] = useState(false);
     const [segments, setSegments] = useState([]);
     const { taskInstance, me } = props;
 
@@ -37,7 +40,7 @@ function AnnotationMergerComponent(props: Props & StateToProps): JSX.Element {
 
     const loadData = () : void => {
       setLoading(true);
-      taskInstance.mergeAnnotations()
+      taskInstance.mergeAnnotations(acceptanceScore)
       .then(responseData => {
           download(responseData.download_url);
           responseData.warnings.forEach(warning => {
@@ -79,6 +82,11 @@ function AnnotationMergerComponent(props: Props & StateToProps): JSX.Element {
                     <Text className='cvat-text-color  annotation-merger-header-text'> Triple annotation </Text>
                 </Col>
                 <Col>
+                    <Tooltip title='Acceptance score'>
+                        <InputNumber min={0} max={1} step={0.01} value={acceptanceScore} onChange={setAcceptanceScore} />
+                    </Tooltip>
+                </Col>
+                <Col offset={1}>
                     <Button
                         type='primary'
                         size='large'
