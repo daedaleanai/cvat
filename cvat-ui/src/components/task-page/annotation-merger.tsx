@@ -32,7 +32,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
 
 function AnnotationMergerComponent(props: Props & StateToProps): JSX.Element {
     const [loading, setLoading] = useState(false);
-    const [acceptanceScore, setAcceptanceScore] = useState(false);
+    const [acceptanceScore, setAcceptanceScore] = useState(0.0);
     const [segments, setSegments] = useState([]);
     const { taskInstance, me } = props;
 
