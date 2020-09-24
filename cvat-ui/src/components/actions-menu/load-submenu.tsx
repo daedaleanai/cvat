@@ -36,36 +36,39 @@ export default function LoadSubmenu(props: Props): JSX.Element {
 
     return (
         <Menu.SubMenu key={menuKey} title='Upload annotations' disabled={disabled}>
-                {versionSubmenu(versionsAmount,
-                () => loaders.map((_loader: string): JSX.Element => {
-                    const [loader, accept] = _loader.split('::');
-                    const pending = loadActivity === loader;
-                    return (
-                        <Menu.Item
-                            key={loader}
-                            disabled={!!loadActivity}
-                            className='cvat-menu-load-submenu-item'
-                        >
-                            <Upload
-                                accept={accept}
-                                multiple={false}
-                                showUploadList={false}
-                                beforeUpload={(file: File): boolean => {
-                                    onFileUpload(file);
-                                    return false;
-                                }}
-                            >
-                                <Button block type='link' disabled={!!loadActivity}>
-                                    <Icon type='upload' />
-                                    <Text>{loader}</Text>
-                                    {pending && <Icon style={{ marginLeft: 10 }} type='loading' />}
-                                </Button>
-                            </Upload>
+                {
+                    versionSubmenu(
+                        versionsAmount,
+                        () => loaders.map((_loader: string): JSX.Element => {
+                            const [loader, accept] = _loader.split('::');
+                            const pending = loadActivity === loader;
+                            return (
+                                <Menu.Item
+                                    key={loader}
+                                    disabled={!!loadActivity}
+                                    className='cvat-menu-load-submenu-item'
+                                >
+                                    <Upload
+                                        accept={accept}
+                                        multiple={false}
+                                        showUploadList={false}
+                                        beforeUpload={(file: File): boolean => {
+                                            onFileUpload(file);
+                                            return false;
+                                        }}
+                                    >
+                                        <Button block type='link' disabled={!!loadActivity}>
+                                            <Icon type='upload' />
+                                            <Text>{loader}</Text>
+                                            {pending && <Icon style={{ marginLeft: 10 }} type='loading' />}
+                                        </Button>
+                                    </Upload>
 
-                        </Menu.Item>
-                    );
-                })
-            )}
+                                </Menu.Item>
+                            );
+                        })
+                    )
+                }
         </Menu.SubMenu>
     );
 }

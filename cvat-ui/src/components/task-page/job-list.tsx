@@ -83,7 +83,8 @@ function JobListComponent(props: Props & RouteComponentProps): JSX.Element {
         dataIndex: 'sequenceName',
         key: 'sequenceName',
         className: 'cvat-text-color',
-    }, ...versionColumns,
+    },
+        ...versionColumns,
     {
         title: 'Frames',
         dataIndex: 'frames',

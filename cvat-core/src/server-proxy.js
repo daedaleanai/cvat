@@ -27,7 +27,9 @@
     }
 
     function applyJobSelection(jobSelection, queryParams) {
-        if (!jobSelection) return;
+        if (!jobSelection) {
+            return;
+        }
         if (jobSelection.jobs) {
             queryParams.append("jobs", jobSelection.jobs);
         } else if (jobSelection.version) {

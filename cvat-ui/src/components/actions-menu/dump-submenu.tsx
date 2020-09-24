@@ -37,23 +37,26 @@ export default function DumpSubmenu(props: Props): JSX.Element {
 
     return (
         <Menu.SubMenu key={menuKey} title='Dump annotations'>
-            {versionSubmenu(versionsAmount,
-                () => dumpers.map((dumper: string): JSX.Element => {
-                    const pending = (dumpActivities || []).includes(dumper);
-                    const isDefault = isDefaultFormat(dumper, taskMode);
-                    return (
-                        <Menu.Item
-                            key={dumper}
-                            disabled={pending}
-                            className='cvat-menu-dump-submenu-item'
-                        >
-                            <Icon type='download' />
-                            <Text strong={isDefault}>{dumper}</Text>
-                            {pending && <Icon style={{ marginLeft: 10 }} type='loading' />}
-                        </Menu.Item>
-                    );
-                })
-            )}
+            {
+                versionSubmenu(
+                    versionsAmount,
+                    () => dumpers.map((dumper: string): JSX.Element => {
+                        const pending = (dumpActivities || []).includes(dumper);
+                        const isDefault = isDefaultFormat(dumper, taskMode);
+                        return (
+                            <Menu.Item
+                                key={dumper}
+                                disabled={pending}
+                                className='cvat-menu-dump-submenu-item'
+                            >
+                                <Icon type='download' />
+                                <Text strong={isDefault}>{dumper}</Text>
+                                {pending && <Icon style={{ marginLeft: 10 }} type='loading' />}
+                            </Menu.Item>
+                        );
+                    })
+                )
+            }
         </Menu.SubMenu>
     );
 }

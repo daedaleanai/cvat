@@ -53,22 +53,26 @@ function ValidationReportComponent(props: Props): JSX.Element {
         </Button>
     ;
 
-    let content = loading ?
-        <Spin size='large' className='cvat-spinner' />
-        :
-        report ?
-        <Row type='flex' justify='start' align='top'>
-            <Col>
-                <Text><pre>{report}</pre></Text>
-            </Col>
-        </Row>
-        :
-        <Row type='flex' justify='center' align='middle'>
-            <Col>
-                <Text strong>Press 'validate' to start validation</Text>
-            </Col>
-        </Row>
-    ;
+    let content;
+    if (loading) {
+        content = <Spin size='large' className='cvat-spinner' />;
+    } else if (report) {
+        content = (
+            <Row type='flex' justify='start' align='top'>
+                <Col>
+                    <Text><pre>{report}</pre></Text>
+                </Col>
+            </Row>
+        );
+    } else {
+        content = (
+            <Row type='flex' justify='center' align='middle'>
+                <Col>
+                    <Text strong>Press 'validate' to start validation</Text>
+                </Col>
+            </Row>
+        );
+    }
 
     return (
         <div className='validation-report-block'>
