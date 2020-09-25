@@ -5,6 +5,7 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 
 from django.db import transaction
+from django.conf import settings
 from rest_framework import serializers
 
 from cvat.apps.annotation.transports.csv import CsvDirectoryExporter
@@ -12,6 +13,7 @@ from cvat.apps.annotation.transports.cvat import CVATImporter
 from cvat.apps.dataset_manager.util import make_zip_archive
 
 from cvat.apps.engine import models
+from cvat.apps.engine.ddln.inventory_client import record_extra_annotation_creation, record_task_validation
 from cvat.apps.engine.ddln.sequences import extend_assignees
 from cvat.apps.engine.ddln.utils import (
     write_task_mapping_file, write_ddln_yaml_file, get_sequence_id_mapping, get_annotation_request_id, guess_task_name
@@ -42,6 +44,7 @@ def request_extra_annotation(task, segments, assignees):
             db_job.save()
         task.times_annotated += 1
         task.save()
+    record_extra_annotation_creation(task, assignments, version)
 
 
 class FailedAssignmentError(Exception):
@@ -119,6 +122,7 @@ def merge(task_id, file_path, acceptance_score):
     segments_data = sorted(segments_serializer.data, key=lambda e: natural_order(e['sequence_name']))
     data = dict(warnings=warnings, segments=segments_data)
     json.dump(data, open(file_path + '.json', 'w'))
+    record_task_validation(task, settings.EXP_DEVTOOLS_HASH)
 
 
 class MergeResultSerializer(serializers.Serializer):

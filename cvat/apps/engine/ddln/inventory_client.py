@@ -1,5 +1,4 @@
 import datetime as dt
-from typing import List, Tuple
 
 from django.conf import settings
 from google.oauth2 import service_account
@@ -44,6 +43,22 @@ def record_task_validation(task, validator, validation_date=None):
         slogger.glob.info("Task %s validated. Made a record in inventory file: '%s'", task.id, affected_cells)
     except Exception:
         slogger.glob.exception("Error while making the task validation record")
+
+
+def record_extra_annotation_creation(task, assignments, version):
+    try:
+        data = []
+        for segment, assignee in assignments:
+            data.append((segment.sequence_name, version, (assignee.username if assignee else '')))
+        client = create_inventory_client()
+        # Ideally, new rows should be inserted next to the existing rows for the task, but
+        # it might be not safe to insert rows concurrently, but append should be safe
+        # record_task_creation() does what we need, no need for record_extra_annotation_creation()
+        affected_cells = client.record_task_creation(task.name, data)
+        message = "Extra annotation for task %s has been created. Made a record in inventory file: '%s'"
+        slogger.glob.info(message, task.id, affected_cells)
+    except Exception:
+        slogger.glob.exception("Error while making the extra annotation creation record")
 
 
 @singleton

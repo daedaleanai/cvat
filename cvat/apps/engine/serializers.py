@@ -258,7 +258,7 @@ class TaskDumpSerializer(JobSelectionSerializer):
 
 class RequestExtraAnnotationSerializer(serializers.Serializer):
     assignees = serializers.PrimaryKeyRelatedField(queryset=User.objects, many=True, allow_empty=False)
-    segments = serializers.PrimaryKeyRelatedField(queryset=models.Segment.objects, many=True)
+    segments = serializers.PrimaryKeyRelatedField(queryset=models.Segment.objects.with_sequence_name(), many=True)
 
     def validate(self, data):
         task = self.context['task']
