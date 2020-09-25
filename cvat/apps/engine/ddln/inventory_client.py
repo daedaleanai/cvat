@@ -150,7 +150,8 @@ class InventoryClient:
         )
         response_data = request.execute()
         for i, row in enumerate(response_data['values'], start=1):
-            if len(row) != 3: continue
+            if len(row) != 3:
+                continue
             seq, ver, task = row
             if seq == sequence_name and ver == version and task == task_name:
                 return i

@@ -1,7 +1,7 @@
 import datetime
 import itertools
 import re
-from pathlib import PurePath, Path
+from pathlib import PurePath
 
 from django.conf import settings
 
@@ -70,7 +70,7 @@ def write_ddln_yaml_file(task_name, file, rejected_frames, date=None, annotation
     if annotation_request_id is None:
         annotation_request_id = get_annotation_request_id(task_name)
     annotation_request_id = annotation_request_id or ''
-    group = "msq"
+    group = settings.ANNOTATION_TEAM
     map_file = "task_mapping.csv"
     curr_date = date.isoformat()
     merger_version = settings.EXP_DEVTOOLS_HASH
@@ -98,7 +98,7 @@ def _format_invalid_sequence(sequence_name, frames, id_by_seq_name):
 
 
 def get_annotation_request_id(task_name):
-    task_dir = _get_task_directory(task_name)
+    task_dir = settings.INCOMING_TASKS_ROOT / task_name
     ddln_id_files = [*task_dir.glob("spo_*/ddln_id"), *task_dir.glob("vls_*/ddln_id")]
     if len(ddln_id_files) != 1:
         return None
@@ -106,14 +106,9 @@ def get_annotation_request_id(task_name):
 
 
 def get_sequence_id_mapping(task_name):
-    task_dir = _get_task_directory(task_name)
+    task_dir = settings.INCOMING_TASKS_ROOT / task_name
     # it's ok that spo_* and vls_* files get into the dict, they won't be accessed later
     return {f.parent.name: f.read_text().strip() for f in task_dir.glob("*/ddln_id")}
-
-
-def _get_task_directory(task_name):
-    base_dir = Path("/home/django/share/incoming")
-    return base_dir.joinpath(task_name)
 
 
 YML_TEMPLATE = """sources:

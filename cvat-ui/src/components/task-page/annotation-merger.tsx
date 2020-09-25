@@ -62,18 +62,21 @@ function AnnotationMergerComponent(props: Props & StateToProps): JSX.Element {
 
     if (!showComponent) return false;
 
-    let content = loading ?
-        <Spin size='large' className='cvat-spinner' />
-        :
-        segments.length ?
-        <MergeFeedbackComponent segments={segments} taskInstance={taskInstance} />
-        :
-        <Row type='flex' justify='center' align='middle'>
-            <Col>
-                <Text strong>Press 'Merge annotations' to start merging</Text>
-            </Col>
-        </Row>
-    ;
+    let content;
+    if (loading) {
+        content = <Spin size='large' className='cvat-spinner'/>;
+    } else if (segments.length) {
+        content = <MergeFeedbackComponent segments={segments} taskInstance={taskInstance}/>;
+    } else {
+        content = (
+            <Row type='flex' justify='center' align='middle'>
+                <Col>
+                    <Text strong>Press 'Merge annotations' to start merging</Text>
+                </Col>
+            </Row>
+        );
+    }
+
 
     return (
         <div className='annotation-merger-block'>
@@ -206,14 +209,20 @@ function MergeFeedbackComponent({ segments, taskInstance }) {
 }
 
 function buildNameGetter(segments) {
-    const mapping = {}
+    const mapping = {};
     segments.forEach(s => {
         mapping[s.id] = s.sequence_name;
-    })
+    });
     return (id) => mapping[id];
 }
 
-const getInitialSelection = (segments) => () => segments.filter(s => s.incomplete_frames_count > 0).map(s => s.id);
+function getInitialSelection(segments) {
+    return () => {
+        return segments
+            .filter(s => s.incomplete_frames_count > 0)
+            .map(s => s.id);
+    };
+}
 
 function renderCount(count) {
     const props = count > 0 ? {type: "danger"} : {};

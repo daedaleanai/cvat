@@ -130,7 +130,9 @@ class ValidationReporter:
                     for message in box["messages"]:
                         file.write("\t\tBox {}: {}\n".format(box["index"], message))
         file.write("Frame counts per sequence:\n")
-        for sequence, count in sorted(data['counts']['perSequence'].items(), key=lambda e: natural_order(e[0])):
+        count_per_sequence = data['counts']['perSequence'].items()
+        count_per_sequence = sorted(count_per_sequence, key=lambda e: natural_order(e[0]))
+        for sequence, count in count_per_sequence:
             file.write("\t{}: {}\n".format(sequence, count))
         file.write("Total frames: {}\n".format(data['counts']['total']))
 

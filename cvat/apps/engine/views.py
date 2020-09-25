@@ -582,7 +582,7 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
         return Response(status=status.HTTP_202_ACCEPTED)
 
     @action(detail=True, methods=['POST'], url_path='merge-annotations')
-    def merge(self, request, pk):
+    def merge_annotations(self, request, pk):
         file_path, filename, acceptance_score = self._get_merge_params()
 
         queue = django_rq.get_queue("default")

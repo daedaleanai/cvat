@@ -1286,7 +1286,7 @@
         }
 
         /**
-            * Method merges task task annotations
+            * Method merges task annotations
             * @method mergeAnnotations
             * @memberof module:API.cvat.classes.Task
             * @readonly

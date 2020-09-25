@@ -89,12 +89,8 @@ def find_range(iterable, predicate):
 
     find_range([0, 0, 1, 1, 0], lambda e: e > 0) => (2, 4)
     """
-    start_index = -1
     iterator = enumerate(iterable)
-    for i, value in iterator:
-        if predicate(value):
-            start_index = i
-            break
+    start_index = next((i for i, value in iterator if predicate(value)), -1)
     if start_index == -1:
         return -1, -1
     j = start_index
