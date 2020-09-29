@@ -1,4 +1,5 @@
 import itertools
+import heapq as hq
 
 from cvat.apps.engine.utils import natural_order, grouper
 
@@ -57,3 +58,47 @@ def _distribute_single_annotation(chunks, assignees):
     assignees_pool = itertools.chain(assignees, itertools.repeat(None))
     groups = ([a] for a in assignees_pool)
     return list(zip(chunks, groups))
+
+
+def extend_assignees(sequences_data, assignees):
+    """Assign one extra annotator to each sequence.
+
+    Make sure that an annotator is not assigned to the sequence he/she has worked on.
+    Preferably, distribute workload evenly among assignees.
+    """
+    assignments = []
+    failed_sequences = []
+    # order is required because user instances are not comparable,
+    # when two users have the same amount of workload, next value in tuple is compared
+    priority_queue = [(0, order, a) for order, a in enumerate(assignees)]
+    hq.heapify(priority_queue)
+    for sequence, sequence_length, performers in sequences_data:
+        workload, order, candidate = _find_candidate(priority_queue, performers)
+        if not candidate:
+            failed_sequences.append(sequence)
+            continue
+        assignments.append((sequence, candidate))
+        workload += sequence_length
+        hq.heappush(priority_queue, (workload, order, candidate))
+    return assignments, failed_sequences
+
+
+def _find_candidate(priority_queue, performers):
+    backup = []
+    success = False
+    while priority_queue:
+        workload, order, candidate = hq.heappop(priority_queue)
+        if candidate not in performers:
+            success = True
+            break
+        backup.append((workload, order, candidate))
+
+    for item in backup:
+        hq.heappush(priority_queue, item)
+
+    if not success:
+        return None, None, None
+    # if more than 1 assignee could be added to the same sequence,
+    # the candidate would have to be added to the performers
+    # performers.add(candidate)
+    return workload, order, candidate

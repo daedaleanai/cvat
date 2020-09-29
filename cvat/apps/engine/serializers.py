@@ -256,6 +256,22 @@ class TaskDumpSerializer(JobSelectionSerializer):
         return value
 
 
+class RequestExtraAnnotationSerializer(serializers.Serializer):
+    assignees = serializers.PrimaryKeyRelatedField(queryset=User.objects, many=True, allow_empty=False)
+    segments = serializers.PrimaryKeyRelatedField(queryset=models.Segment.objects.with_sequence_name(), many=True)
+
+    def validate(self, data):
+        task = self.context['task']
+        if task.times_annotated == 1:
+            raise serializers.ValidationError("Cannot add extra annotation to single-annotation task")
+        if task.times_annotated == 4:
+            raise serializers.ValidationError("Task cannot be annotated more than 4 times")
+        wrong_segments = [s.id for s in data['segments'] if s.task_id != task.id]
+        if wrong_segments:
+            raise serializers.ValidationError({"message": "Segments don't belong to the task", "segments": wrong_segments})
+        return data
+
+
 class WriteOnceMixin:
     """Adds support for write once fields to serializers.
 

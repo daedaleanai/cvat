@@ -3,6 +3,8 @@ import sys
 from collections import defaultdict
 from typing import Optional
 
+from cvat.apps.engine.utils import natural_order
+
 
 def load_sequences(importer):
     frames_by_sequence_name = defaultdict(list)
@@ -16,6 +18,7 @@ def load_sequences(importer):
     for sequence_name, frames in frames_by_sequence_name.items():
         frames.sort(key=lambda f: f.name)
         sequences.append(Sequence(sequence_name, frames))
+    sequences.sort(key=lambda s: natural_order(s.name))
 
     return sequences
 

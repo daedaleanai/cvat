@@ -1,12 +1,11 @@
 import datetime as dt
-from typing import List, Tuple
 
 from django.conf import settings
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
 from cvat.apps.engine.log import slogger
-from cvat.apps.engine.utils import singleton
+from cvat.apps.engine.utils import singleton, find_range
 
 
 def record_sequence_completion(job_id, sequence_name, version, task_name, annotator, annotation_date=None):
@@ -34,6 +33,32 @@ def record_task_creation(task, segments):
     except Exception:
         slogger.glob.exception("Error while making the task creation record")
 
+
+def record_task_validation(task, validator, validation_date=None):
+    if validation_date is None:
+        validation_date = dt.date.today()
+    try:
+        client = create_inventory_client()
+        affected_cells = client.record_task_validation(task.name, validator, validation_date)
+        slogger.glob.info("Task %s validated. Made a record in inventory file: '%s'", task.id, affected_cells)
+    except Exception:
+        slogger.glob.exception("Error while making the task validation record")
+
+
+def record_extra_annotation_creation(task, assignments, version):
+    try:
+        data = []
+        for segment, assignee in assignments:
+            data.append((segment.sequence_name, version, (assignee.username if assignee else '')))
+        client = create_inventory_client()
+        # Ideally, new rows should be inserted next to the existing rows for the task, but
+        # it might be not safe to insert rows concurrently, but append should be safe
+        # record_task_creation() does what we need, no need for record_extra_annotation_creation()
+        affected_cells = client.record_task_creation(task.name, data)
+        message = "Extra annotation for task %s has been created. Made a record in inventory file: '%s'"
+        slogger.glob.info(message, task.id, affected_cells)
+    except Exception:
+        slogger.glob.exception("Error while making the extra annotation creation record")
 
 
 @singleton
@@ -100,6 +125,23 @@ class InventoryClient:
         response_data = request.execute()
         return response_data['updates']['updatedRange']
 
+    def record_task_validation(self, task_name, validator, validation_date):
+        start_row, end_row = self._get_task_range(task_name)
+        if end_row < start_row:
+            raise ValueError("Records for task {!r} are not found.".format(task_name))
+        validation_date = "{:%d.%m.%Y}".format(validation_date)
+        rows = [[validator, validation_date] for _ in range(start_row, end_row + 1)]
+        request = self._service.spreadsheets().values().update(
+            spreadsheetId=self.spreadsheet_id,
+            range='H{}:I{}'.format(start_row, end_row),
+            valueInputOption='USER_ENTERED',
+            body={
+                'values': rows
+            }
+        )
+        response_data = request.execute()
+        return response_data['updatedRange']
+
     def _get_row_index(self, sequence_name, version, task_name):
         version = str(version + 1)
         request = self._service.spreadsheets().values().get(
@@ -107,10 +149,24 @@ class InventoryClient:
             range='A1:C',
         )
         response_data = request.execute()
-        for i, (seq, ver, task) in enumerate(response_data['values'], start=1):
+        for i, row in enumerate(response_data['values'], start=1):
+            if len(row) != 3:
+                continue
+            seq, ver, task = row
             if seq == sequence_name and ver == version and task == task_name:
                 return i
         return -1
+
+    def _get_task_range(self, task_name):
+        # 1-index, end index is inclusive
+        request = self._service.spreadsheets().values().get(
+            spreadsheetId=self.spreadsheet_id,
+            range='C1:C',
+        )
+        response_data = request.execute()
+        values = [row[0] if len(row) == 1 else None for row in response_data['values']]
+        start_index, end_index = find_range(values, lambda v: v == task_name)
+        return start_index + 1, end_index
 
 
 class DummyInventoryClient:
@@ -118,4 +174,7 @@ class DummyInventoryClient:
         return ''
 
     def record_task_creation(self, task_name, assignment_data):
+        return ''
+
+    def record_task_validation(self, task_name, validator, validation_date):
         return ''

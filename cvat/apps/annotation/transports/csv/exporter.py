@@ -11,6 +11,12 @@ class CsvDirectoryExporter:
         if self._base_dir_path.exists():
             shutil.rmtree(str(self._base_dir_path))
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
+
     def begin_frame(self, frame_name, sequence_name):
         path = '{}/{}_y.csv'.format(sequence_name, frame_name)
         return FrameFileWriter(self._base_dir_path / path)

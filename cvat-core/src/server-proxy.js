@@ -279,6 +279,49 @@
                 return response.data;
             }
 
+            async function mergeAnnotations(taskId, acceptanceScore) {
+                const { backendAPI } = config;
+                const url = `${backendAPI}/tasks/${taskId}/merge-annotations?acceptance_score=${acceptanceScore}`;
+                const pollInterval = 3000;
+
+                return new Promise((resolve, reject) => {
+                    async function request() {
+                        Axios.post(url, {
+                            proxy: config.proxy,
+                        }).then((response) => {
+                            if (response.status === 202) {
+                                setTimeout(request, pollInterval);
+                            } else {
+                                resolve(response.data);
+                            }
+                        }).catch((errorData) => {
+                            reject(generateError(errorData));
+                        });
+                    }
+                    setTimeout(request);
+                });
+            }
+
+            async function requestExtraAnnotation(taskId, segmentIds, assigneeIds) {
+                const { backendAPI } = config;
+                const url = `${backendAPI}/tasks/${taskId}/request-extra-annotation`;
+                const data = { assignees: assigneeIds, segments: segmentIds };
+
+                return new Promise((resolve, reject) => {
+                    Axios.post(url, data, {
+                        proxy: config.proxy,
+                    }).then((response) => {
+                        resolve(response.data);
+                    }).catch((errorData) => {
+                        if (errorData.response && errorData.response.status === 406) {
+                            reject(errorData.response.data);
+                        } else {
+                            reject(generateError(errorData));
+                        }
+                    });
+                });
+            }
+
             async function exportDataset(id, format) {
                 const { backendAPI } = config;
                 let url = `${backendAPI}/tasks/${id}/dataset?format=${format}`;
@@ -659,6 +702,8 @@
                         createTask,
                         deleteTask,
                         validateTask,
+                        mergeAnnotations,
+                        requestExtraAnnotation,
                         exportDataset,
                     }),
                     writable: false,

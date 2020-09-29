@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2019 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
-
+import json
 import os
 import os.path as osp
 import re
@@ -15,6 +15,7 @@ from django.views.generic import RedirectView
 from django.http import HttpResponseBadRequest, HttpResponseNotFound
 from django.shortcuts import render
 from django.conf import settings
+from rest_framework.reverse import reverse
 from sendfile import sendfile
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -33,14 +34,17 @@ from django.utils import timezone
 from . import annotation, task, models
 from cvat.settings.base import JS_3RDPARTY, CSS_3RDPARTY
 from cvat.apps.authentication.decorators import login_required
+from .ddln.multiannotation import request_extra_annotation, FailedAssignmentError, merge
 from .ddln.utils import parse_frame_name
 from .log import slogger, clogger
 from cvat.apps.engine.models import StatusChoice, Task, Job, Plugin, Segment
-from cvat.apps.engine.serializers import (TaskSerializer, UserSerializer,
-   ExceptionSerializer, AboutSerializer, JobSerializer, ImageMetaSerializer,
-   RqStatusSerializer, TaskDataSerializer, DataOptionsSerializer, LabeledDataSerializer,
-   PluginSerializer, FileInfoSerializer, LogEventSerializer, JobSelectionSerializer,
-   ProjectSerializer, BasicUserSerializer, TaskDumpSerializer, TaskValidateSerializer)
+from cvat.apps.engine.serializers import (
+    TaskSerializer, UserSerializer, RequestExtraAnnotationSerializer,
+    ExceptionSerializer, AboutSerializer, JobSerializer, ImageMetaSerializer,
+    RqStatusSerializer, TaskDataSerializer, DataOptionsSerializer, LabeledDataSerializer,
+    PluginSerializer, FileInfoSerializer, LogEventSerializer, JobSelectionSerializer,
+    ProjectSerializer, BasicUserSerializer, TaskDumpSerializer, TaskValidateSerializer,
+)
 from cvat.apps.engine.utils import natural_order
 from cvat.apps.annotation.serializers import AnnotationFileSerializer, AnnotationFormatSerializer
 from django.contrib.auth.models import User
@@ -559,6 +563,66 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
 
         return Response(status=status.HTTP_202_ACCEPTED)
 
+    @action(detail=AttributeError, methods=['POST'], url_path='request-extra-annotation',
+            serializer_class=RequestExtraAnnotationSerializer)
+    def request_extra_anno(self, request, pk):
+        db_task = self.get_object()
+        params_serializer = RequestExtraAnnotationSerializer(data=request.data, context={"task": db_task})
+        params_serializer.is_valid(raise_exception=True)
+        segments = params_serializer.validated_data["segments"]
+        assignees = params_serializer.validated_data["assignees"]
+
+        try:
+            request_extra_annotation(db_task, segments, assignees)
+        except FailedAssignmentError as e:
+            failed_segments = [s.id for s in e.failed_segments]
+            data = {"message": "Can't find assignees for the given segments", "segments": failed_segments}
+            return Response(data=data, status=status.HTTP_406_NOT_ACCEPTABLE)
+
+        return Response(status=status.HTTP_202_ACCEPTED)
+
+    @action(detail=True, methods=['POST'], url_path='merge-annotations')
+    def merge_annotations(self, request, pk):
+        file_path, filename, acceptance_score = self._get_merge_params()
+
+        queue = django_rq.get_queue("default")
+        rq_id = "/api/v1/tasks/{}/merge/{}/{}".format(pk, filename, acceptance_score)
+        rq_job = queue.fetch_job(rq_id)
+        if rq_job:
+            if rq_job.is_finished:
+                data = json.load(open(file_path + ".json"))
+                download_url = reverse("cvat:task-merge-annotations-result", args=[pk], request=request)
+                download_url = "{}?acceptance_score={}".format(download_url, acceptance_score)
+                data["download_url"] = download_url
+                rq_job.delete()
+                return Response(data, status=status.HTTP_201_CREATED)
+            elif rq_job.is_failed:
+                exc_info = str(rq_job.exc_info)
+                rq_job.delete()
+                return Response(data=exc_info, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            else:  # merge is still in progress
+                return Response(status=status.HTTP_202_ACCEPTED)
+
+        rq_job = queue.enqueue_call(
+            func=merge,
+            args=(pk, file_path, acceptance_score),
+            job_id=rq_id,
+        )
+        return Response(status=status.HTTP_202_ACCEPTED)
+
+    @action(detail=True, methods=['GET'], url_path='merge-annotations-result', url_name='merge-annotations-result')
+    def get_merge_result(self, request, pk=None):
+        file_path, filename, _ = self._get_merge_params()
+        return sendfile(request, file_path, attachment=True, attachment_filename=filename)
+
+    def _get_merge_params(self):
+        acceptance_score = float(self.request.query_params.get("acceptance_score", 0))
+        db_task = self.get_object()
+        filename = re.sub(r'[\\/*?:"<>|]', '_', db_task.name)
+        filename = "{}-{}.zip".format(filename, acceptance_score)
+        file_path = os.path.join(db_task.get_task_dirname(), filename)
+        return file_path, filename, acceptance_score
+
     @swagger_auto_schema(method='get', operation_summary='When task is being created the method returns information about a status of the creation process')
     @action(detail=True, methods=['GET'], serializer_class=RqStatusSerializer)
     def status(self, request, pk):
@@ -849,13 +913,8 @@ class PluginViewSet(viewsets.ModelViewSet):
 def get_sequences_by_segments(task_queryset):
     """Get segment_id -> sequence_name mapping only for the task listed in task_queryset"""
     task_ids = tuple(task_queryset.values_list('id', flat=True))
-    segments = Segment.objects.raw("""
-        SELECT segment.id, image.path as image_path
-        FROM engine_segment segment
-        JOIN engine_image image ON image.task_id = segment.task_id AND image.frame = segment.start_frame
-        WHERE segment.task_id in %s
-    """, [task_ids])
-    return {s.id: parse_frame_name(s.image_path)[1] for s in segments}
+    segments = Segment.objects.filter(task_id__in=task_ids).with_sequence_name()
+    return {s.id: s.sequence_name for s in segments}
 
 
 def rq_handler(job, exc_type, exc_value, tb):

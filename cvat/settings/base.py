@@ -374,7 +374,10 @@ LOGGING = {
             'handlers': ['console', 'server_file'],
             'level': 'INFO',
             'propagate': True
-        }
+        },
+        'cvat.apps.engine.ddln.multiannotation.ignored': {
+            'level': 'CRITICAL',
+        },
     },
 }
 
@@ -397,6 +400,13 @@ os.makedirs(SHARE_ROOT, exist_ok=True)
 
 MODELS_ROOT = os.path.join(BASE_DIR, 'models')
 os.makedirs(MODELS_ROOT, exist_ok=True)
+
+# current revision hash of exp-devtools submodule
+EXP_DEVTOOLS_HASH = '4b6cb38591429733bef039b4d94e9a2687ce7cd3'
+
+ANNOTATION_TEAM = "msq"
+
+INCOMING_TASKS_ROOT = Path(SHARE_ROOT) / 'incoming'
 
 # Inventory client configuration
 

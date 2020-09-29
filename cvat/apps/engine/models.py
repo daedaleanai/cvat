@@ -125,19 +125,13 @@ class Task(models.Model):
         Returns a list of (version, sequence_name, user) tuples.
         User is None if the sequence doesn't have the assignee.
         """
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT job.version, image.path, auth_user.username
-                FROM engine_segment segment
-                JOIN engine_image image ON image.task_id = segment.task_id AND image.frame = segment.start_frame
-                JOIN engine_job job ON job.segment_id = segment.id
-                LEFT JOIN auth_user ON auth_user.id = job.assignee_id
-                WHERE segment.task_id = %s
-            """, [self.id])
-            return [
-                (version, parse_frame_name(image_path)[1], annotator_name)
-                for version, image_path, annotator_name in cursor.fetchall()
-            ]
+        segments = Segment.objects.filter(task_id=self.id).prefetch_related("job_set__assignee").with_sequence_name()
+        result = []
+        for segment in segments:
+            for job in segment.job_set.all():
+                annotator_name = job.assignee.username if job.assignee else None
+                result.append((job.version, segment.sequence_name, annotator_name))
+        return result
 
     def __str__(self):
         return self.name
@@ -201,13 +195,39 @@ class Image(models.Model):
     class Meta:
         default_permissions = ()
 
+
+class SegmentQuerySet(models.QuerySet):
+    def with_sequence_name(self):
+        start_frame = Image.objects.filter(task_id=models.OuterRef('task_id'), frame=models.OuterRef('start_frame'))
+        return self.annotate(_start_frame_image_path=models.Subquery(start_frame.values('path')))
+
+
 class Segment(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
     start_frame = models.IntegerField()
     stop_frame = models.IntegerField()
 
+    objects = SegmentQuerySet.as_manager()
+
     class Meta:
         default_permissions = ()
+
+    @property
+    def sequence_name(self):
+        if not hasattr(self, "_start_frame_image_path"):
+            raise AttributeError("Segment should be loaded by '.with_sequence_name()' to have '.sequence_name' attribute")
+        if self._start_frame_image_path is None:
+            return ''
+        _, sequence_name = parse_frame_name(self._start_frame_image_path)
+        return sequence_name
+
+    @property
+    def length(self):
+        return self.stop_frame + 1 - self.start_frame
+
+    def get_performers(self):
+        """Return queryset of users which have worked on the given segment"""
+        return User.objects.filter(job__segment=self)
 
 class Job(models.Model):
     segment = models.ForeignKey(Segment, on_delete=models.CASCADE)
@@ -220,17 +240,9 @@ class Job(models.Model):
         default_permissions = ()
 
     def complete(self):
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT task.name, image.path
-                FROM engine_segment segment
-                JOIN engine_task task ON segment.task_id = task.id
-                JOIN engine_image image ON task.id = image.task_id AND image.frame = segment.start_frame
-                WHERE segment.id = %s
-            """, [self.segment_id])
-            task_name, image_path = cursor.fetchone()
-
-        _, sequence_name = parse_frame_name(image_path)
+        segment = Segment.objects.select_related("task").with_sequence_name().get(id=self.segment_id)
+        task_name = segment.task.name
+        sequence_name = segment.sequence_name
         annotator = self.assignee.username if self.assignee else ''
 
         # making request to google sheet api might take a long time,

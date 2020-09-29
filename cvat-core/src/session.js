@@ -1286,6 +1286,38 @@
         }
 
         /**
+            * Method merges task annotations
+            * @method mergeAnnotations
+            * @memberof module:API.cvat.classes.Task
+            * @readonly
+            * @instance
+            * @async
+            * @throws {module:API.cvat.exceptions.ServerError}
+            * @throws {module:API.cvat.exceptions.PluginError}
+        */
+        async mergeAnnotations(acceptanceScore) {
+            const result = await PluginRegistry
+                .apiWrapper.call(this, Task.prototype.mergeAnnotations, acceptanceScore);
+            return result;
+        }
+
+        /**
+            * Request extra annotation for the task
+            * @method requestExtraAnnotation
+            * @memberof module:API.cvat.classes.Task
+            * @readonly
+            * @instance
+            * @async
+            * @throws {module:API.cvat.exceptions.ServerError}
+            * @throws {module:API.cvat.exceptions.PluginError}
+        */
+        async requestExtraAnnotation(segmentIds, assigneeIds) {
+            const result = await PluginRegistry
+                .apiWrapper.call(this, Task.prototype.requestExtraAnnotation, segmentIds, assigneeIds);
+            return result;
+        }
+
+        /**
             * Method deletes a task from a server
             * @method delete
             * @memberof module:API.cvat.classes.Task
@@ -1563,6 +1595,16 @@
 
     Task.prototype.validate.implementation = async function (jobSelection) {
         const result = await serverProxy.tasks.validateTask(this.id, jobSelection);
+        return result;
+    };
+
+    Task.prototype.requestExtraAnnotation.implementation = async function (segmentIds, assigneeIds) {
+        const result = await serverProxy.tasks.requestExtraAnnotation(this.id, segmentIds, assigneeIds);
+        return result;
+    };
+
+    Task.prototype.mergeAnnotations.implementation = async function (acceptanceScore) {
+        const result = await serverProxy.tasks.mergeAnnotations(this.id, acceptanceScore);
         return result;
     };
 

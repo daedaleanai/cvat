@@ -3,12 +3,81 @@ import random
 import re
 from unittest import TestCase
 
-from cvat.apps.engine.ddln.sequences import group, distribute
+from cvat.apps.engine.ddln.sequences import group, distribute, extend_assignees
 from cvat.apps.engine.utils import group_on_delimiter, natural_order
 
 sequences_dir = pathlib.Path(__file__).parent / "data" / "sequences"
 
 alice, bob, chris, david, eva = "Alice Bob Chris David Eva".split()
+
+
+class ExtendAssigneesTest(TestCase):
+    def test_even_workload(self):
+        sequences = [
+            ('A', 80, {eva}),
+            ('B', 23, {eva}),
+            ('C', 65, {eva}),
+            ('D', 94, {eva}),
+            ('E', 70, {eva}),
+            ('F', 28, {eva}),
+            ('G', 12, {eva}),
+            ('H', 40, {eva}),
+            ('I', 33, {eva}),
+        ]
+        assignees = [alice, bob, chris]
+
+        assignments, failed_sequences = extend_assignees(sequences, assignees)
+
+        self.assertEqual(failed_sequences, [])
+        self.assertEqual(calc_workload(assignments, sequences), {
+            alice: 153,
+            bob: 157,
+            chris: 135,
+        })
+
+    def test_failed_assignment(self):
+        sequences = [
+            ('A', 12, {bob, chris, david}),
+            ('B', 10, {alice, bob, david}),
+            ('C', 15, {alice, chris, david}),
+            ('D', 25, {alice, bob, eva}),
+        ]
+        assignees = [alice, bob]
+
+        assignments, failed_sequences = extend_assignees(sequences, assignees)
+
+        self.assertEqual(assignments, [
+            ('A', alice),
+            ('C', bob),
+        ])
+        self.assertEqual(failed_sequences, ['B', 'D'])
+
+    def test_constraint_is_enforced(self):
+        sequences = [
+            ('A', 50, {eva}),
+            ('B', 50, {eva}),
+            ('C', 50, {eva}),
+            ('D', 50, {bob}),
+        ]
+        assignees = [alice, bob]
+
+        assignments, failed_sequences = extend_assignees(sequences, assignees)
+
+        self.assertEqual(failed_sequences, [])
+        self.assertEqual(assignments, [
+            ('A', alice),
+            ('B', bob),
+            ('C', alice),
+            ('D', alice),
+        ])
+
+
+def calc_workload(assignments, sequences):
+    workload_by_user = {}
+    size_by_sequence = {sequence: size for sequence, size, _ in sequences}
+    for sequence, user in assignments:
+        workload_by_user[user] = workload_by_user.get(user, 0) + size_by_sequence[sequence]
+    return workload_by_user
 
 
 class DistributeSequencesTest(TestCase):
