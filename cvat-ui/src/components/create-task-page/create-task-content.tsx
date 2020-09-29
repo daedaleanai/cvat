@@ -42,6 +42,7 @@ const defaultState = {
     },
     advanced: {
         zOrder: false,
+        isTripleAnnotated: true,
         splitOnSequence: true,
         chunkSize: 1000,
         assignees: [],

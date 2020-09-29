@@ -21,6 +21,7 @@ interface Props {
     taskMode: string;
     bugTracker: string;
     allowLoad: boolean;
+    versionsAmount: number;
 
     loaders: string[];
     dumpers: string[];
@@ -52,6 +53,7 @@ export default function ActionsMenuComponent(props: Props): JSX.Element {
         taskMode,
         bugTracker,
         allowLoad,
+        versionsAmount,
 
         installedAutoAnnotation,
         installedTFAnnotation,
@@ -78,8 +80,9 @@ export default function ActionsMenuComponent(props: Props): JSX.Element {
         }
         latestParams = copyParams;
 
-        if (copyParams.keyPath.length === 2) {
-            const [, action] = copyParams.keyPath;
+        const maxDepth = versionsAmount > 1 ? 3 : 2;
+        if (copyParams.keyPath.length === maxDepth) {
+            const action = copyParams.keyPath[copyParams.keyPath.length-1];
             if (action === Actions.LOAD_TASK_ANNO) {
                 if (file) {
                     Modal.confirm({
@@ -126,6 +129,7 @@ export default function ActionsMenuComponent(props: Props): JSX.Element {
                     dumpers,
                     dumpActivities,
                     menuKey: Actions.DUMP_TASK_ANNO,
+                    versionsAmount,
                 })
             }
             {
@@ -136,6 +140,7 @@ export default function ActionsMenuComponent(props: Props): JSX.Element {
                         onClickMenuWrapper(null, file);
                     },
                     menuKey: Actions.LOAD_TASK_ANNO,
+                    versionsAmount,
                     disabled: !allowLoad,
                 })
             }

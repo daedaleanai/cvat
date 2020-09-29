@@ -115,6 +115,24 @@ class AdvancedConfigurationForm extends React.PureComponent<Props> {
         );
     }
 
+    private renderIsTripleAnnotated(): JSX.Element {
+        const { form } = this.props;
+        return (
+            <Form.Item>
+                {form.getFieldDecorator('isTripleAnnotated', {
+                    initialValue: true,
+                    valuePropName: 'checked',
+                })(
+                    <Checkbox>
+                        <Text className='cvat-text-color'>
+                            Triple annotation
+                        </Text>
+                    </Checkbox>,
+                )}
+            </Form.Item>
+        );
+    }
+
     private renderAssigneesSelector(): JSX.Element {
         let { form, users } = this.props;
         users = [...users].sort((a, b) => a.username.localeCompare(b.username));
@@ -384,10 +402,15 @@ class AdvancedConfigurationForm extends React.PureComponent<Props> {
                     </Col>
                 </Row>
 
-                <Row>
-                    <Col>
+                <Row type='flex' justify='start'>
+                    <Col span={12}>
                         {this.renderSplitOnSequence()}
                     </Col>
+                    {form.getFieldValue("splitOnSequence") &&
+                        <Col span={10} offset={1}>
+                            {this.renderIsTripleAnnotated()}
+                        </Col>
+                    }
                 </Row>
 
                 {form.getFieldValue("splitOnSequence") &&

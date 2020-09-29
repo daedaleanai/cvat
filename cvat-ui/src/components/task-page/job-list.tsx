@@ -49,6 +49,12 @@ function JobListComponent(props: Props & RouteComponentProps): JSX.Element {
     } = props;
 
     const { jobs, id: taskId } = taskInstance;
+    const versionColumns = taskInstance.timesAnnotated === 1 ? [] : [{
+        title: 'v',
+        dataIndex: 'version',
+        key: 'version',
+        className: 'cvat-text-color',
+    }];
     const columns = [{
         title: 'Job',
         dataIndex: 'job',
@@ -77,7 +83,9 @@ function JobListComponent(props: Props & RouteComponentProps): JSX.Element {
         dataIndex: 'sequenceName',
         key: 'sequenceName',
         className: 'cvat-text-color',
-    }, {
+    },
+        ...versionColumns,
+    {
         title: 'Frames',
         dataIndex: 'frames',
         key: 'frames',
@@ -152,6 +160,7 @@ function JobListComponent(props: Props & RouteComponentProps): JSX.Element {
             key: job.id,
             job: job.id,
             sequenceName: job.sequenceName,
+            version: job.version,
             frames: `${job.startFrame}-${job.stopFrame}`,
             status: `${job.status}`,
             started: `${created.format('MMMM Do YYYY HH:MM')}`,

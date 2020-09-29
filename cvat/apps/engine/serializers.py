@@ -12,6 +12,7 @@ from django.contrib.auth.models import User, Group
 from cvat.apps.annotation.models import AnnotationDumper
 from cvat.apps.engine import models
 from cvat.apps.engine.log import slogger
+from cvat.apps.engine.utils import natural_order
 
 
 class CommaSeparatedValuesField(serializers.ListField):
@@ -102,22 +103,27 @@ class JobSerializer(serializers.ModelSerializer):
 class SimpleJobSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Job
-        fields = ('url', 'id', 'assignee', 'status')
+        fields = ('url', 'id', 'assignee', 'status', 'version')
 
 class SegmentSerializer(serializers.ModelSerializer):
     jobs = SimpleJobSerializer(many=True, source='job_set')
     sequence_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = models.Segment
+        fields = ('start_frame', 'stop_frame', 'jobs', 'sequence_name')
+        read_only_fields = ('sequence_name',)
+
+    def to_representation(self, instance):
+        value = super().to_representation(instance)
+        value['jobs'].sort(key=lambda e: e['version'])
+        return value
 
     def get_sequence_name(self, obj):
         sequence_by_segment_id = self.context.get('sequence_by_segment_id')
         if not sequence_by_segment_id:
             return ''
         return sequence_by_segment_id.get(obj.id, '')
-
-    class Meta:
-        model = models.Segment
-        fields = ('start_frame', 'stop_frame', 'jobs', 'sequence_name')
-        read_only_fields = ('sequence_name',)
 
 class ClientFileSerializer(serializers.ModelSerializer):
     class Meta:
@@ -213,21 +219,34 @@ class DataOptionsSerializer(serializers.Serializer):
             raise serializers.ValidationError("When split on sequence is off, assignees are ignored")
         if data['assignees'] and data['chunk_size'] is None:
             raise serializers.ValidationError("When assignees are provided chunk size should be provided as well")
+        times_annotated = self.context['times_annotated']
+        if times_annotated > 1 and len(data['assignees']) < times_annotated:
+            raise serializers.ValidationError("Not enough assignees to annotate task {} times".format(times_annotated))
+
         return data
 
 
-class JobsSelectionSerializer(serializers.Serializer):
+class JobSelectionSerializer(serializers.Serializer):
     jobs = CommaSeparatedValuesField(
         child=serializers.IntegerField(min_value=1),
         default=[],
     )
+    version = serializers.IntegerField(default=None, min_value=0)
+
+    def validate(self, data):
+        if data['jobs'] and data['version'] is not None:
+            raise serializers.ValidationError("'version' and 'jobs' should not be provided at the same time")
+        return data
+
+    def create(self, validated_data):
+        return dict(jobs=validated_data['jobs'], version=validated_data['version'])
 
 
-class TaskValidateSerializer(JobsSelectionSerializer):
+class TaskValidateSerializer(JobSelectionSerializer):
     jump_threshold = serializers.FloatField(required=False, min_value=1.0)
 
 
-class TaskDumpSerializer(JobsSelectionSerializer):
+class TaskDumpSerializer(JobSelectionSerializer):
     action = serializers.CharField(default=None)
     format = serializers.SlugRelatedField('display_name', queryset=AnnotationDumper.objects.all())
 
@@ -286,6 +305,7 @@ class TaskSerializer(WriteOnceMixin, serializers.ModelSerializer):
     labels = LabelSerializer(many=True, source='label_set', partial=True)
     segments = SegmentSerializer(many=True, source='segment_set', read_only=True)
     image_quality = serializers.IntegerField(min_value=0, max_value=100)
+    times_annotated = serializers.IntegerField(default=1, min_value=1, max_value=10)
 
     class Meta:
         model = models.Task
@@ -293,11 +313,16 @@ class TaskSerializer(WriteOnceMixin, serializers.ModelSerializer):
             'bug_tracker', 'created_date', 'updated_date', 'overlap',
             'segment_size', 'z_order', 'status', 'labels', 'segments',
             'image_quality', 'start_frame', 'stop_frame', 'frame_filter',
-            'project')
+            'project', 'times_annotated')
         read_only_fields = ('size', 'mode', 'created_date', 'updated_date',
             'status')
-        write_once_fields = ('overlap', 'segment_size', 'image_quality')
+        write_once_fields = ('overlap', 'segment_size', 'image_quality', 'times_annotated')
         ordering = ['-id']
+
+    def to_representation(self, instance):
+        value = super().to_representation(instance)
+        value['segments'].sort(key=lambda e: natural_order(e['sequence_name']))
+        return value
 
     def validate_frame_filter(self, value):
         match = re.search("step\s*=\s*([1-9]\d*)", value)

@@ -8,35 +8,61 @@ from cvat.apps.engine.utils import group_on_delimiter, natural_order
 
 sequences_dir = pathlib.Path(__file__).parent / "data" / "sequences"
 
+alice, bob, chris, david, eva = "Alice Bob Chris David Eva".split()
+
 
 class DistributeSequencesTest(TestCase):
     def test_single_assignee(self):
         chunks = ['A', 'B', 'C']
-        assignees = ['Alice']
+        assignees = [alice]
 
         actual = distribute(chunks, assignees)
 
         self.assertEqual(actual, [
-            ('A', 'Alice'),
-            ('B', None),
-            ('C', None),
+            ('A', [alice]),
+            ('B', [None]),
+            ('C', [None]),
         ])
 
     def test_multiple_assignees(self):
         chunks = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
-        assignees = ['Alice', 'Bob', 'Chris']
+        assignees = [alice, bob, chris]
 
         actual = distribute(chunks, assignees)
 
         self.assertEqual(actual, [
-            ('A', 'Alice'),
-            ('B', 'Bob'),
-            ('C', 'Chris'),
-            ('D', None),
-            ('E', None),
-            ('F', None),
-            ('G', None),
-            ('H', None),
+            ('A', [alice]),
+            ('B', [bob]),
+            ('C', [chris]),
+            ('D', [None]),
+            ('E', [None]),
+            ('F', [None]),
+            ('G', [None]),
+            ('H', [None]),
+        ])
+
+    def test_multiple_assignees_triple_annotated(self):
+        chunks = ['A', 'B']
+        assignees = [alice, bob, chris]
+
+        actual = distribute(chunks, assignees, 3)
+
+        self.assertEqual(actual, [
+            ('A', [alice, bob, chris]),
+            ('B', [alice, bob, chris]),
+        ])
+
+    def test_multiple_assignees_double_annotated(self):
+        chunks = ['A', 'B', 'C', 'D']
+        assignees = [alice, bob, chris]
+
+        actual = distribute(chunks, assignees, 2)
+
+        self.assertEqual(actual, [
+            ('A', [alice, bob]),
+            ('B', [chris, alice]),
+            ('C', [bob, chris]),
+            ('D', [alice, bob]),
         ])
 
 

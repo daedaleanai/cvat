@@ -1,6 +1,6 @@
 import itertools
 
-from cvat.apps.engine.utils import natural_order
+from cvat.apps.engine.utils import natural_order, grouper
 
 
 def group(sequences, chunk_size):
@@ -30,11 +30,30 @@ def group(sequences, chunk_size):
     return result
 
 
-def distribute(chunks, assignees):
-    """Distribute chunks between assignees
+def distribute(chunks, assignees, times_assigned=1):
+    """Distribute chunks between assignees"""
+    if times_assigned == 1:
+        return _distribute_single_annotation(chunks, assignees)
+    else:
+        return _distribute_multiannotation(chunks, assignees, times_assigned)
 
-    Each assignee gets no more than 1 chunk,
+
+def _distribute_multiannotation(chunks, assignees, times_assigned=1):
+    """Assign in round-robin manner, so annotators won't assign sequences manually
+    and won't make mistakes by assigning the same sequence multiple times to the same annotator.
+    """
+    # if the assertions aren't met, an annotator might be assigned multiple times to the same chunk
+    assert len(assignees) == len(set(assignees))
+    assert len(assignees) >= times_assigned
+    assignees_pool = itertools.cycle(assignees)
+    groups = (list(gr) for gr in grouper(assignees_pool, times_assigned))
+    return list(zip(chunks, groups))
+
+
+def _distribute_single_annotation(chunks, assignees):
+    """Each assignee gets no more than 1 chunk,
     extra chunks are left unassigned, so any annotator can pick them up.
     """
     assignees_pool = itertools.chain(assignees, itertools.repeat(None))
-    return [(ch, a) for ch, a in zip(chunks, assignees_pool)]
+    groups = ([a] for a in assignees_pool)
+    return list(zip(chunks, groups))

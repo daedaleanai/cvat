@@ -1,5 +1,6 @@
 from cvat.apps.annotation.structures import RunwayPoint, Runway
-from cvat.apps.annotation.transports.cvat.utils import grouper, build_attrs_dict
+from cvat.apps.annotation.transports.cvat.utils import build_attrs_dict
+from cvat.apps.engine.utils import grouper
 
 
 class RunwayParseError(ValueError):

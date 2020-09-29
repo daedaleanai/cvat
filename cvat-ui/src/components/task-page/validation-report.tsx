@@ -3,6 +3,7 @@ import {
     Row,
     Col,
     Button,
+    Select,
     Spin,
 } from 'antd';
 import Text from 'antd/lib/typography/Text';
@@ -15,19 +16,19 @@ interface Props {
 function ValidationReportComponent(props: Props): JSX.Element {
     const [loading, setLoading] = useState(false);
     const [report, setReport] = useState(null);
+    const [version, setVersion] = useState("0");
     const { taskInstance, jobs } = props;
+
+    const showVersionSelector = !report && !jobs && taskInstance.timesAnnotated > 1;
 
     const loadData = () : void => {
       setLoading(true);
-      taskInstance.validate(jobs).then(responseData => {
+      const jobSelection = { jobs, version: showVersionSelector ? version : null };
+      taskInstance.validate(jobSelection).then(responseData => {
           setReport(responseData.report);
           setLoading(false);
       })
     };
-
-    if (loading) {
-        return (<Spin size='large' className='cvat-spinner' />);
-    }
 
     let actionButton = report ?
         <Button
@@ -52,27 +53,41 @@ function ValidationReportComponent(props: Props): JSX.Element {
         </Button>
     ;
 
-    let content = report ?
-        <Row type='flex' justify='start' align='top'>
-            <Col>
-                <Text><pre>{report}</pre></Text>
-            </Col>
-        </Row>
-        :
-        <Row type='flex' justify='center' align='middle'>
-            <Col>
-                <Text strong>Press 'validate' to start validation</Text>
-            </Col>
-        </Row>
-    ;
+    let content;
+    if (loading) {
+        content = <Spin size='large' className='cvat-spinner' />;
+    } else if (report) {
+        content = (
+            <Row type='flex' justify='start' align='top'>
+                <Col>
+                    <Text><pre>{report}</pre></Text>
+                </Col>
+            </Row>
+        );
+    } else {
+        content = (
+            <Row type='flex' justify='center' align='middle'>
+                <Col>
+                    <Text strong>Press 'validate' to start validation</Text>
+                </Col>
+            </Row>
+        );
+    }
 
     return (
         <div className='validation-report-block'>
-            <Row type='flex' justify='space-between' align='middle'>
+            <Row className='validation-report-header' type='flex' justify='end' align='middle'>
                 <Col>
                     <Text className='cvat-text-color  cvat-validation-header'> Validation </Text>
                 </Col>
-                <Col>{actionButton}</Col>
+                {showVersionSelector && <Col span={1} offset={1}>
+                    <Select value={version} onChange={value => setVersion(value)}>
+                        {[...Array(taskInstance.timesAnnotated).keys()]
+                            .map((v) => <Select.Option key={v} value={String(v)}>{v+1}</Select.Option>
+                        )}
+                    </Select>
+                </Col>}
+                <Col offset={1}>{actionButton}</Col>
             </Row>
             {content}
         </div>

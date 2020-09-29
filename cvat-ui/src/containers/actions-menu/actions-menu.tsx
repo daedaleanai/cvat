@@ -38,8 +38,8 @@ interface StateToProps {
 }
 
 interface DispatchToProps {
-    loadAnnotations: (taskInstance: any, loader: any, file: File, jobs: any[] | null) => void;
-    dumpAnnotations: (taskInstance: any, dumper: any, jobs: any[] | null) => void;
+    loadAnnotations: (taskInstance: any, loader: any, file: File, jobSelection: any) => void;
+    dumpAnnotations: (taskInstance: any, dumper: any, jobSelection: any) => void;
     exportDataset: (taskInstance: any, exporter: any) => void;
     deleteTask: (taskInstance: any) => void;
     openRunModelWindow: (taskInstance: any) => void;
@@ -88,11 +88,11 @@ function mapStateToProps(state: CombinedState, own: OwnProps): StateToProps {
 
 function mapDispatchToProps(dispatch: any): DispatchToProps {
     return {
-        loadAnnotations: (taskInstance: any, loader: any, file: File, jobs: any[] | null): void => {
-            dispatch(loadAnnotationsAsync(taskInstance, loader, file, jobs));
+        loadAnnotations: (taskInstance: any, loader: any, file: File, jobSelection): void => {
+            dispatch(loadAnnotationsAsync(taskInstance, loader, file, jobSelection));
         },
-        dumpAnnotations: (taskInstance: any, dumper: any, jobs: any[] | null): void => {
-            dispatch(dumpAnnotationsAsync(taskInstance, dumper, jobs));
+        dumpAnnotations: (taskInstance: any, dumper: any, jobSelection: any): void => {
+            dispatch(dumpAnnotationsAsync(taskInstance, dumper, jobSelection));
         },
         exportDataset: (taskInstance: any, exporter: any): void => {
             dispatch(exportDatasetAsync(taskInstance, exporter));
@@ -128,6 +128,9 @@ function ActionsMenuContainer(props: OwnProps & StateToProps & DispatchToProps):
         openRunModelWindow,
     } = props;
 
+    // if particular jobs are selected for dump/upload, no need to select version
+    const versionsAmount = jobs ? 1 : taskInstance.timesAnnotated;
+
 
     const loaders = annotationFormats
         .map((format: any): any[] => format.loaders).flat();
@@ -137,20 +140,27 @@ function ActionsMenuContainer(props: OwnProps & StateToProps & DispatchToProps):
 
     function onClickMenu(params: ClickParam, file?: File): void {
         if (params.keyPath.length > 1) {
-            const [additionalKey, action] = params.keyPath;
+            let additionalKey, action, version;
+            if (params.keyPath.length === 3) {
+                [additionalKey, version, action] = params.keyPath;
+            } else {
+                [additionalKey, action] = params.keyPath;
+                version = null;
+            }
+            const jobSelection = { jobs, version };
             if (action === Actions.DUMP_TASK_ANNO) {
                 const format = additionalKey;
                 const [dumper] = dumpers
                     .filter((_dumper: any): boolean => _dumper.name === format);
                 if (dumper) {
-                    dumpAnnotations(taskInstance, dumper, jobs);
+                    dumpAnnotations(taskInstance, dumper, jobSelection);
                 }
             } else if (action === Actions.LOAD_TASK_ANNO) {
                 const [format] = additionalKey.split('::');
                 const [loader] = loaders
                     .filter((_loader: any): boolean => _loader.name === format);
                 if (loader && file) {
-                    loadAnnotations(taskInstance, loader, file, jobs);
+                    loadAnnotations(taskInstance, loader, file, jobSelection);
                 }
             } else if (action === Actions.EXPORT_TASK_DATASET) {
                 const format = additionalKey;
@@ -190,6 +200,7 @@ function ActionsMenuContainer(props: OwnProps & StateToProps & DispatchToProps):
             installedTFSegmentation={installedTFSegmentation}
             onClickMenu={onClickMenu}
             allowLoad={allowLoad}
+            versionsAmount={versionsAmount}
         />
     );
 }

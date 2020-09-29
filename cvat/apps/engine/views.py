@@ -39,7 +39,7 @@ from cvat.apps.engine.models import StatusChoice, Task, Job, Plugin, Segment
 from cvat.apps.engine.serializers import (TaskSerializer, UserSerializer,
    ExceptionSerializer, AboutSerializer, JobSerializer, ImageMetaSerializer,
    RqStatusSerializer, TaskDataSerializer, DataOptionsSerializer, LabeledDataSerializer,
-   PluginSerializer, FileInfoSerializer, LogEventSerializer, JobsSelectionSerializer,
+   PluginSerializer, FileInfoSerializer, LogEventSerializer, JobSelectionSerializer,
    ProjectSerializer, BasicUserSerializer, TaskDumpSerializer, TaskValidateSerializer)
 from cvat.apps.engine.utils import natural_order
 from cvat.apps.annotation.serializers import AnnotationFileSerializer, AnnotationFormatSerializer
@@ -409,7 +409,8 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
         """
         db_task = self.get_object() # call check_object_permissions as well
         serializer = TaskDataSerializer(db_task, data=request.data)
-        options_serializer = DataOptionsSerializer(data=request.query_params)
+        context = {"times_annotated": db_task.times_annotated}
+        options_serializer = DataOptionsSerializer(data=request.query_params, context=context)
         options_serializer.is_valid(raise_exception=True)
         if serializer.is_valid(raise_exception=True):
             serializer.save()
@@ -426,9 +427,9 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
         serializer_class=LabeledDataSerializer)
     def annotations(self, request, pk):
         self.get_object() # force to call check_object_permissions
-        params_serializer = JobsSelectionSerializer(data=request.query_params)
+        params_serializer = JobSelectionSerializer(data=request.query_params)
         params_serializer.is_valid(raise_exception=True)
-        job_ids = params_serializer.validated_data['jobs']
+        job_selection = params_serializer.save()
 
         if request.method == 'GET':
             data = annotation.get_task_data(pk, request.user)
@@ -442,15 +443,15 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
                     rq_id="{}@/api/v1/tasks/{}/annotations/upload".format(request.user, pk),
                     rq_func=annotation.load_task_data,
                     pk=pk,
-                    job_ids=job_ids,
+                    job_selection=job_selection,
                 )
             else:
                 serializer = LabeledDataSerializer(data=request.data)
                 if serializer.is_valid(raise_exception=True):
-                    data = annotation.put_task_data(pk, request.user, serializer.data, job_ids)
+                    data = annotation.put_task_data(pk, request.user, serializer.data, job_selection)
                     return Response(data)
         elif request.method == 'DELETE':
-            annotation.delete_task_data(pk, request.user, job_ids)
+            annotation.delete_task_data(pk, request.user, job_selection)
             return Response(status=status.HTTP_204_NO_CONTENT)
         elif request.method == 'PATCH':
             action = self.request.query_params.get("action", None)
@@ -460,7 +461,7 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
             serializer = LabeledDataSerializer(data=request.data)
             if serializer.is_valid(raise_exception=True):
                 try:
-                    data = annotation.patch_task_data(pk, request.user, serializer.data, action, job_ids)
+                    data = annotation.patch_task_data(pk, request.user, serializer.data, action, job_selection)
                 except (AttributeError, IntegrityError) as e:
                     return Response(data=str(e), status=status.HTTP_400_BAD_REQUEST)
                 return Response(data)
@@ -472,10 +473,12 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
 
         params_serializer = TaskValidateSerializer(data=request.query_params)
         params_serializer.is_valid(raise_exception=True)
-        job_ids = params_serializer.validated_data.pop('jobs')
+        job_selection = params_serializer.save()
         options = params_serializer.validated_data
+        options.pop('version')
+        options.pop('jobs')
 
-        importer = CVATImporter.for_task(pk, job_ids)
+        importer = CVATImporter.for_task(pk, job_selection)
         sequences = load_sequences(importer)
         reporter = validate(sequences, **options)
         report = reporter.get_text_report()
@@ -505,13 +508,15 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
         timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
         params_serializer = TaskDumpSerializer(data=request.query_params)
         params_serializer.is_valid(raise_exception=True)
+        job_selection = params_serializer.save()
         dump_format = request.query_params["format"]
         action = params_serializer.validated_data["action"]
         db_dumper = params_serializer.validated_data["format"]
-        job_ids = params_serializer.validated_data['jobs']
 
-        if job_ids:
-            filename = "{}-{}".format(filename, "-".join(map(str, job_ids)))
+        if job_selection['jobs']:
+            filename = "{}-{}".format(filename, "-".join(map(str, job_selection['jobs'])))
+        if job_selection['version'] is not None:
+            filename = "{}-v{}".format(filename, job_selection['version']+1)
         full_filename = "{}.{}.{}.{}".format(filename, username, timestamp, db_dumper.format.lower())
         file_path = os.path.join(db_task.get_task_dirname(), full_filename)
 
@@ -545,7 +550,7 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
 
         rq_job = queue.enqueue_call(
             func=annotation.dump_task_data,
-            args=(pk, request.user, file_path, db_dumper, job_ids,
+            args=(pk, request.user, file_path, db_dumper, job_selection,
                   request.scheme, request.get_host()),
             job_id=rq_id,
         )
@@ -871,7 +876,7 @@ def rq_handler(job, exc_type, exc_value, tb):
 #         '201': openapi.Response(description='Annotations have been uploaded')},
 #     tags=['tasks'])
 # @api_view(['PUT'])
-def load_data_proxy(request, rq_id, rq_func, pk, job_ids=()):
+def load_data_proxy(request, rq_id, rq_func, pk, job_selection=None):
     queue = django_rq.get_queue("default")
     rq_job = queue.fetch_job(rq_id)
     upload_format = request.query_params.get("format", "")
@@ -891,8 +896,8 @@ def load_data_proxy(request, rq_id, rq_func, pk, job_ids=()):
                 for chunk in anno_file.chunks():
                     f.write(chunk)
             rq_job_args = [pk, request.user, filename, db_parser]
-            if job_ids:
-                rq_job_args.append(job_ids)
+            if job_selection:
+                rq_job_args.append(job_selection)
             rq_job = queue.enqueue_call(
                 func=rq_func,
                 args=rq_job_args,
