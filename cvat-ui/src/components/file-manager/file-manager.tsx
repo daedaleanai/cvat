@@ -16,6 +16,8 @@ import Tree, { AntTreeNode, TreeNodeNormal } from 'antd/lib/tree/Tree';
 import { RcFile } from 'antd/lib/upload';
 import Text from 'antd/lib/typography/Text';
 
+import ExternalImagesSelector from './external-image-selector';
+
 export interface Files {
     local: File[];
     share: string[];
@@ -24,6 +26,7 @@ export interface Files {
 
 interface State {
     files: Files;
+    externalFiles: any[];
     expandedKeys: string[];
     active: 'local' | 'share' | 'remote';
 }
@@ -44,6 +47,7 @@ export default class FileManager extends React.PureComponent<Props, State> {
                 share: [],
                 remote: [],
             },
+            externalFiles: [],
             expandedKeys: [],
             active: 'local',
         };
@@ -55,11 +59,13 @@ export default class FileManager extends React.PureComponent<Props, State> {
         const {
             active,
             files,
+            externalFiles,
         } = this.state;
         return {
             local: active === 'local' ? files.local : [],
             share: active === 'share' ? files.share : [],
             remote: active === 'remote' ? files.remote : [],
+            externalFiles: active === 'records' ? externalFiles : [],
         };
     }
 
@@ -76,6 +82,7 @@ export default class FileManager extends React.PureComponent<Props, State> {
     public reset(): void {
         this.setState({
             expandedKeys: [],
+            externalFiles: [],
             active: 'local',
             files: {
                 local: [],
@@ -217,6 +224,19 @@ export default class FileManager extends React.PureComponent<Props, State> {
         );
     }
 
+    private renderRecordsSelector(): JSX.Element {
+        const { externalFiles } = this.state;
+
+        return (
+            <Tabs.TabPane key='records' tab='Records service'>
+                <ExternalImagesSelector
+                    value={externalFiles}
+                    onChange={value => this.setState({ externalFiles: value })}
+                />
+            </Tabs.TabPane>
+        );
+    }
+
     public render(): JSX.Element {
         const { withRemote } = this.props;
         const { active } = this.state;
@@ -236,6 +256,7 @@ export default class FileManager extends React.PureComponent<Props, State> {
                     { this.renderLocalSelector() }
                     { this.renderShareSelector() }
                     { withRemote && this.renderRemoteSelector() }
+                    { this.renderRecordsSelector() }
                 </Tabs>
             </>
         );

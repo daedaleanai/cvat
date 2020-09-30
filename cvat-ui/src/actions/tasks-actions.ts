@@ -390,6 +390,7 @@ ThunkAction<Promise<void>, {}, {}, AnyAction> {
             z_order: data.advanced.zOrder,
             image_quality: 70,
             times_annotated: !data.advanced.splitOnSequence ? 1 : data.advanced.isTripleAnnotated ? 3 : 1,
+            external: data.files.externalFiles.length > 0,
         };
 
         if (data.advanced.bugTracker) {
@@ -422,6 +423,7 @@ ThunkAction<Promise<void>, {}, {}, AnyAction> {
             splitOnSequence: data.advanced.splitOnSequence,
             chunkSize: data.advanced.chunkSize,
             assignees: data.advanced.assignees,
+            externalFiles: data.files.externalFiles,
         };
 
         if (data.advanced.repository) {

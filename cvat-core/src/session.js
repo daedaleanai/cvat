@@ -782,6 +782,7 @@
                 stop_frame: undefined,
                 frame_filter: undefined,
                 times_annotated: undefined,
+                external: undefined,
             };
 
             for (const property in data) {
@@ -878,13 +879,23 @@
                 },
                 /**
                     * @name timesAnnotated
-                    * @type {integer}
+                    * @type {number}
                     * @memberof module:API.cvat.classes.Task
                     * @readonly
                     * @instance
                 */
                 timesAnnotated: {
                     get: () => data.times_annotated,
+                },
+                /**
+                    * @name external
+                    * @type {boolean}
+                    * @memberof module:API.cvat.classes.Job
+                    * @readonly
+                    * @instance
+                */
+                external: {
+                    get: () => data.external,
                 },
                 /**
                     * @name mode
@@ -1556,6 +1567,7 @@
             labels: this.labels.map((el) => el.toJSON()),
             image_quality: this.imageQuality,
             times_annotated: this.timesAnnotated,
+            external: this.external,
             z_order: Boolean(this.zOrder),
         };
 

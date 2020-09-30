@@ -404,6 +404,7 @@
                         }
                     }
                 }
+                batchOfFiles.append('external_files', JSON.stringify(options.externalFiles));
 
                 let response = null;
 
