@@ -39,6 +39,7 @@ from .ddln.utils import parse_frame_name
 from .log import slogger, clogger
 from cvat.apps.engine.models import StatusChoice, Task, Job, Plugin, Segment
 from cvat.apps.engine.serializers import (
+    ExternalImageSerializer,
     TaskSerializer, UserSerializer, RequestExtraAnnotationSerializer,
     ExceptionSerializer, AboutSerializer, JobSerializer, ImageMetaSerializer,
     RqStatusSerializer, TaskDataSerializer, DataOptionsSerializer, LabeledDataSerializer,
@@ -668,6 +669,14 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
         serializer = ImageMetaSerializer(many=True, data=data['original_size'])
         if serializer.is_valid(raise_exception=True):
             return Response(serializer.data)
+
+    @action(detail=True, methods=['GET'], serializer_class=ImageMetaSerializer, url_path='frames/external')
+    def get_external_frames(self, request, pk):
+        task = self.get_object()
+        images = task.image_set.all() if task.external else []
+        serializer = ExternalImageSerializer(images, many=True)
+        data = dict(external=task.external, images=serializer.data)
+        return Response(data)
 
     @swagger_auto_schema(method='get', manual_parameters=[openapi.Parameter('frame', openapi.IN_PATH, required=True,
             description="A unique integer value identifying this frame", type=openapi.TYPE_INTEGER)],

@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 
+from django.conf import settings
 from rest_framework import serializers
 from django.contrib.auth.models import User, Group
 
@@ -272,6 +273,18 @@ class RequestExtraAnnotationSerializer(serializers.Serializer):
         return data
 
 
+class ExternalImageSerializer(serializers.Serializer):
+    frame = serializers.IntegerField()
+    width = serializers.IntegerField()
+    height = serializers.IntegerField()
+    url = serializers.SerializerMethodField()
+
+    def get_url(self, image):
+        path = image.url
+        host = settings.EXTERNAL_STORAGE_HOST
+        return "{}{}".format(host, path)
+
+
 class WriteOnceMixin:
     """Adds support for write once fields to serializers.
 
@@ -322,6 +335,7 @@ class TaskSerializer(WriteOnceMixin, serializers.ModelSerializer):
     segments = SegmentSerializer(many=True, source='segment_set', read_only=True)
     image_quality = serializers.IntegerField(min_value=0, max_value=100)
     times_annotated = serializers.IntegerField(default=1, min_value=1, max_value=10)
+    external = serializers.BooleanField(default=False)
 
     class Meta:
         model = models.Task
@@ -329,10 +343,10 @@ class TaskSerializer(WriteOnceMixin, serializers.ModelSerializer):
             'bug_tracker', 'created_date', 'updated_date', 'overlap',
             'segment_size', 'z_order', 'status', 'labels', 'segments',
             'image_quality', 'start_frame', 'stop_frame', 'frame_filter',
-            'project', 'times_annotated')
+            'project', 'times_annotated', 'external')
         read_only_fields = ('size', 'mode', 'created_date', 'updated_date',
             'status')
-        write_once_fields = ('overlap', 'segment_size', 'image_quality', 'times_annotated')
+        write_once_fields = ('overlap', 'segment_size', 'image_quality', 'times_annotated', 'external')
         ordering = ['-id']
 
     def to_representation(self, instance):

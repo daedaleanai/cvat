@@ -71,6 +71,8 @@ class Task(models.Model):
     overlap = models.PositiveIntegerField(null=True)
     # Zero means that there are no limits (default)
     segment_size = models.PositiveIntegerField(default=0)
+    # if task is external, images are not stored in cvat and loaded from third-party app
+    external = models.BooleanField(default=False)
     times_annotated = models.PositiveIntegerField(default=1)
     z_order = models.BooleanField(default=False)
     image_quality = models.PositiveSmallIntegerField(default=50)
@@ -188,6 +190,7 @@ class Video(models.Model):
 class Image(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
     path = models.CharField(max_length=1024)
+    url = models.CharField(null=True, max_length=1024)
     frame = models.PositiveIntegerField()
     width = models.PositiveIntegerField()
     height = models.PositiveIntegerField()
