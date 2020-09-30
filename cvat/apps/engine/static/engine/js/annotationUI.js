@@ -488,8 +488,44 @@ function setupMenu(job, task, shapeCollectionModel,
 }
 
 
-function buildAnnotationUI(jobData, taskData, imageMetaData, annotationData, annotationFormats,
+function buildImageSizeGetter(isExternal, sizeByFrame, imageMetaData) {
+    if (isExternal) {
+        return (frame) => {
+            return sizeByFrame[frame];
+        };
+    } else {
+        return (frame) => {
+            return imageMetaData[frame] || imageMetaData[0];
+        };
+    }
+}
+
+function buildImageUrlGetter(isExternal, urlByFrame, taskId) {
+    if (isExternal) {
+        return (frame) => {
+            return urlByFrame[frame];
+        };
+    } else {
+        return (frame) => {
+            return `/api/v1/tasks/${taskId}/frames/${frame}`;
+        };
+    }
+}
+
+function processExternalImagesData(data) {
+    const isExternal = data.external;
+    const sizeByFrame = {};
+    const urlByFrame = {};
+    data.images.forEach(entry => {
+        sizeByFrame[entry.frame] = {width: entry.width, height: entry.height};
+        urlByFrame[entry.frame] = entry.url;
+    })
+    return [isExternal, sizeByFrame, urlByFrame];
+}
+
+function buildAnnotationUI(jobData, taskData, imageMetaData, externalImagesData, annotationData, annotationFormats,
     loadJobEvent) {
+    const [isExternal, sizeByFrame, urlByFrame] = processExternalImagesData(externalImagesData);
     // Setup some API
     window.cvat = {
         labelsInfo: new LabelsInfo(taskData.labels),
@@ -510,7 +546,8 @@ function buildAnnotationUI(jobData, taskData, imageMetaData, annotationData, ann
             id: jobData.id,
             task_id: taskData.id,
             mode: taskData.mode,
-            images: imageMetaData,
+            getImageSize: buildImageSizeGetter(isExternal, sizeByFrame, imageMetaData),
+            getImageUrl: buildImageUrlGetter(isExternal, urlByFrame, taskData.id),
         },
         search: {
             value: window.location.search,
@@ -574,7 +611,6 @@ function buildAnnotationUI(jobData, taskData, imageMetaData, annotationData, ann
         start: window.cvat.player.frames.start,
         stop: window.cvat.player.frames.stop,
         flipped: taskData.flipped,
-        image_meta_data: imageMetaData,
     }, window.cvat.labelsInfo);
 
     const shapeCollectionModel = new ShapeCollectionModel().import(annotationData);
@@ -725,13 +761,14 @@ function callAnnotationUI(jid) {
         $.when(
             $.get(`/api/v1/tasks/${jobData.task_id}`),
             $.get(`/api/v1/tasks/${jobData.task_id}/frames/meta`),
+            $.get(`/api/v1/tasks/${jobData.task_id}/frames/external`),
             $.get(`/api/v1/jobs/${jid}/annotations`),
             $.get('/api/v1/server/annotation/formats'),
-        ).then((taskData, imageMetaData, annotationData, annotationFormats) => {
+        ).then((taskData, imageMetaData, externalImagesData, annotationData, annotationFormats) => {
             $('#loadingOverlay').remove();
             setTimeout(() => {
                 buildAnnotationUI(jobData, taskData[0],
-                    imageMetaData[0], annotationData[0], annotationFormats[0], loadJobEvent);
+                    imageMetaData[0], externalImagesData[0], annotationData[0], annotationFormats[0], loadJobEvent);
             });
         }).fail(onError);
     }).fail(onError);

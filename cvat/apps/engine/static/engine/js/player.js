@@ -123,7 +123,7 @@ class FrameProvider extends Listener {
                     image.onload = null;
                     image.onerror = null;
                 };
-                image.src = `/api/v1/tasks/${this._tid}/frames/${frame}`;
+                image.src = window.cvat.job.getImageUrl(frame);
             }, 25);
         }
     }
