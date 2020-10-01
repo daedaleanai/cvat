@@ -35,7 +35,6 @@ from . import annotation, task, models
 from cvat.settings.base import JS_3RDPARTY, CSS_3RDPARTY
 from cvat.apps.authentication.decorators import login_required
 from .ddln.multiannotation import request_extra_annotation, FailedAssignmentError, merge
-from .ddln.utils import parse_frame_name
 from .log import slogger, clogger
 from cvat.apps.engine.models import StatusChoice, Task, Job, Plugin, Segment
 from cvat.apps.engine.serializers import (
@@ -44,7 +43,7 @@ from cvat.apps.engine.serializers import (
     ExceptionSerializer, AboutSerializer, JobSerializer, ImageMetaSerializer,
     RqStatusSerializer, TaskDataSerializer, DataOptionsSerializer, LabeledDataSerializer,
     PluginSerializer, FileInfoSerializer, LogEventSerializer, JobSelectionSerializer,
-    ProjectSerializer, BasicUserSerializer, TaskDumpSerializer, TaskValidateSerializer,
+    ProjectSerializer, BasicUserSerializer, TaskDumpSerializer, TaskValidateSerializer, ExternalFilesSerializer,
 )
 from cvat.apps.engine.utils import natural_order
 from cvat.apps.annotation.serializers import AnnotationFileSerializer, AnnotationFormatSerializer
@@ -413,11 +412,16 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
         These data cannot be changed later
         """
         db_task = self.get_object() # call check_object_permissions as well
-        serializer = TaskDataSerializer(db_task, data=request.data)
+        external_files_serializer = ExternalFilesSerializer(data=request.data['external_files'], context=dict(task=db_task))
+        external_files_serializer.is_valid(raise_exception=True)
+        data = request.data.copy()
+        data.pop('external_files')
+        serializer = TaskDataSerializer(db_task, data=data)
         context = {"times_annotated": db_task.times_annotated}
         options_serializer = DataOptionsSerializer(data=request.query_params, context=context)
         options_serializer.is_valid(raise_exception=True)
         if serializer.is_valid(raise_exception=True):
+            external_files_serializer.save()
             serializer.save()
             task.create(db_task.id, serializer.data, options_serializer.validated_data)
             return Response(serializer.data, status=status.HTTP_202_ACCEPTED)

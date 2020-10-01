@@ -1,7 +1,7 @@
 # Copyright (C) 2019 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
-
+import json
 import os
 import re
 import shutil
@@ -205,6 +205,44 @@ class TaskDataSerializer(serializers.ModelSerializer):
             remote_file.save()
 
         return instance
+
+
+class ExternalFrameSerializer(serializers.Serializer):
+    path = serializers.CharField()
+    url = serializers.CharField()
+
+
+class ExternalSequenceSerializer(serializers.Serializer):
+    width = serializers.IntegerField()
+    height = serializers.IntegerField()
+    camera_index = serializers.IntegerField()
+    sequence_name = serializers.CharField()
+    frames = ExternalFrameSerializer(many=True)
+
+
+class ExternalFilesSerializer(serializers.ListSerializer):
+    child = ExternalSequenceSerializer()
+
+    def to_internal_value(self, data):
+        if isinstance(data, str):
+            data = json.loads(data)
+        return super().to_internal_value(data)
+
+    def create(self, validated_data):
+        sequences = sorted(validated_data, key=lambda s: natural_order(s['sequence_name']))
+        images = []
+        task = self.context['task']
+        frame_index = 0
+        for sequence in sequences:
+            width = sequence['width']
+            height = sequence['height']
+            for frame in sequence['frames']:
+                path = frame['path']
+                url = frame['url']
+                images.append(models.Image(task=task, path=path, url=url, frame=frame_index, width=width, height=height))
+                frame_index += 1
+
+        return models.Image.objects.bulk_create(images)
 
 
 class DataOptionsSerializer(serializers.Serializer):
