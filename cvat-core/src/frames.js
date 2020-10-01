@@ -117,11 +117,11 @@
         });
     };
 
-    async function getPreview(taskID) {
+    async function getPreview(previewUrl) {
         return new Promise(async (resolve, reject) => {
             try {
                 // Just go to server and get preview (no any cache)
-                const result = await serverProxy.frames.getPreview(taskID);
+                const result = await serverProxy.frames.getPreview(previewUrl);
                 if (isNode) {
                     resolve(global.Buffer.from(result, 'binary').toString('base64'));
                 } else if (isBrowser) {

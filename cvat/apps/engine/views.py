@@ -381,6 +381,7 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
         task_queryset = self.filter_queryset(self.get_queryset())
         sequence_by_segment_id = get_sequences_by_segments(task_queryset)
         context['sequence_by_segment_id'] = sequence_by_segment_id
+        context['request'] = self.request
         return context
 
     def perform_create(self, serializer):

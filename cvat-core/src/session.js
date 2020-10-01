@@ -783,6 +783,7 @@
                 frame_filter: undefined,
                 times_annotated: undefined,
                 external: undefined,
+                preview_url: undefined,
             };
 
             for (const property in data) {
@@ -890,12 +891,22 @@
                 /**
                     * @name external
                     * @type {boolean}
-                    * @memberof module:API.cvat.classes.Job
+                    * @memberof module:API.cvat.classes.Task
                     * @readonly
                     * @instance
                 */
                 external: {
                     get: () => data.external,
+                },
+                /**
+                    * @name previewUrl
+                    * @type {string}
+                    * @memberof module:API.cvat.classes.Task
+                    * @readonly
+                    * @instance
+                */
+                previewUrl: {
+                    get: () => data.preview_url,
                 },
                 /**
                     * @name mode
@@ -1409,7 +1420,7 @@
     };
 
     Job.prototype.frames.preview.implementation = async function () {
-        const frameData = await getPreview(this.task.id);
+        const frameData = await getPreview(this.task.previewUrl);
         return frameData;
     };
 
@@ -1638,7 +1649,7 @@
     };
 
     Task.prototype.frames.preview.implementation = async function () {
-        const frameData = await getPreview(this.id);
+        const frameData = await getPreview(this.previewUrl);
         return frameData;
     };
 

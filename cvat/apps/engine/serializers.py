@@ -9,6 +9,7 @@ import shutil
 from django.conf import settings
 from rest_framework import serializers
 from django.contrib.auth.models import User, Group
+from rest_framework.reverse import reverse
 
 from cvat.apps.annotation.models import AnnotationDumper
 from cvat.apps.engine import models
@@ -374,6 +375,7 @@ class TaskSerializer(WriteOnceMixin, serializers.ModelSerializer):
     image_quality = serializers.IntegerField(min_value=0, max_value=100)
     times_annotated = serializers.IntegerField(default=1, min_value=1, max_value=10)
     external = serializers.BooleanField(default=False)
+    preview_url = serializers.SerializerMethodField()
 
     class Meta:
         model = models.Task
@@ -381,11 +383,24 @@ class TaskSerializer(WriteOnceMixin, serializers.ModelSerializer):
             'bug_tracker', 'created_date', 'updated_date', 'overlap',
             'segment_size', 'z_order', 'status', 'labels', 'segments',
             'image_quality', 'start_frame', 'stop_frame', 'frame_filter',
-            'project', 'times_annotated', 'external')
+            'project', 'times_annotated', 'external', 'preview_url')
         read_only_fields = ('size', 'mode', 'created_date', 'updated_date',
             'status')
         write_once_fields = ('overlap', 'segment_size', 'image_quality', 'times_annotated', 'external')
         ordering = ['-id']
+
+    def get_preview_url(self, task):
+        if task.external:
+            try:
+                image = models.Image.objects.get(frame=0, task=task)
+                path = image.url
+            except models.Image.DoesNotExist:
+                path = None
+            if path:
+                host = settings.EXTERNAL_STORAGE_HOST
+                return "{}{}".format(host, path)
+        request = self.context.get('request')
+        return reverse("cvat:task-frame", args=[task.id, 0], request=request)
 
     def to_representation(self, instance):
         value = super().to_representation(instance)
