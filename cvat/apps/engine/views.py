@@ -12,7 +12,7 @@ from datetime import datetime
 from tempfile import mkstemp
 
 from django.views.generic import RedirectView
-from django.http import HttpResponseBadRequest, HttpResponseNotFound
+from django.http import HttpResponseBadRequest, HttpResponseNotFound, HttpResponse
 from django.shortcuts import render
 from django.conf import settings
 from rest_framework.reverse import reverse
@@ -45,7 +45,7 @@ from cvat.apps.engine.serializers import (
     PluginSerializer, FileInfoSerializer, LogEventSerializer, JobSelectionSerializer,
     ProjectSerializer, BasicUserSerializer, TaskDumpSerializer, TaskValidateSerializer, ExternalFilesSerializer,
 )
-from cvat.apps.engine.utils import natural_order
+from cvat.apps.engine.utils import natural_order, safe_path_join
 from cvat.apps.annotation.serializers import AnnotationFileSerializer, AnnotationFormatSerializer
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
@@ -215,6 +215,30 @@ class ServerViewSet(viewsets.ViewSet):
         else:
             return Response("{} is an invalid directory".format(param),
                 status=status.HTTP_400_BAD_REQUEST)
+
+    @staticmethod
+    @action(detail=False, methods=['GET'], url_path='scenario-file')
+    def scenario_file(request):
+        paths = request.query_params.getlist('path')
+        paths = [safe_path_join(settings.SHARE_ROOT, p) for p in paths]
+
+        candidates = set()
+        for path in paths:
+            if path.is_dir():
+                candidates |= set(path.rglob('spo*.csv'))
+                candidates |= set(path.rglob('vls*.csv'))
+            elif path.is_file() and path.suffix == '.csv':
+                candidates.add(path)
+
+        if len(candidates) == 1:
+            file = next(iter(candidates))
+            return HttpResponse(file.read_text(), content_type="text/plain")
+        elif len(candidates) == 0:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        else:
+            choices = [str(p.relative_to(settings.SHARE_ROOT)) for p in candidates]
+            data = dict(message="Ambiguous file choice.", choices=choices)
+            return Response(data=data, status=status.HTTP_406_NOT_ACCEPTABLE)
 
     @staticmethod
     @swagger_auto_schema(method='get', operation_summary='Method provides the list of available annotations formats supported by the server',

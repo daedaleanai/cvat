@@ -2,11 +2,13 @@ import ast
 import itertools
 import re
 import threading
+import os.path
 from collections import namedtuple
 import importlib
 import sys
 import traceback
 from functools import wraps
+from pathlib import Path
 
 Import = namedtuple("Import", ["module", "name", "alias"])
 
@@ -62,6 +64,19 @@ def execute_python_code(source_code, global_vars=None, local_vars=None):
         _, _, tb = sys.exc_info()
         line_number = traceback.extract_tb(tb)[-1][1]
         raise InterpreterError("{} at line {}: {}".format(error_class, line_number, details))
+
+
+def safe_path_join(base_dir, path):
+    base_dir = Path(base_dir)
+    path = Path(path)
+    path = path.relative_to('/') if path.is_absolute() else path
+    path = base_dir / path
+    path = Path(os.path.normpath(str(path)))
+    try:
+        path.relative_to(base_dir)
+    except ValueError:
+        raise ValueError("Path {} is outside of {} dir".format(path, base_dir)) from None
+    return path
 
 
 def singleton(constructor):
