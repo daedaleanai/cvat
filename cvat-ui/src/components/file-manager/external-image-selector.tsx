@@ -1,46 +1,39 @@
 import React, { useState } from 'react';
 import {
-    Icon,
     Spin,
-    Upload,
+    Button,
+    notification,
 } from 'antd';
 import Text from 'antd/lib/typography/Text';
+
+import ShareSelector from "./share-selector";
 
 const csvHeader = ["sequenceName", "recordingName", "startFrame", "endFrame", "cameraIndex", "targetName", "targetType"];
 
 const ExternalImagesSelector = ({ value, onChange }) => {
-    const [file, setFile] = useState(null);
+    const [selection, setSelection] = useState([]);
     const [loading, setLoading] = useState(false);
+
+    const onSubmit = () => {
+        setLoading(true);
+        loadData(selection).then((data) => {
+            onChange(data);
+        }).catch((error) => {
+            notification.error({
+                message: 'Error while getting scenarios',
+                description: error.toString(),
+            });
+        }).finally(() => {
+            setLoading(false);
+        });
+    }
+
     return (
         <Spin spinning={loading}>
-            <Upload.Dragger
-                accept=".csv"
-                listType='text'
-                fileList={file ? [file] : []}
-                showUploadList={{
-                    showRemoveIcon: false,
-                }}
-                beforeUpload={(file) => {
-                    setFile(file);
-                    setLoading(true);
-                    loadData(file).then((data) => {
-                        onChange(data);
-                    }).catch((error) => {
-                        console.error(error);
-                    }).finally(() => {
-                        setLoading(false);
-                    });
-                    return false;
-                }}
-            >
-                <p className='ant-upload-drag-icon'>
-                    <Icon type="cloud-upload" />
-                </p>
-                <p className='ant-upload-text'>Click or drag file to this area</p>
-                <p className='ant-upload-hint'>
-                    Upload a csv file containing sequences data
-                </p>
-            </Upload.Dragger>
+            <ShareSelector value={selection} onchange={setSelection} />
+            <Button size='large' type='primary' onClick={onSubmit} disabled={selection.length < 1} >
+                 Select files
+            </Button>
             {
                 value.map(item => (
                     <Text className='cvat-text-color'>
@@ -52,21 +45,30 @@ const ExternalImagesSelector = ({ value, onChange }) => {
     );
 }
 
-async function loadData(file) {
-    const csvFileContent = await readTextFile(file);
+async function loadData(selection) {
+    const csvFileContent = await getScenarioFile(selection);
     const sequences = parseCsv(csvFileContent, csvHeader);
     const cachedFetchRecording = cached(fetchRecordingData);
     const recordings = await Promise.all(sequences.map(s => cachedFetchRecording(s.recordingName)));
     return sequences.map((s, i) => joinData(s, recordings[i][Number(s.cameraIndex)]));
 }
 
-function readTextFile(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = event => { resolve(event.target.result) };
-        reader.onerror = event => { reject(reader.error) };
-        reader.readAsText(file);
-    });
+async function getScenarioFile(paths) {
+    const query = new URLSearchParams();
+    paths.forEach(p => query.append("path", p));
+    const response = await fetch(`/api/v1/server/scenario-file?${query}`);
+    if (response.status === 200) {
+        return response.text();
+    } else if (response.status === 406) {
+        const data = await response.json();
+        const message = `${data.message} Possible choices: ${data.choices.join(", ")}.`;
+        throw Error(message);
+    } else if (response.status === 404) {
+        throw Error("Scenario file not found.");
+    } else {
+        console.log(response);
+        throw Error("Unknown error");
+    }
 }
 
 function parseCsv(text, header) {
