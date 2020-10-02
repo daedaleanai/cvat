@@ -108,7 +108,7 @@ class AdvancedConfigurationForm extends React.PureComponent<Props> {
         return (
             <Form.Item>
                 {form.getFieldDecorator('isTripleAnnotated', {
-                    initialValue: true,
+                    initialValue: false,
                     valuePropName: 'checked',
                 })(
                     <Checkbox>
