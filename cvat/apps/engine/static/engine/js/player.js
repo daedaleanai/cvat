@@ -19,113 +19,75 @@
 class FrameProvider extends Listener {
     constructor(stop, tid) {
         super('onFrameLoad', () => this._loaded);
-        this._MAX_LOAD = 500;
+        this._MAX_PRELOAD_FRAMES = 500;
+        this._MAX_CONCCURENT_LOADS = 4;
 
-        this._stack = [];
-        this._loadInterval = null;
-        this._required = null;
-        this._loaded = null;
-        this._loadAllowed = true;
-        this._preloadRunned = false;
-        this._loadCounter = this._MAX_LOAD;
+        this._queue = [];
+        this._trigerredLoad = {}
+        this._currentlyLoading = 0;
         this._frameCollection = {};
+        this._loaded = null;
         this._stop = stop;
-        this._tid = tid;
     }
 
     require(frame) {
         if (frame in this._frameCollection) {
-            this._preload(frame);
+            this._pushTail(frame);
+            this._triggerLoading(false);
             return this._frameCollection[frame];
         }
-        this._required = frame;
-        this._loadCounter = this._MAX_LOAD;
-        this._load();
+        this._queue = [frame];
+        this._pushTail(frame);
+        this._triggerLoading(true);
         return null;
     }
 
-    _onImageLoad(image, frame) {
-        const next = frame + 1;
-        if (next <= this._stop && this._loadCounter > 0) {
-            this._stack.push(next);
+    _pushTail(frame) {
+        const last = Math.min(this._stop, frame + this._MAX_PRELOAD_FRAMES);
+        for (let idx = frame + 1; idx <= last; ++idx) {
+            this._queue.push(idx);
         }
-        this._loadCounter--;
-        this._loaded = frame;
+    }
+
+    _onImageLoad(image, frame) {
         this._frameCollection[frame] = image;
-        this._loadAllowed = true;
-        image.onload = null;
-        image.onerror = null;
+        this._loaded = frame;
         this.notify();
     }
 
-    _preload(frame) {
-        if (this._preloadRunned) {
-            return;
-        }
-
-        const last = Math.min(this._stop, frame + Math.ceil(this._MAX_LOAD / 2));
-        if (!(last in this._frameCollection)) {
-            for (let idx = frame + 1; idx <= last; idx++) {
-                if (!(idx in this._frameCollection)) {
-                    this._loadCounter = this._MAX_LOAD - (idx - frame);
-                    this._stack.push(idx);
-                    this._preloadRunned = true;
-                    this._load();
-                    return;
-                }
+    _triggerLoading(highPriority) {
+        while (this._queue.length && (highPriority || this._currentlyLoading < this._MAX_CONCCURENT_LOADS)) {
+            const frame = this._queue.shift();
+            if (frame in this._trigerredLoad) {
+                continue;
             }
+            this._trigerredLoad[frame] = frame;
+            this._currentlyLoading += 1;
+            this._loadImage(window.cvat.job.getImageUrl(frame), frame)
+                .then(([image, processedFrame]) => this._onImageLoad(image, processedFrame))
+                .finally(() => {
+                    this._currentlyLoading -= 1;
+                    this._triggerLoading(false);
+                });
+            highPriority = false;
         }
     }
 
-    _load() {
-        if (!this._loadInterval) {
-            this._loadInterval = setInterval(() => {
-                if (!this._loadAllowed) {
-                    return;
-                }
-
-                if (this._loadCounter <= 0) {
-                    this._stack = [];
-                }
-
-                if (!this._stack.length && this._required == null) {
-                    clearInterval(this._loadInterval);
-                    this._preloadRunned = false;
-                    this._loadInterval = null;
-                    return;
-                }
-
-                if (this._required != null) {
-                    this._stack.push(this._required);
-                    this._required = null;
-                }
-
-                const frame = this._stack.pop();
-                if (frame in this._frameCollection) {
-                    this._loadCounter--;
-                    const next = frame + 1;
-                    if (next <= this._stop && this._loadCounter > 0) {
-                        this._stack.push(frame + 1);
-                    }
-                    return;
-                }
-
-                // If load up to last frame, no need to load previous frames from stack
-                if (frame === this._stop) {
-                    this._stack = [];
-                }
-
-                this._loadAllowed = false;
-                const image = new Image();
-                image.onload = this._onImageLoad.bind(this, image, frame);
-                image.onerror = () => {
-                    this._loadAllowed = true;
-                    image.onload = null;
-                    image.onerror = null;
-                };
-                image.src = window.cvat.job.getImageUrl(frame);
-            }, 25);
-        }
+    _loadImage(url, frame) {
+        return new Promise((resolve, reject) => {
+            const image = new Image();
+            image.onload = () => {
+                image.onload = null;
+                image.onerror = null;
+                resolve([image, frame]);
+            };
+            image.onerror = () => {
+                image.onload = null;
+                image.onerror = null;
+                reject([image, frame]);
+            };
+            image.src = url;
+        });
     }
 }
 
