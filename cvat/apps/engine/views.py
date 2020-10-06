@@ -515,7 +515,7 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
         importer = CVATImporter.for_task(pk, job_selection)
         sequences = load_sequences(importer)
         reporter = validate(sequences, **options)
-        report = reporter.get_text_report()
+        report = reporter.get_text_report(reporter.severity.WARNING)
 
         return Response(data={"report": report}, status=status.HTTP_200_OK)
 
