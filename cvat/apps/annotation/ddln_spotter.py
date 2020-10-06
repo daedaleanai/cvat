@@ -36,13 +36,9 @@ def dump(file_object, annotations):
     from cvat.apps.dataset_manager.util import make_zip_archive
     from cvat.apps.annotation.structures import load_sequences
     from cvat.apps.annotation.transports.csv import CsvDirectoryImporter
-    from cvat.apps.engine.ddln.utils import (
-        write_task_mapping_file, write_ddln_yaml_file, guess_task_name, parse_frame_name
-    )
+    from cvat.apps.engine.ddln.utils import write_task_mapping_file, DdlnYamlWriter, parse_frame_name
     from cvat.apps.annotation.validation import validate
     from tempfile import TemporaryDirectory
-
-    task_name = guess_task_name(annotations.meta['task']['name'])
 
     with TemporaryDirectory() as temp_dir:
         log_file_path = os.path.join(temp_dir, "export.log")
@@ -52,7 +48,8 @@ def dump(file_object, annotations):
         boxIndex = 0
 
         with open(yml_file_path, 'w', newline='') as yml_file:
-            write_ddln_yaml_file(task_name, yml_file, {})
+            yaml_writer = DdlnYamlWriter(annotations.meta['task']['name'], add_merger_info=False)
+            yaml_writer.write(yml_file)
 
         with open(log_file_path, 'w', newline='') as log_file:
             for frame_annotation in annotations.group_by_frame(omit_empty_frames=False):

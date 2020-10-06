@@ -62,41 +62,6 @@ def guess_task_name(name):
     return name
 
 
-def write_ddln_yaml_file(task_name, file, rejected_frames, date=None, annotation_request_id=None, id_by_seq_name=None):
-    if date is None:
-        date = datetime.date.today()
-    if id_by_seq_name is None:
-        id_by_seq_name = get_sequence_id_mapping(task_name)
-    if annotation_request_id is None:
-        annotation_request_id = get_annotation_request_id(task_name)
-    annotation_request_id = annotation_request_id or ''
-    group = settings.ANNOTATION_TEAM
-    map_file = "task_mapping.csv"
-    curr_date = date.isoformat()
-    merger_version = settings.EXP_DEVTOOLS_HASH
-    if rejected_frames:
-        invalid_data = "".join(_format_invalid_sequence(seq, frames, id_by_seq_name) for seq, frames in rejected_frames.items())
-    else:
-        invalid_data = ""
-
-    yml_data = YML_TEMPLATE.format(
-        ddln_id=annotation_request_id,
-        curr_date=curr_date,
-        group=group,
-        map_file=map_file,
-        task_name=task_name,
-        merger_version=merger_version,
-        invalid_data=invalid_data,
-    )
-    file.write(yml_data)
-
-
-def _format_invalid_sequence(sequence_name, frames, id_by_seq_name):
-    dataset_id = id_by_seq_name.get(sequence_name, "### UNKNOWN ###")
-    frame_rows = "".join("    frame: {}\n".format(f) for f in frames)
-    return INVALID_SEQUENCE_TEMPLATE.format(dataset_id=dataset_id, frame_rows=frame_rows)
-
-
 def get_annotation_request_id(task_name):
     task_dir = settings.INCOMING_TASKS_ROOT / task_name
     ddln_id_files = [*task_dir.glob("spo_*/ddln_id"), *task_dir.glob("vls_*/ddln_id")]
@@ -111,7 +76,58 @@ def get_sequence_id_mapping(task_name):
     return {f.parent.name: f.read_text().strip() for f in task_dir.glob("*/ddln_id")}
 
 
-YML_TEMPLATE = """sources:
+class DdlnYamlWriter:
+    def __init__(self, task_name, add_merger_info=True):
+        self.task_name = guess_task_name(task_name)
+        self.annotation_request_id = get_annotation_request_id(self.task_name)
+        self.id_by_seq_name = get_sequence_id_mapping(self.task_name)
+        self._add_merger_info = add_merger_info
+
+    def get_warnings(self, sequence_names=()):
+        warnings = []
+        if not self.annotation_request_id:
+            warnings.append("Failure while obtaining annotation request id")
+        if not all(name in self.id_by_seq_name for name in sequence_names):
+            warnings.append("Failure while getting sequence to dataset-id mapping")
+        return warnings
+
+    def write(self, file, rejected_frames=None, date=None):
+        if date is None:
+            date = datetime.date.today()
+        curr_date = date.isoformat()
+        annotation_request_id = self.annotation_request_id or ''
+        group = settings.ANNOTATION_TEAM
+        map_file = "task_mapping.csv"
+        merger_info = self._format_merger_info()
+        invalid_data = self._format_invalid_data(rejected_frames)
+
+        yml_data = _YML_TEMPLATE.format(
+            ddln_id=annotation_request_id,
+            curr_date=curr_date,
+            group=group,
+            map_file=map_file,
+            task_name=self.task_name,
+            merger_info=merger_info,
+            invalid_data=invalid_data,
+        )
+        file.write(yml_data)
+
+    def _format_merger_info(self):
+        merger_version = settings.EXP_DEVTOOLS_HASH
+        return _MERGER_INFO_TEMPLATE.format(merger_version=merger_version)
+
+    def _format_invalid_data(self, invalid_frames):
+        if not invalid_frames:
+            return ""
+        return "".join(self._format_invalid_sequence(seq, frames) for seq, frames in invalid_frames.items())
+
+    def _format_invalid_sequence(self, sequence_name, frames):
+        dataset_id = self.id_by_seq_name.get(sequence_name, "### UNKNOWN ###")
+        frame_rows = "".join("    frame: {}\n".format(f) for f in frames)
+        return _INVALID_SEQUENCE_TEMPLATE.format(dataset_id=dataset_id, frame_rows=frame_rows)
+
+
+_YML_TEMPLATE = """sources:
   - {ddln_id}
 date: {curr_date}
 team:
@@ -121,13 +137,17 @@ phabricator: {task_name}
 tool:
   - name: CVAT
     version: 2.3
-  - name: merge tool https://git-ng.daedalean.ai/daedalean/exp-devtools/src/branch/master/annotations/multi/process_annotations_msq.py
-    version: {merger_version}
-invalid:
+{merger_info}invalid:
 {invalid_data}comment:
 quality:
-recommendations: """
+recommendations:
+"""
 
-INVALID_SEQUENCE_TEMPLATE = """  - dataset_id:  {dataset_id}
+_MERGER_INFO_TEMPLATE = """
+  - name: merge tool https://git-ng.daedalean.ai/daedalean/exp-devtools/src/branch/master/annotations/multi/process_annotations_msq.py
+    version: {merger_version}
+""".lstrip('\n')
+
+_INVALID_SEQUENCE_TEMPLATE = """  - dataset_id:  {dataset_id}
 {frame_rows}    reason: no agreement
 """

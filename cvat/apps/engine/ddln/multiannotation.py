@@ -16,7 +16,8 @@ from cvat.apps.engine import models
 from cvat.apps.engine.ddln.inventory_client import record_extra_annotation_creation, record_task_validation
 from cvat.apps.engine.ddln.sequences import extend_assignees
 from cvat.apps.engine.ddln.utils import (
-    write_task_mapping_file, write_ddln_yaml_file, get_sequence_id_mapping, get_annotation_request_id, guess_task_name
+    write_task_mapping_file,
+    DdlnYamlWriter,
 )
 from cvat.apps.engine.models import Task, Segment
 from cvat.apps.engine.utils import natural_order
@@ -67,6 +68,7 @@ def merge(task_id, file_path, acceptance_score):
             d.mkdir()
         log_file = logs_dir / "merge.log"
         score_file = logs_dir / "scores.txt"
+        ddln_yaml_file = root_dir / "ddln.yaml"
 
         annotation_dirs = []
         extra_annotation_dir = None
@@ -94,30 +96,21 @@ def merge(task_id, file_path, acceptance_score):
         merge_logger = merge_annotations(annotation_dirs, accepted_dir, rejected_dir, requires_more_dir, options)
         rejected_frames = merge_logger.get_rejected_frames()
         incomplete_frames = merge_logger.get_incomplete_frames()
-        task_name = guess_task_name(task.name)
-        annotation_request_id = get_annotation_request_id(task_name)
-        id_by_seq_name = get_sequence_id_mapping(task_name)
 
         write_task_mapping_file(task, root_dir.joinpath("task_mapping.csv").open("wt"))
-        write_ddln_yaml_file(
-            task_name, root_dir.joinpath("ddln.yaml").open("wt"), rejected_frames,
-            annotation_request_id=annotation_request_id, id_by_seq_name=id_by_seq_name
-        )
+        yaml_writer = DdlnYamlWriter(task.name)
+        yaml_writer.write(ddln_yaml_file.open("wt"), rejected_frames)
         make_zip_archive(str(root_dir), file_path)
 
     segments = Segment.objects.with_sequence_name().filter(task_id=task.id).prefetch_related('job_set__assignee')
     serializer_context = dict(
-        dataset_id_by_sequence_name=id_by_seq_name,
+        dataset_id_by_sequence_name=yaml_writer.id_by_seq_name,
         rejected_frames=rejected_frames,
         incomplete_frames=incomplete_frames
     )
     segments_serializer = MergeResultSerializer(segments, many=True, context=serializer_context)
 
-    warnings = []
-    if not annotation_request_id:
-        warnings.append("Failure while obtaining annotation request id")
-    if not all(segment.sequence_name in id_by_seq_name for segment in segments):
-        warnings.append("Failure while getting sequence to dataset-id mapping")
+    warnings = yaml_writer.get_warnings(s.sequence_name for s in segments)
 
     segments_data = sorted(segments_serializer.data, key=lambda e: natural_order(e['sequence_name']))
     data = dict(warnings=warnings, segments=segments_data)
