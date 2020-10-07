@@ -34,6 +34,7 @@ from django.utils import timezone
 from . import annotation, task, models
 from cvat.settings.base import JS_3RDPARTY, CSS_3RDPARTY
 from cvat.apps.authentication.decorators import login_required
+from .ddln.grey_export import export_single_annotation, ExportError
 from .ddln.multiannotation import request_extra_annotation, FailedAssignmentError, merge
 from .log import slogger, clogger
 from cvat.apps.engine.models import StatusChoice, Task, Job, Plugin, Segment
@@ -518,6 +519,21 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
         report = reporter.get_text_report(reporter.severity.WARNING)
 
         return Response(data={"report": report}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['POST'], url_path='grey-export')
+    def grey_export(self, request, pk):
+        task = self.get_object()
+
+        if task.times_annotated != 1:
+            raise serializers.ValidationError("Export of triple-annotated task is not supported")
+        if task.status != StatusChoice.COMPLETED:
+            raise serializers.ValidationError("All task jobs should be completed")
+
+        try:
+            export_single_annotation(task)
+        except ExportError as e:
+            return Response(data=[e.args[0]], status=status.HTTP_400_BAD_REQUEST)
+        return Response(status=status.HTTP_200_OK)
 
     @swagger_auto_schema(method='get', operation_summary='Method allows to download annotations as a file',
         manual_parameters=[openapi.Parameter('filename', openapi.IN_PATH, description="A name of a file with annotations",
