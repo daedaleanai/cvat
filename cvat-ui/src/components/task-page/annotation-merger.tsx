@@ -79,10 +79,10 @@ function AnnotationMergerComponent(props: Props & StateToProps): JSX.Element {
 
 
     return (
-        <div className='annotation-merger-block'>
-            <Row className='annotation-merger-header' type='flex' justify='end' align='middle'>
+        <div className='task-section-container'>
+            <Row className='task-section-header' type='flex' justify='end' align='middle'>
                 <Col>
-                    <Text className='cvat-text-color  annotation-merger-header-text'> Triple annotation </Text>
+                    <Text className='cvat-text-color task-section-header-text'> Triple annotation </Text>
                 </Col>
                 <Col>
                     <Tooltip title='Acceptance score'>

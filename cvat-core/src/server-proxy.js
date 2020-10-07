@@ -322,6 +322,26 @@
                 });
             }
 
+            async function exportToGrey(taskId) {
+                const { backendAPI } = config;
+                const url = `${backendAPI}/tasks/${taskId}/grey-export`;
+
+                return new Promise((resolve, reject) => {
+                    Axios.post(url, {
+                        proxy: config.proxy,
+                    }).then(() => {
+                        resolve();
+                    }).catch((errorData) => {
+                        if (errorData.response && errorData.response.status === 400) {
+                            const errorMessage = errorData.response.data.join('\n');
+                            reject(errorMessage);
+                        } else {
+                            reject(generateError(errorData));
+                        }
+                    });
+                });
+            }
+
             async function exportDataset(id, format) {
                 const { backendAPI } = config;
                 let url = `${backendAPI}/tasks/${id}/dataset?format=${format}`;
@@ -705,6 +725,7 @@
                         validateTask,
                         mergeAnnotations,
                         requestExtraAnnotation,
+                        exportToGrey,
                         exportDataset,
                     }),
                     writable: false,

@@ -7,6 +7,7 @@
 .cvat-task-details-wrapper {
     overflow-y: auto;
     height: 100%;
+    padding-bottom: 20px;
 
     .cvat-task-details {
         width: 100%;
@@ -56,7 +57,7 @@
     }
 }
 
-.cvat-task-job-list, .validation-report-block, .annotation-merger-block {
+.task-section-container {
     width: 100%;
     height: auto;
     border: 1px solid $border-color-1;
@@ -70,7 +71,7 @@
     }
 }
 
-.validation-report-header, .annotation-merger-header {
+.task-section-header {
     div:nth-child(2) {
         margin-left: auto;
     }
@@ -112,7 +113,7 @@
 
 .ant-typography.cvat-jobs-header,
 .ant-typography.cvat-validation-header,
-.ant-typography.annotation-merger-header-text {
+.ant-typography.task-section-header-text {
     margin-bottom: 0px;
     font-size: 20px;
     font-weight: bold;
