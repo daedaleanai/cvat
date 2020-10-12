@@ -19,7 +19,7 @@
 class FrameProvider extends Listener {
     constructor(stop, tid) {
         super('onFrameLoad', () => this._loaded);
-        this._MAX_PRELOAD_FRAMES = 500;
+        this._MAX_PRELOAD_FRAMES = 100;
         this._MAX_CONCCURENT_LOADS = 4;
 
         this._queue = [];
@@ -30,61 +30,65 @@ class FrameProvider extends Listener {
         this._stop = stop;
     }
 
-    require(frame) {
-        if (frame in this._frameCollection) {
-            this._pushTail(frame);
+    require(frame, gamma=1) {
+        const loadRequest = [frame, gamma];
+        if (loadRequest in this._frameCollection) {
+            this._pushTail(loadRequest);
             this._triggerLoading(false);
-            return this._frameCollection[frame];
+            return this._frameCollection[loadRequest];
         }
-        this._queue = [frame];
-        this._pushTail(frame);
+        this._queue = [loadRequest];
+        this._pushTail(loadRequest);
         this._triggerLoading(true);
         return null;
     }
 
-    _pushTail(frame) {
+    _pushTail(loadRequest) {
+        const [frame, gamma] = loadRequest;
         const last = Math.min(this._stop, frame + this._MAX_PRELOAD_FRAMES);
         for (let idx = frame + 1; idx <= last; ++idx) {
-            this._queue.push(idx);
+            this._queue.push([idx, gamma]);
         }
     }
 
-    _onImageLoad(image, frame) {
-        this._frameCollection[frame] = image;
-        this._loaded = frame;
+    _onImageLoad(image, loadRequest) {
+        this._frameCollection[loadRequest] = image;
+        this._loaded = loadRequest;
         this.notify();
     }
 
     _triggerLoading(highPriority) {
         while (this._queue.length && (highPriority || this._currentlyLoading < this._MAX_CONCCURENT_LOADS)) {
-            const frame = this._queue.shift();
-            if (frame in this._trigerredLoad) {
+            const loadRequest = this._queue.shift();
+            if (loadRequest in this._trigerredLoad) {
                 continue;
             }
-            this._trigerredLoad[frame] = frame;
+            this._trigerredLoad[loadRequest] = null;
             this._currentlyLoading += 1;
-            this._loadImage(window.cvat.job.getImageUrl(frame), frame)
-                .then(([image, processedFrame]) => this._onImageLoad(image, processedFrame))
+            const [frame, gamma] = loadRequest;
+            this._loadImage(window.cvat.job.getImageUrl(frame, gamma), loadRequest)
+                .then(([image, processedRequest]) => this._onImageLoad(image, processedRequest))
                 .finally(() => {
                     this._currentlyLoading -= 1;
+                    delete this._trigerredLoad[loadRequest];
                     this._triggerLoading(false);
                 });
             highPriority = false;
         }
     }
 
-    _loadImage(url, frame) {
+    _loadImage(url, loadRequest) {
         return new Promise((resolve, reject) => {
             const image = new Image();
             image.onload = () => {
                 image.onload = null;
                 image.onerror = null;
-                resolve([image, frame]);
+                resolve([image, loadRequest]);
             };
             image.onerror = () => {
                 image.onload = null;
                 image.onerror = null;
-                reject([image, frame]);
+                reject([image, loadRequest]);
             };
             image.src = url;
         });
@@ -108,6 +112,7 @@ class PlayerModel extends Listener {
         this._settings = {
             multipleStep: 10,
             fps: 25,
+            gamma: 1,
             rotateAll: task.mode === 'interpolation',
             resetZoom: task.mode === 'annotation',
         };
@@ -158,7 +163,7 @@ class PlayerModel extends Listener {
     }
 
     get image() {
-        return this._frameProvider.require(this._frame.current);
+        return this._frameProvider.require(this._frame.current, this._settings.gamma);
     }
 
     get resetZoom() {
@@ -197,11 +202,21 @@ class PlayerModel extends Listener {
         this._settings.resetZoom = value;
     }
 
+    get gamma() {
+        return this._settings.gamma;
+    }
+
+    set gamma(value) {
+        this._settings.gamma = value;
+        this.notify();
+    }
+
     ready() {
         return this._frame.previous === this._frame.current;
     }
 
-    onFrameLoad(last) { // callback for FrameProvider instance
+    onFrameLoad(loadRequest) { // callback for FrameProvider instance
+        const [last, gamma] = loadRequest;
         if (last === this._frame.current) {
             if (this._continueTimeout) {
                 clearTimeout(this._continueTimeout);
@@ -591,6 +606,11 @@ class PlayerController {
         this._model.multipleStep = value;
     }
 
+    changeGamma(e) {
+        const value = +e.target.value;
+        this._model.gamma = value;
+    }
+
     changeFPS(e) {
         const fpsMap = {
             1: 1,
@@ -685,6 +705,7 @@ class PlayerView {
         this._lastButtonUI = $('#lastButton');
         this._playerStepUI = $('#playerStep');
         this._playerSpeedUI = $('#speedSelect');
+        this._playerGammaUI = $('#playerGammaRange');
         this._resetZoomUI = $('#resetZoomBox');
         this._frameNumber = $('#frameNumber');
         this._playerGridPattern = $('#playerGridPattern');
@@ -737,6 +758,7 @@ class PlayerView {
         this._playerSpeedUI.on('change', e => this._controller.changeFPS(e));
         this._resetZoomUI.on('change', e => this._controller.changeResetZoom(e));
         this._playerStepUI.on('change', e => this._controller.changeStep(e));
+        this._playerGammaUI.on('change', e => this._controller.changeGamma(e));
         this._frameNumber.on('change', (e) => {
             if (Number.isInteger(+e.target.value)) {
                 this._controller.seek(+e.target.value);

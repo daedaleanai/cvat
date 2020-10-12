@@ -502,8 +502,9 @@ function buildImageSizeGetter(isExternal, sizeByFrame, imageMetaData) {
 
 function buildImageUrlGetter(isExternal, urlByFrame, taskId) {
     if (isExternal) {
-        return (frame) => {
-            return urlByFrame[frame];
+        return (frame, gamma=1) => {
+            const url = urlByFrame[frame];
+            return `${url}?gc=${gamma}`;
         };
     } else {
         return (frame) => {
@@ -670,6 +671,12 @@ function buildAnnotationUI(jobData, taskData, imageMetaData, externalImagesData,
     new PlayerView(playerModel, playerController);
 
     window.cvat.require = (frame) => playerModel.require(frame);
+
+    if (!taskData.external) {
+     const gammaRange = $('#playerGammaRange');
+     gammaRange.prop('disabled', true);
+     gammaRange.prop('title', "Only records.daedalean.ai tasks allow to set gamma value");
+    }
 
     const aamModel = new AAMModel(shapeCollectionModel, (xtl, xbr, ytl, ybr) => {
         playerModel.focus(xtl, xbr, ytl, ybr);
