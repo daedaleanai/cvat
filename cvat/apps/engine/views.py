@@ -811,7 +811,7 @@ class JobViewSet(viewsets.GenericViewSet,
 
         if http_method in SAFE_METHODS:
             permissions.append(auth.JobAccessPermission)
-        elif http_method in ["PATCH", "PUT", "DELETE"]:
+        elif http_method in ["PATCH", "PUT", "POST", "DELETE"]:
             permissions.append(auth.JobChangePermission)
         else:
             permissions.append(auth.AdminRolePermission)
@@ -873,6 +873,26 @@ class JobViewSet(viewsets.GenericViewSet,
                 except (AttributeError, IntegrityError) as e:
                     return Response(data=str(e), status=status.HTTP_400_BAD_REQUEST)
                 return Response(data)
+
+    @action(detail=True, methods=['POST'], url_path=r'(?P<version>\d+)/assign/(?P<user_id>\d+)')
+    def assign(self, request, pk, version, user_id):
+        version = int(version)
+        if user_id == "0":
+            user_id = None
+
+        updated = Job.objects.filter(
+            id=pk,
+            concurrent_version=version,
+        ).update(
+            assignee_id=user_id,
+            concurrent_version=version + 1,
+        )
+
+        if updated > 0:
+            response_status = status.HTTP_200_OK
+        else:
+            response_status = status.HTTP_409_CONFLICT
+        return Response(status=response_status)
 
 @method_decorator(name='list', decorator=swagger_auto_schema(
     operation_summary='Method provides a paginated list of users registered on the server'))

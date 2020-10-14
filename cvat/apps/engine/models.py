@@ -239,6 +239,9 @@ class Job(models.Model):
         default=StatusChoice.ANNOTATION)
     version = models.PositiveIntegerField(default=0)
 
+    # version field for optimistic locks
+    concurrent_version = models.PositiveIntegerField(default=0)
+
     class Meta:
         default_permissions = ()
 

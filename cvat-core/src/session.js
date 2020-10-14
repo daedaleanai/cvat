@@ -566,6 +566,7 @@
                 stop_frame: undefined,
                 sequence_name: undefined,
                 version: undefined,
+                concurrent_version: undefined,
                 task: undefined,
             };
 
@@ -682,6 +683,19 @@
                     get: () => data.version + 1,
                 },
                 /**
+                    * @name concurrentVersion
+                    * @type {number}
+                    * @memberof module:API.cvat.classes.Job
+                    * @readonly
+                    * @instance
+                */
+                concurrentVersion: {
+                    get: () => data.concurrent_version,
+                    set: (value) => {
+                        data.concurrent_version = value;
+                    },
+                },
+                /**
                     * @name task
                     * @type {module:API.cvat.classes.Task}
                     * @memberof module:API.cvat.classes.Job
@@ -739,6 +753,22 @@
         async save() {
             const result = await PluginRegistry
                 .apiWrapper.call(this, Job.prototype.save);
+            return result;
+        }
+
+        /**
+            * Method assigns the job to the user with given userId
+            * @method assign
+            * @memberof module:API.cvat.classes.Job
+            * @readonly
+            * @instance
+            * @async
+            * @throws {module:API.cvat.exceptions.ServerError}
+            * @throws {module:API.cvat.exceptions.PluginError}
+        */
+        async assign() {
+            const result = await PluginRegistry
+                .apiWrapper.call(this, Job.prototype.assign);
             return result;
         }
     }
@@ -814,6 +844,7 @@
                                 stop_frame: segment.stop_frame,
                                 sequence_name: segment.sequence_name,
                                 version: job.version,
+                                concurrent_version: job.concurrent_version,
                                 task: this,
                             });
                             data.jobs.push(jobInstance);
@@ -1400,6 +1431,15 @@
         throw new ArgumentError(
             'Can not save job without and id',
         );
+    };
+
+    Job.prototype.assign.implementation = async function () {
+        const userId = this.assignee ? this.assignee.id : '0';
+        return serverProxy.jobs.assignJob(this.id, this.concurrentVersion, userId)
+            .then((response) => {
+                this.concurrentVersion += 1;
+                return response;
+            });
     };
 
     Job.prototype.frames.get.implementation = async function (frame) {

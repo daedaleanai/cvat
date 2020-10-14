@@ -22,7 +22,7 @@ import moment from 'moment';
 import copy from 'copy-to-clipboard';
 
 import getCore from 'cvat-core';
-import UserSelector from './user-selector';
+import ConcurrentUserSelector from "./concurrent-user-selector";
 
 const core = getCore();
 
@@ -39,10 +39,8 @@ interface Props {
 function JobListComponent(props: Props & RouteComponentProps): JSX.Element {
     const {
         taskInstance,
-        registeredUsers,
         me,
         onlyMine,
-        onJobUpdate,
         history: {
             push,
         },
@@ -125,26 +123,7 @@ function JobListComponent(props: Props & RouteComponentProps): JSX.Element {
         filteredValue: onlyMine ? [me.id] : null,
         onFilter: (value, record) => (record.assignee.assignee || {}).id === value,
         render: (jobInstance: any): JSX.Element => {
-            const assignee = jobInstance.assignee ? jobInstance.assignee.username : null;
-
-            return (
-                <UserSelector
-                    users={registeredUsers}
-                    value={assignee}
-                    onChange={(value: string): void => {
-                        let [userInstance] = [...registeredUsers]
-                            .filter((user: any) => user.username === value);
-
-                        if (userInstance === undefined) {
-                            userInstance = null;
-                        }
-
-                        // eslint-disable-next-line
-                        jobInstance.assignee = userInstance;
-                        onJobUpdate(jobInstance);
-                    }}
-                />
-            );
+            return <ConcurrentUserSelector job={jobInstance} />;
         },
     }];
 
