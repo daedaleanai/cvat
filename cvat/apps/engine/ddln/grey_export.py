@@ -12,6 +12,7 @@ from cvat.apps.annotation.transports.cvat import CVATImporter
 from cvat.apps.annotation.transports.csv import CsvDirectoryExporter, CsvDirectoryImporter
 from cvat.apps.annotation.validation import validate
 from cvat.apps.engine.ddln.utils import write_task_mapping_file, DdlnYamlWriter, guess_task_name
+from cvat.apps.engine.models import Task
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,8 @@ class ExportError(Exception):
     pass
 
 
-def export_single_annotation(task):
+def export_single_annotation(task_id):
+    task = Task.objects.get(pk=task_id)
     task_name = guess_task_name(task.name)
     destination_dir = settings.OUTGOING_TASKS_ROOT / task_name
     if destination_dir.exists():
@@ -41,8 +43,7 @@ def export_single_annotation(task):
         sequences = load_sequences(CsvDirectoryImporter(root_dir))
         reporter = validate(sequences)
         if reporter.has_violations(reporter.severity.ERROR):
-            message = reporter.get_text_report(reporter.severity.ERROR)
-            raise ExportError(message)
+            raise ExportError("Task has validation errors. Please run the validation.")
 
         write_task_mapping_file(task, task_mapping_file.open('w'))
         yaml_writer = DdlnYamlWriter(task.name)

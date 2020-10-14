@@ -529,11 +529,31 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
         if task.status != StatusChoice.COMPLETED:
             raise serializers.ValidationError("All task jobs should be completed")
 
-        try:
-            export_single_annotation(task)
-        except ExportError as e:
-            return Response(data=[e.args[0]], status=status.HTTP_400_BAD_REQUEST)
-        return Response(status=status.HTTP_200_OK)
+        queue = django_rq.get_queue("default")
+        rq_id = "/api/v1/tasks/{}/grey-export".format(pk)
+        rq_job = queue.fetch_job(rq_id)
+        if rq_job:
+            if rq_job.is_finished:
+                rq_job.delete()
+                return Response(status=status.HTTP_200_OK)
+            elif rq_job.is_failed:
+                exc_info = rq_job.exc_info
+                rq_job.delete()
+                message_prefix = "ExportError: "
+                if message_prefix in exc_info:
+                    message_index = exc_info.index(message_prefix) + len(message_prefix)
+                    message = exc_info[message_index:]
+                    return Response(data=message, status=status.HTTP_400_BAD_REQUEST)
+                return Response(data=exc_info, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            else:  # still in progress
+                return Response(status=status.HTTP_202_ACCEPTED)
+
+        queue.enqueue_call(
+            func=export_single_annotation,
+            args=(pk,),
+            job_id=rq_id,
+        )
+        return Response(status=status.HTTP_202_ACCEPTED)
 
     @swagger_auto_schema(method='get', operation_summary='Method allows to download annotations as a file',
         manual_parameters=[openapi.Parameter('filename', openapi.IN_PATH, description="A name of a file with annotations",

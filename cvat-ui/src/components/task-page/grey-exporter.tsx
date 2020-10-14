@@ -34,8 +34,12 @@ function GreyExporterComponent(props: Props & StateToProps): JSX.Element {
       taskInstance.exportToGrey()
       .then(() => {
           setExported(true);
-      }).catch((message) => {
-          setErrorMessage(message);
+      }).catch((error) => {
+          if (typeof error === 'string') {
+              setErrorMessage(error);
+          } else {
+              console.log(error);
+          }
       }).finally(() => {
           setLoading(false);
       })

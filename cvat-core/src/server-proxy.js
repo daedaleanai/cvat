@@ -325,20 +325,31 @@
             async function exportToGrey(taskId) {
                 const { backendAPI } = config;
                 const url = `${backendAPI}/tasks/${taskId}/grey-export`;
+                const pollInterval = 3000;
 
                 return new Promise((resolve, reject) => {
-                    Axios.post(url, {
-                        proxy: config.proxy,
-                    }).then(() => {
-                        resolve();
-                    }).catch((errorData) => {
-                        if (errorData.response && errorData.response.status === 400) {
-                            const errorMessage = errorData.response.data.join('\n');
-                            reject(errorMessage);
-                        } else {
-                            reject(generateError(errorData));
-                        }
-                    });
+                    async function request() {
+                        Axios.post(url, {
+                            proxy: config.proxy,
+                        }).then((response) => {
+                            if (response.status === 202) {
+                                setTimeout(request, pollInterval);
+                            } else {
+                                resolve();
+                            }
+                        }).catch((errorData) => {
+                            if (errorData.response && errorData.response.status === 400) {
+                                let errorMessage = errorData.response.data;
+                                if (Array.isArray(errorMessage)) {
+                                    errorMessage = errorMessage.join(", ");
+                                }
+                                reject(errorMessage);
+                            } else {
+                                reject(generateError(errorData));
+                            }
+                        });
+                    }
+                    setTimeout(request);
                 });
             }
 
