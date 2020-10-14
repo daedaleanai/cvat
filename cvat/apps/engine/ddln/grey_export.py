@@ -1,5 +1,6 @@
 import logging
 import shutil
+import stat
 import subprocess
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -57,6 +58,7 @@ def export_single_annotation(task):
             logger.exception("Error while calculating ddln_id")
             raise ExportError("Cannot calculate ddln_id")
         root_dir.joinpath('ddln_id').write_text(ddln_id)
+        root_dir.chmod(stat.S_ISGID | stat.S_IRWXU | stat.S_IRWXG | stat.S_IROTH | stat.S_IXOTH)
         shutil.copytree(str(root_dir), str(destination_dir))
 
 
