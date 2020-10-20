@@ -32,6 +32,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
 
 function AnnotationMergerComponent(props: Props & StateToProps): JSX.Element {
     const [loading, setLoading] = useState(false);
+    const [downloadUrl, setDownloadUrl] = useState(null);
     const [acceptanceScore, setAcceptanceScore] = useState(0.0);
     const [segments, setSegments] = useState([]);
     const { taskInstance, me } = props;
@@ -42,7 +43,7 @@ function AnnotationMergerComponent(props: Props & StateToProps): JSX.Element {
       setLoading(true);
       taskInstance.mergeAnnotations(acceptanceScore)
       .then(responseData => {
-          download(responseData.download_url);
+          setDownloadUrl(responseData.download_url);
           responseData.warnings.forEach(warning => {
             notification.warning({
                     message: 'Issue while merging annotations',
@@ -66,7 +67,7 @@ function AnnotationMergerComponent(props: Props & StateToProps): JSX.Element {
     if (loading) {
         content = <Spin size='large' className='cvat-spinner'/>;
     } else if (segments.length) {
-        content = <MergeFeedbackComponent segments={segments} taskInstance={taskInstance}/>;
+        content = <MergeFeedbackComponent segments={segments} taskInstance={taskInstance} downloadUrl={downloadUrl} />;
     } else {
         content = (
             <Row type='flex' justify='center' align='middle'>
@@ -106,7 +107,7 @@ function AnnotationMergerComponent(props: Props & StateToProps): JSX.Element {
     );
 }
 
-function MergeFeedbackComponent({ segments, taskInstance }) {
+function MergeFeedbackComponent({ segments, taskInstance, downloadUrl }) {
     const [segmentIds, setSegmentIds] = useState([]);
     const [assignees, setAssignees] = useState([]);
     const [extraAnnotationRequested, setExtraAnnotationRequested] = useState(false);
@@ -227,6 +228,20 @@ function MergeFeedbackComponent({ segments, taskInstance }) {
                                 disabled={!isRequestButtonEnabled}
                             >
                                 Request extra annotation
+                            </Button>
+                        </Form.Item>
+                    </Col>
+                </Row>
+                <Row type='flex' justify='start' align='middle'>
+                    <Col>
+                        <Form.Item>
+                            <Button
+                                type='primary'
+                                size='large'
+                                ghost
+                                onClick={() => download(downloadUrl)}
+                            >
+                                Download merged annotations
                             </Button>
                         </Form.Item>
                     </Col>
