@@ -107,7 +107,7 @@ function AnnotationMergerComponent(props: Props & StateToProps): JSX.Element {
 }
 
 function MergeFeedbackComponent({ segments, taskInstance }) {
-    const [segmentIds, setSegmentIds] = useState(getInitialSelection(segments));
+    const [segmentIds, setSegmentIds] = useState([]);
     const [assignees, setAssignees] = useState([]);
     const [extraAnnotationRequested, setExtraAnnotationRequested] = useState(false);
     const getSequenceNameById = useMemo(() => buildNameGetter(segments), [segments]);
@@ -121,10 +121,38 @@ function MergeFeedbackComponent({ segments, taskInstance }) {
         && isExtraAnnotationAllowed
     );
 
-    const rowSelection = isExtraAnnotationAllowed ? {
-      selectedRowKeys: segmentIds,
-      onChange: setSegmentIds,
-    } : false;
+    const rowSelection = {
+        selectedRowKeys: segmentIds,
+        onChange: setSegmentIds,
+        getCheckboxProps: record => ({
+            disabled: record.incomplete_frames_count === 0 && record.rejected_frames_count === 0,
+        }),
+        hideDefaultSelections: true,
+        selections: [
+            {
+                key: 'rejected',
+                text: 'Select rejected sequences',
+                onSelect: () => {
+                    setSegmentIds(previousSelection => {
+                        return segments
+                            .filter(s => previousSelection.indexOf(s.id) >= 0 || s.rejected_frames_count > 0)
+                            .map(s => s.id);
+                    });
+                },
+            },
+            {
+                key: 'incomplete',
+                text: 'Select incomplete sequences',
+                onSelect: () => {
+                    setSegmentIds(previousSelection => {
+                        return segments
+                            .filter(s => previousSelection.indexOf(s.id) >= 0 || s.incomplete_frames_count > 0)
+                            .map(s => s.id);
+                    });
+                },
+            },
+        ],
+    };
 
     const requestExtraAnnotation = () => {
         setExtraAnnotationRequested(true);
@@ -214,14 +242,6 @@ function buildNameGetter(segments) {
         mapping[s.id] = s.sequence_name;
     });
     return (id) => mapping[id];
-}
-
-function getInitialSelection(segments) {
-    return () => {
-        return segments
-            .filter(s => s.incomplete_frames_count > 0)
-            .map(s => s.id);
-    };
 }
 
 function renderCount(count) {
