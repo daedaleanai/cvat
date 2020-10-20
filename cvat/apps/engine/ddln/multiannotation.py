@@ -1,7 +1,7 @@
 import json
 import logging
+import shutil
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 
 from django.db import transaction
@@ -10,7 +10,6 @@ from rest_framework import serializers
 
 from cvat.apps.annotation.transports.csv import CsvDirectoryExporter
 from cvat.apps.annotation.transports.cvat import CVATImporter
-from cvat.apps.dataset_manager.util import make_zip_archive
 
 from cvat.apps.engine import models
 from cvat.apps.engine.ddln.inventory_client import record_extra_annotation_creation, record_task_validation
@@ -57,50 +56,53 @@ class FailedAssignmentError(Exception):
 def merge(task_id, file_path, acceptance_score):
     task = Task.objects.get(pk=task_id)
 
-    with TemporaryDirectory() as root_dir:
-        root_dir = Path(root_dir)
-        versions_dir = root_dir / "Annotation_versions"
-        accepted_dir = root_dir / "Annotation_output"
-        rejected_dir = root_dir / "Rejected_annotation_output"
-        requires_more_dir = root_dir / "Requires_more_annotations"
-        logs_dir = root_dir / "Annotation_log"
-        for d in [versions_dir, accepted_dir, rejected_dir, requires_more_dir, logs_dir]:
-            d.mkdir()
-        log_file = logs_dir / "merge.log"
-        score_file = logs_dir / "scores.txt"
-        ddln_yaml_file = root_dir / "ddln.yaml"
+    root_dir = Path(file_path)
+    if root_dir.exists():
+        shutil.rmtree(str(root_dir))
+        _remove_archive_file(file_path)
+    root_dir.mkdir()
+    versions_dir = root_dir / "Annotation_versions"
+    accepted_dir = root_dir / "Annotation_output"
+    rejected_dir = root_dir / "Rejected_annotation_output"
+    requires_more_dir = root_dir / "Requires_more_annotations"
+    logs_dir = root_dir / "Annotation_log"
+    for d in [versions_dir, accepted_dir, rejected_dir, requires_more_dir, logs_dir]:
+        d.mkdir()
+    log_file = logs_dir / "final_merge.log"
+    score_file = logs_dir / "final_scores.txt"
+    ddln_yaml_file = root_dir / "ddln.yaml"
 
-        annotation_dirs = []
-        extra_annotation_dir = None
-        for version in range(task.times_annotated):
-            version_dir = versions_dir.joinpath("V{}".format(version + 1))
-            version_dir.mkdir()
+    annotation_dirs = []
+    extra_annotation_dir = None
+    for version in range(task.times_annotated):
+        version_dir = versions_dir.joinpath("V{}".format(version + 1))
+        version_dir.mkdir()
 
-            _dump_version(task, version, version_dir)
+        _dump_version(task, version, version_dir)
 
-            is_extra_annotation = version == 3
-            if is_extra_annotation:
-                extra_annotation_dir = version_dir
-            else:
-                annotation_dirs.append(version_dir)
+        is_extra_annotation = version == 3
+        if is_extra_annotation:
+            extra_annotation_dir = version_dir
+        else:
+            annotation_dirs.append(version_dir)
 
-        options = SimpleNamespace(
-            logger=ignored_logger,
-            log_file=log_file,
-            extra_annotation_dir=extra_annotation_dir,
-            acceptance_score=acceptance_score,
-            visualize_file=None,
-            score_file=score_file,
-            track_matching_threshold=0.2,
-        )
-        merge_logger = merge_annotations(annotation_dirs, accepted_dir, rejected_dir, requires_more_dir, options)
-        rejected_frames = merge_logger.get_rejected_frames()
-        incomplete_frames = merge_logger.get_incomplete_frames()
+    options = SimpleNamespace(
+        logger=ignored_logger,
+        log_file=log_file,
+        extra_annotation_dir=extra_annotation_dir,
+        acceptance_score=acceptance_score,
+        visualize_file=None,
+        score_file=score_file,
+        track_matching_threshold=0.2,
+    )
+    merge_logger = merge_annotations(annotation_dirs, accepted_dir, rejected_dir, requires_more_dir, options)
+    rejected_frames = merge_logger.get_rejected_frames()
+    incomplete_frames = merge_logger.get_incomplete_frames()
 
-        write_task_mapping_file(task, root_dir.joinpath("task_mapping.csv").open("wt"))
-        yaml_writer = DdlnYamlWriter(task.name)
-        yaml_writer.write(ddln_yaml_file.open("wt"), rejected_frames)
-        make_zip_archive(str(root_dir), file_path)
+    write_task_mapping_file(task, root_dir.joinpath("task_mapping.csv").open("wt"))
+    yaml_writer = DdlnYamlWriter(task.name)
+    yaml_writer.write(ddln_yaml_file.open("wt"), rejected_frames)
+    copy_previous_merge_logs(root_dir, task.times_annotated)
 
     segments = Segment.objects.with_sequence_name().filter(task_id=task.id).prefetch_related('job_set__assignee')
     serializer_context = dict(
@@ -116,6 +118,19 @@ def merge(task_id, file_path, acceptance_score):
     data = dict(warnings=warnings, segments=segments_data)
     json.dump(data, open(file_path + '.json', 'w'))
     record_task_validation(task, settings.EXP_DEVTOOLS_HASH)
+
+
+def copy_previous_merge_logs(current_merge_dir, times_annotated):
+    prev_merge_name = current_merge_dir.name.replace("-x{}".format(times_annotated), "-x{}".format(times_annotated-1))
+    prev_merge_dir = current_merge_dir.with_name(prev_merge_name)
+    if not prev_merge_dir.exists():
+        return
+    src_log_file = prev_merge_dir / "Annotation_log" / "final_merge.log"
+    dest_log_file = current_merge_dir / "Annotation_log" / "intermediate_merge.log"
+    src_score_file = prev_merge_dir / "Annotation_log" / "final_scores.txt"
+    dest_score_file = current_merge_dir / "Annotation_log" / "intermediate_scores.txt"
+    shutil.copy(str(src_log_file), str(dest_log_file))
+    shutil.copy(str(src_score_file), str(dest_score_file))
 
 
 class MergeResultSerializer(serializers.Serializer):
@@ -144,6 +159,13 @@ class MergeResultSerializer(serializers.Serializer):
 
     def get_annotators(self, segment):
         return [job.assignee.username for job in segment.job_set.all() if job.assignee]
+
+
+def _remove_archive_file(file_path):
+    archive_path = "{}.zip".format(file_path)
+    archive_path = Path(archive_path)
+    if archive_path.exists():
+        archive_path.unlink()
 
 
 def _dump_version(task, version, target_dir):

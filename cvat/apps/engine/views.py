@@ -57,6 +57,7 @@ from cvat.apps.annotation.format import get_annotation_formats
 from cvat.apps.annotation.transports.cvat import CVATImporter
 from cvat.apps.annotation.structures import load_sequences
 from cvat.apps.annotation.validation import validate
+from cvat.apps.dataset_manager.util import make_zip_archive
 import cvat.apps.dataset_manager.task as DatumaroTask
 
 from drf_yasg.utils import swagger_auto_schema
@@ -679,13 +680,18 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=['GET'], url_path='merge-annotations-result', url_name='merge-annotations-result')
     def get_merge_result(self, request, pk=None):
         file_path, filename, _ = self._get_merge_params()
-        return sendfile(request, file_path, attachment=True, attachment_filename=filename)
+        filename = "{}.zip".format(filename)
+        archive_path = "{}.zip".format(file_path)
+        if not os.path.exists(archive_path) and os.path.exists(file_path):
+            make_zip_archive(file_path, archive_path)
+        return sendfile(request, archive_path, attachment=True, attachment_filename=filename)
 
     def _get_merge_params(self):
         acceptance_score = float(self.request.query_params.get("acceptance_score", 0))
         db_task = self.get_object()
+        times_annotated = db_task.times_annotated
         filename = re.sub(r'[\\/*?:"<>|]', '_', db_task.name)
-        filename = "{}-{}.zip".format(filename, acceptance_score)
+        filename = "{}-{}-x{}".format(filename, acceptance_score, times_annotated)
         file_path = os.path.join(db_task.get_task_dirname(), filename)
         return file_path, filename, acceptance_score
 
