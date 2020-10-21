@@ -673,9 +673,9 @@ function buildAnnotationUI(jobData, taskData, imageMetaData, externalImagesData,
     window.cvat.require = (frame) => playerModel.require(frame);
 
     if (!taskData.external) {
-     const gammaRange = $('#playerGammaRange');
-     gammaRange.prop('disabled', true);
-     gammaRange.prop('title', "Only records.daedalean.ai tasks allow to set gamma value");
+        const gammaRange = $('#playerGammaRange');
+        gammaRange.prop('disabled', true);
+        gammaRange.prop('title', "Only records.daedalean.ai tasks allow to set gamma value");
     }
 
     const aamModel = new AAMModel(shapeCollectionModel, (xtl, xbr, ytl, ybr) => {
