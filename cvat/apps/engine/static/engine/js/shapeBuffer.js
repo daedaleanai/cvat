@@ -197,9 +197,7 @@ class ShapeBufferModel extends Listener  {
                     count: numOfFrames,
                 });
 
-                let imageSizes = window.cvat.job.images;
-                let startFrame = window.cvat.player.frames.start;
-                let originalImageSize = imageSizes[object.frame - startFrame] || imageSizes[0];
+                let originalImageSize = window.cvat.job.getImageSize(object.frame);
 
                 // Getting normalized coordinates [0..1]
                 let normalized = {};
@@ -225,7 +223,7 @@ class ShapeBufferModel extends Listener  {
                     numOfFrames --;
 
                     object.z_order = this._collection.zOrder(object.frame).max;
-                    let imageSize = imageSizes[object.frame - startFrame] || imageSizes[0];
+                    let imageSize = window.cvat.job.getImageSize(object.frame);
                     let position = {};
                     if (this._shape.type === 'box') {
                         position.xtl = normalized.xtl * imageSize.width;
@@ -396,14 +394,12 @@ class ShapeBufferController {
                     blurAllElements();
                     if (this._model.copyToBuffer()) {
                         let curFrame = window.cvat.player.frames.current;
-                        let startFrame = window.cvat.player.frames.start;
                         let endFrame = Math.min(window.cvat.player.frames.stop, curFrame + this._model.propagateFrames);
-                        let imageSizes = window.cvat.job.images;
 
                         let message = `Propagate up to ${endFrame} frame. `;
-                        let refSize = imageSizes[curFrame - startFrame] || imageSizes[0];
+                        let refSize = window.cvat.job.getImageSize(curFrame);
                         for (let _frame = curFrame + 1; _frame <= endFrame; _frame ++) {
-                            let size = imageSizes[_frame - startFrame] || imageSizes[0];
+                            let size = window.cvat.job.getImageSize(_frame);
                             if ((size.width != refSize.width) || (size.height != refSize.height) ) {
                                 message += 'Some covered frames have another resolution. Shapes in them can differ from reference. ';
                                 break;
@@ -426,14 +422,12 @@ class ShapeBufferController {
                     blurAllElements();
                     if (this._model.copyToBuffer()) {
                         let curFrame = window.cvat.player.frames.current;
-                        let startFrame = window.cvat.player.frames.start;
                         let endFrame = Math.min(window.cvat.player.frames.stop, curFrame + this._model.propagateFrames);
-                        let imageSizes = window.cvat.job.images;
 
                         let message = `Track this object up to ${endFrame} frame. `;
-                        let refSize = imageSizes[curFrame - startFrame] || imageSizes[0];
+                        let refSize = window.cvat.job.getImageSize(curFrame);
                         for (let _frame = curFrame + 1; _frame <= endFrame; _frame ++) {
-                            let size = imageSizes[_frame - startFrame] || imageSizes[0];
+                            let size = window.cvat.job.getImageSize(_frame);
                             if ((size.width != refSize.width) || (size.height != refSize.height) ) {
                                 message += 'Some covered frames have another resolution. Tracking is unreliable. ';
                                 break;

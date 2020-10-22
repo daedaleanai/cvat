@@ -161,7 +161,7 @@ def _create_job(db_task, start_frame, stop_frame, assignees=()):
         db_job.save()
 
 
-def _validate_data(data):
+def _validate_data(data, external=False):
     share_root = settings.SHARE_ROOT
     server_files = []
 
@@ -221,7 +221,7 @@ def _validate_data(data):
         raise ValueError('Only one {} or many {} can be used simultaneously, \
             but {} found.'.format(unique_types, multiply_types, count))
 
-    if unique_entries == 0 and multiple_entries == 0:
+    if not external and unique_entries == 0 and multiple_entries == 0:
         raise ValueError('No media data found')
 
     return counter
@@ -266,7 +266,7 @@ def _create_thread(tid, data, options):
     if data['remote_files']:
         data['remote_files'] = _download_data(data['remote_files'], upload_dir)
 
-    media = _validate_data(data)
+    media = _validate_data(data, db_task.external)
 
     if data['server_files']:
         _copy_data_from_share(data['server_files'], upload_dir)
@@ -327,7 +327,12 @@ def _create_thread(tid, data, options):
         if db_task.stop_frame == 0:
             db_task.stop_frame = db_task.start_frame + (db_task.size - 1) * db_task.get_frame_step()
     else:
-        models.Image.objects.bulk_create(db_images)
+        if db_task.external:
+            assert len(db_images) == 0
+            db_images = list(models.Image.objects.filter(task=db_task).order_by('frame'))
+            db_task.size = len(db_images)
+        else:
+            models.Image.objects.bulk_create(db_images)
 
     slogger.glob.info("Founded frames {} for task #{}".format(db_task.size, tid))
 

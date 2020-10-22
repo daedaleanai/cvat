@@ -782,6 +782,8 @@
                 stop_frame: undefined,
                 frame_filter: undefined,
                 times_annotated: undefined,
+                external: undefined,
+                preview_url: undefined,
             };
 
             for (const property in data) {
@@ -878,13 +880,33 @@
                 },
                 /**
                     * @name timesAnnotated
-                    * @type {integer}
+                    * @type {number}
                     * @memberof module:API.cvat.classes.Task
                     * @readonly
                     * @instance
                 */
                 timesAnnotated: {
                     get: () => data.times_annotated,
+                },
+                /**
+                    * @name external
+                    * @type {boolean}
+                    * @memberof module:API.cvat.classes.Task
+                    * @readonly
+                    * @instance
+                */
+                external: {
+                    get: () => data.external,
+                },
+                /**
+                    * @name previewUrl
+                    * @type {string}
+                    * @memberof module:API.cvat.classes.Task
+                    * @readonly
+                    * @instance
+                */
+                previewUrl: {
+                    get: () => data.preview_url,
                 },
                 /**
                     * @name mode
@@ -1398,7 +1420,7 @@
     };
 
     Job.prototype.frames.preview.implementation = async function () {
-        const frameData = await getPreview(this.task.id);
+        const frameData = await getPreview(this.task.previewUrl);
         return frameData;
     };
 
@@ -1556,6 +1578,7 @@
             labels: this.labels.map((el) => el.toJSON()),
             image_quality: this.imageQuality,
             times_annotated: this.timesAnnotated,
+            external: this.external,
             z_order: Boolean(this.zOrder),
         };
 
@@ -1626,7 +1649,7 @@
     };
 
     Task.prototype.frames.preview.implementation = async function () {
-        const frameData = await getPreview(this.id);
+        const frameData = await getPreview(this.previewUrl);
         return frameData;
     };
 

@@ -20,17 +20,6 @@ format_spec = {
     ],
 }
 
-def extractFileParams(filename):
-    directoryName, csvFilename = os.path.split(filename)
-    if directoryName:
-        directoryName = directoryName.split("/")[2]
-    # for local testing
-    else:
-        directoryName = "dummy"
-    csvFilename = os.path.splitext(csvFilename)[0] + "_y.csv"
-
-    return directoryName,csvFilename
-
 def writeToCsv(dirname, filename, data):
     try:
         if not os.path.exists(dirname):
@@ -47,7 +36,9 @@ def dump(file_object, annotations):
     from cvat.apps.dataset_manager.util import make_zip_archive
     from cvat.apps.annotation.structures import load_sequences
     from cvat.apps.annotation.transports.csv import CsvDirectoryImporter
-    from cvat.apps.engine.ddln.utils import write_task_mapping_file, write_ddln_yaml_file, guess_task_name
+    from cvat.apps.engine.ddln.utils import (
+        write_task_mapping_file, write_ddln_yaml_file, guess_task_name, parse_frame_name
+    )
     from cvat.apps.annotation.validation import validate
     from tempfile import TemporaryDirectory
 
@@ -101,7 +92,9 @@ def dump(file_object, annotations):
                     csv_data = csv_data + csv_line
                     log_file.write("Converted data: {}".format(csv_line))
 
-                dir_name, csv_file_name  = extractFileParams(image_name)
+                csv_file_name, dir_name = parse_frame_name(image_name)
+                csv_file_name += ".csv"
+                dir_name = dir_name or "dummpy"
                 dir_name = os.path.join(temp_dir, dir_name)
                 log_file.write("Dir: {}; Added to file: {}\n".format(dir_name, csv_file_name))
 

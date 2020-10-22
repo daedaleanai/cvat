@@ -12,9 +12,11 @@ import {
     Upload,
 } from 'antd';
 
-import Tree, { AntTreeNode, TreeNodeNormal } from 'antd/lib/tree/Tree';
 import { RcFile } from 'antd/lib/upload';
 import Text from 'antd/lib/typography/Text';
+
+import ExternalImagesSelector from './external-image-selector';
+import ShareSelector from "./share-selector";
 
 export interface Files {
     local: File[];
@@ -24,14 +26,12 @@ export interface Files {
 
 interface State {
     files: Files;
-    expandedKeys: string[];
+    externalFiles: any[];
     active: 'local' | 'share' | 'remote';
 }
 
 interface Props {
     withRemote: boolean;
-    treeData: TreeNodeNormal[];
-    onLoadData: (key: string, success: () => void, failure: () => void) => void;
 }
 
 export default class FileManager extends React.PureComponent<Props, State> {
@@ -44,38 +44,28 @@ export default class FileManager extends React.PureComponent<Props, State> {
                 share: [],
                 remote: [],
             },
-            expandedKeys: [],
+            externalFiles: [],
             active: 'local',
         };
-
-        this.loadData('/');
     }
 
     public getFiles(): Files {
         const {
             active,
             files,
+            externalFiles,
         } = this.state;
         return {
             local: active === 'local' ? files.local : [],
             share: active === 'share' ? files.share : [],
             remote: active === 'remote' ? files.remote : [],
+            externalFiles: active === 'records' ? externalFiles : [],
         };
     }
 
-    private loadData = (key: string): Promise<void> => new Promise<void>(
-        (resolve, reject): void => {
-            const { onLoadData } = this.props;
-
-            const success = (): void => resolve();
-            const failure = (): void => reject();
-            onLoadData(key, success, failure);
-        },
-    );
-
     public reset(): void {
         this.setState({
-            expandedKeys: [],
+            externalFiles: [],
             active: 'local',
             files: {
                 local: [],
@@ -129,68 +119,15 @@ export default class FileManager extends React.PureComponent<Props, State> {
     }
 
     private renderShareSelector(): JSX.Element {
-        function renderTreeNodes(data: TreeNodeNormal[]): JSX.Element[] {
-            return data.map((item: TreeNodeNormal) => {
-                if (item.children) {
-                    return (
-                        <Tree.TreeNode
-                            title={item.title}
-                            key={item.key}
-                            dataRef={item}
-                            isLeaf={item.isLeaf}
-                        >
-                            {renderTreeNodes(item.children)}
-                        </Tree.TreeNode>
-                    );
-                }
-
-                return <Tree.TreeNode key={item.key} {...item} dataRef={item} />;
-            });
-        }
-
-        const { treeData } = this.props;
-        const {
-            expandedKeys,
-            files,
-        } = this.state;
-
+        const { files } = this.state;
         return (
             <Tabs.TabPane key='share' tab='Connected file share'>
-                { treeData.length
-                    ? (
-                        <Tree
-                            className='cvat-share-tree'
-                            checkable
-                            showLine
-                            checkStrictly={false}
-                            expandedKeys={expandedKeys}
-                            checkedKeys={files.share}
-                            loadData={(node: AntTreeNode): Promise<void> => this.loadData(
-                                node.props.dataRef.key,
-                            )}
-                            onExpand={(newExpandedKeys: string[]): void => {
-                                this.setState({
-                                    expandedKeys: newExpandedKeys,
-                                });
-                            }}
-                            onCheck={
-                                (checkedKeys: string[] | {
-                                    checked: string[];
-                                    halfChecked: string[];
-                                }): void => {
-                                    const keys = checkedKeys as string[];
-                                    this.setState({
-                                        files: {
-                                            ...files,
-                                            share: keys,
-                                        },
-                                    });
-                                }
-                            }
-                        >
-                            { renderTreeNodes(treeData) }
-                        </Tree>
-                    ) : <Text className='cvat-text-color'>No data found</Text>}
+                <ShareSelector
+                    value={files.share}
+                    onchange={(value) => {
+                        this.setState((state) => ({ files : { ...state.files, share: value } }));
+                    }}
+                />
             </Tabs.TabPane>
         );
     }
@@ -217,6 +154,19 @@ export default class FileManager extends React.PureComponent<Props, State> {
         );
     }
 
+    private renderRecordsSelector(): JSX.Element {
+        const { externalFiles } = this.state;
+
+        return (
+            <Tabs.TabPane key='records' tab='Records service'>
+                <ExternalImagesSelector
+                    value={externalFiles}
+                    onChange={value => this.setState({ externalFiles: value })}
+                />
+            </Tabs.TabPane>
+        );
+    }
+
     public render(): JSX.Element {
         const { withRemote } = this.props;
         const { active } = this.state;
@@ -236,6 +186,7 @@ export default class FileManager extends React.PureComponent<Props, State> {
                     { this.renderLocalSelector() }
                     { this.renderShareSelector() }
                     { withRemote && this.renderRemoteSelector() }
+                    { this.renderRecordsSelector() }
                 </Tabs>
             </>
         );

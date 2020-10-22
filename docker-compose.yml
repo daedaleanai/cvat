@@ -54,6 +54,7 @@ services:
       DJANGO_MODWSGI_EXTRA_ARGS: ""
       ALLOWED_HOSTS: '*'
       PYTHONPATH: /home/django/cvat/exp-devtools/annotations/multi
+      EXTERNAL_STORAGE_HOST: https://records.daedalean.ai
     volumes:
       - cvat_data:/home/django/data
       - cvat_keys:/home/django/keys

@@ -404,6 +404,7 @@
                         }
                     }
                 }
+                batchOfFiles.append('external_files', JSON.stringify(options.externalFiles));
 
                 let response = null;
 
@@ -517,15 +518,15 @@
                 return response.data;
             }
 
-            async function getPreview(tid) {
+            async function getPreview(previewUrl) {
                 const { backendAPI } = config;
 
                 let response = null;
                 try {
-                    // TODO: change 0 frame to preview
-                    response = await Axios.get(`${backendAPI}/tasks/${tid}/frames/0`, {
+                    response = await Axios.get(previewUrl, {
                         proxy: config.proxy,
                         responseType: 'blob',
+                        withCredentials: true,
                     });
                 } catch (errorData) {
                     const code = errorData.response ? errorData.response.status : errorData.code;

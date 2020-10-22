@@ -19,113 +19,79 @@
 class FrameProvider extends Listener {
     constructor(stop, tid) {
         super('onFrameLoad', () => this._loaded);
-        this._MAX_LOAD = 500;
+        this._MAX_PRELOAD_FRAMES = 100;
+        this._MAX_CONCCURENT_LOADS = 4;
 
-        this._stack = [];
-        this._loadInterval = null;
-        this._required = null;
-        this._loaded = null;
-        this._loadAllowed = true;
-        this._preloadRunned = false;
-        this._loadCounter = this._MAX_LOAD;
+        this._queue = [];
+        this._trigerredLoad = {}
+        this._currentlyLoading = 0;
         this._frameCollection = {};
+        this._loaded = null;
         this._stop = stop;
-        this._tid = tid;
     }
 
-    require(frame) {
-        if (frame in this._frameCollection) {
-            this._preload(frame);
-            return this._frameCollection[frame];
+    require(frame, gamma=1) {
+        const loadRequest = [frame, gamma];
+        if (loadRequest in this._frameCollection) {
+            this._pushTail(loadRequest);
+            this._triggerLoading(false);
+            return this._frameCollection[loadRequest];
         }
-        this._required = frame;
-        this._loadCounter = this._MAX_LOAD;
-        this._load();
+        this._queue = [loadRequest];
+        this._pushTail(loadRequest);
+        this._triggerLoading(true);
         return null;
     }
 
-    _onImageLoad(image, frame) {
-        const next = frame + 1;
-        if (next <= this._stop && this._loadCounter > 0) {
-            this._stack.push(next);
+    _pushTail(loadRequest) {
+        const [frame, gamma] = loadRequest;
+        const last = Math.min(this._stop, frame + this._MAX_PRELOAD_FRAMES);
+        for (let idx = frame + 1; idx <= last; ++idx) {
+            this._queue.push([idx, gamma]);
         }
-        this._loadCounter--;
-        this._loaded = frame;
-        this._frameCollection[frame] = image;
-        this._loadAllowed = true;
-        image.onload = null;
-        image.onerror = null;
+    }
+
+    _onImageLoad(image, loadRequest) {
+        this._frameCollection[loadRequest] = image;
+        this._loaded = loadRequest;
         this.notify();
     }
 
-    _preload(frame) {
-        if (this._preloadRunned) {
-            return;
-        }
-
-        const last = Math.min(this._stop, frame + Math.ceil(this._MAX_LOAD / 2));
-        if (!(last in this._frameCollection)) {
-            for (let idx = frame + 1; idx <= last; idx++) {
-                if (!(idx in this._frameCollection)) {
-                    this._loadCounter = this._MAX_LOAD - (idx - frame);
-                    this._stack.push(idx);
-                    this._preloadRunned = true;
-                    this._load();
-                    return;
-                }
+    _triggerLoading(highPriority) {
+        while (this._queue.length && (highPriority || this._currentlyLoading < this._MAX_CONCCURENT_LOADS)) {
+            const loadRequest = this._queue.shift();
+            if (loadRequest in this._trigerredLoad) {
+                continue;
             }
+            this._trigerredLoad[loadRequest] = null;
+            this._currentlyLoading += 1;
+            const [frame, gamma] = loadRequest;
+            this._loadImage(window.cvat.job.getImageUrl(frame, gamma), loadRequest)
+                .then(([image, processedRequest]) => this._onImageLoad(image, processedRequest))
+                .finally(() => {
+                    this._currentlyLoading -= 1;
+                    delete this._trigerredLoad[loadRequest];
+                    this._triggerLoading(false);
+                });
+            highPriority = false;
         }
     }
 
-    _load() {
-        if (!this._loadInterval) {
-            this._loadInterval = setInterval(() => {
-                if (!this._loadAllowed) {
-                    return;
-                }
-
-                if (this._loadCounter <= 0) {
-                    this._stack = [];
-                }
-
-                if (!this._stack.length && this._required == null) {
-                    clearInterval(this._loadInterval);
-                    this._preloadRunned = false;
-                    this._loadInterval = null;
-                    return;
-                }
-
-                if (this._required != null) {
-                    this._stack.push(this._required);
-                    this._required = null;
-                }
-
-                const frame = this._stack.pop();
-                if (frame in this._frameCollection) {
-                    this._loadCounter--;
-                    const next = frame + 1;
-                    if (next <= this._stop && this._loadCounter > 0) {
-                        this._stack.push(frame + 1);
-                    }
-                    return;
-                }
-
-                // If load up to last frame, no need to load previous frames from stack
-                if (frame === this._stop) {
-                    this._stack = [];
-                }
-
-                this._loadAllowed = false;
-                const image = new Image();
-                image.onload = this._onImageLoad.bind(this, image, frame);
-                image.onerror = () => {
-                    this._loadAllowed = true;
-                    image.onload = null;
-                    image.onerror = null;
-                };
-                image.src = `/api/v1/tasks/${this._tid}/frames/${frame}`;
-            }, 25);
-        }
+    _loadImage(url, loadRequest) {
+        return new Promise((resolve, reject) => {
+            const image = new Image();
+            image.onload = () => {
+                image.onload = null;
+                image.onerror = null;
+                resolve([image, loadRequest]);
+            };
+            image.onerror = () => {
+                image.onload = null;
+                image.onerror = null;
+                reject([image, loadRequest]);
+            };
+            image.src = url;
+        });
     }
 }
 
@@ -146,6 +112,7 @@ class PlayerModel extends Listener {
         this._settings = {
             multipleStep: 10,
             fps: 25,
+            gamma: 1,
             rotateAll: task.mode === 'interpolation',
             resetZoom: task.mode === 'annotation',
         };
@@ -196,7 +163,7 @@ class PlayerModel extends Listener {
     }
 
     get image() {
-        return this._frameProvider.require(this._frame.current);
+        return this._frameProvider.require(this._frame.current, this._settings.gamma);
     }
 
     get resetZoom() {
@@ -235,11 +202,21 @@ class PlayerModel extends Listener {
         this._settings.resetZoom = value;
     }
 
+    get gamma() {
+        return this._settings.gamma;
+    }
+
+    set gamma(value) {
+        this._settings.gamma = value;
+        this.notify();
+    }
+
     ready() {
         return this._frame.previous === this._frame.current;
     }
 
-    onFrameLoad(last) { // callback for FrameProvider instance
+    onFrameLoad(loadRequest) { // callback for FrameProvider instance
+        const [last, gamma] = loadRequest;
         if (last === this._frame.current) {
             if (this._continueTimeout) {
                 clearTimeout(this._continueTimeout);
@@ -629,6 +606,11 @@ class PlayerController {
         this._model.multipleStep = value;
     }
 
+    changeGamma(e) {
+        const value = +e.target.value;
+        this._model.gamma = value;
+    }
+
     changeFPS(e) {
         const fpsMap = {
             1: 1,
@@ -723,6 +705,7 @@ class PlayerView {
         this._lastButtonUI = $('#lastButton');
         this._playerStepUI = $('#playerStep');
         this._playerSpeedUI = $('#speedSelect');
+        this._playerGammaUI = $('#playerGammaRange');
         this._resetZoomUI = $('#resetZoomBox');
         this._frameNumber = $('#frameNumber');
         this._playerGridPattern = $('#playerGridPattern');
@@ -775,6 +758,7 @@ class PlayerView {
         this._playerSpeedUI.on('change', e => this._controller.changeFPS(e));
         this._resetZoomUI.on('change', e => this._controller.changeResetZoom(e));
         this._playerStepUI.on('change', e => this._controller.changeStep(e));
+        this._playerGammaUI.on('change', e => this._controller.changeGamma(e));
         this._frameNumber.on('change', (e) => {
             if (Number.isInteger(+e.target.value)) {
                 this._controller.seek(+e.target.value);

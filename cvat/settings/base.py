@@ -408,6 +408,8 @@ ANNOTATION_TEAM = "msq"
 
 INCOMING_TASKS_ROOT = Path(SHARE_ROOT) / 'incoming'
 
+EXTERNAL_STORAGE_HOST = os.environ.get('EXTERNAL_STORAGE_HOST')
+
 # Inventory client configuration
 
 # Instructions for getting spreadsheet id:

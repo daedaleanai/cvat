@@ -12,7 +12,7 @@ from datetime import datetime
 from tempfile import mkstemp
 
 from django.views.generic import RedirectView
-from django.http import HttpResponseBadRequest, HttpResponseNotFound
+from django.http import HttpResponseBadRequest, HttpResponseNotFound, HttpResponse
 from django.shortcuts import render
 from django.conf import settings
 from rest_framework.reverse import reverse
@@ -35,17 +35,17 @@ from . import annotation, task, models
 from cvat.settings.base import JS_3RDPARTY, CSS_3RDPARTY
 from cvat.apps.authentication.decorators import login_required
 from .ddln.multiannotation import request_extra_annotation, FailedAssignmentError, merge
-from .ddln.utils import parse_frame_name
 from .log import slogger, clogger
 from cvat.apps.engine.models import StatusChoice, Task, Job, Plugin, Segment
 from cvat.apps.engine.serializers import (
+    ExternalImageSerializer,
     TaskSerializer, UserSerializer, RequestExtraAnnotationSerializer,
     ExceptionSerializer, AboutSerializer, JobSerializer, ImageMetaSerializer,
     RqStatusSerializer, TaskDataSerializer, DataOptionsSerializer, LabeledDataSerializer,
     PluginSerializer, FileInfoSerializer, LogEventSerializer, JobSelectionSerializer,
-    ProjectSerializer, BasicUserSerializer, TaskDumpSerializer, TaskValidateSerializer,
+    ProjectSerializer, BasicUserSerializer, TaskDumpSerializer, TaskValidateSerializer, ExternalFilesSerializer,
 )
-from cvat.apps.engine.utils import natural_order
+from cvat.apps.engine.utils import natural_order, safe_path_join
 from cvat.apps.annotation.serializers import AnnotationFileSerializer, AnnotationFormatSerializer
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
@@ -217,6 +217,30 @@ class ServerViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST)
 
     @staticmethod
+    @action(detail=False, methods=['GET'], url_path='scenario-file')
+    def scenario_file(request):
+        paths = request.query_params.getlist('path')
+        paths = [safe_path_join(settings.SHARE_ROOT, p) for p in paths]
+
+        candidates = set()
+        for path in paths:
+            if path.is_dir():
+                candidates |= set(path.rglob('spo*.csv'))
+                candidates |= set(path.rglob('vls*.csv'))
+            elif path.is_file() and path.suffix == '.csv':
+                candidates.add(path)
+
+        if len(candidates) == 1:
+            file = next(iter(candidates))
+            return HttpResponse(file.read_text(), content_type="text/plain")
+        elif len(candidates) == 0:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        else:
+            choices = [str(p.relative_to(settings.SHARE_ROOT)) for p in candidates]
+            data = dict(message="Ambiguous file choice.", choices=choices)
+            return Response(data=data, status=status.HTTP_406_NOT_ACCEPTABLE)
+
+    @staticmethod
     @swagger_auto_schema(method='get', operation_summary='Method provides the list of available annotations formats supported by the server',
         responses={'200': AnnotationFormatSerializer(many=True)})
     @action(detail=False, methods=['GET'], url_path='annotation/formats')
@@ -381,6 +405,7 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
         task_queryset = self.filter_queryset(self.get_queryset())
         sequence_by_segment_id = get_sequences_by_segments(task_queryset)
         context['sequence_by_segment_id'] = sequence_by_segment_id
+        context['request'] = self.request
         return context
 
     def perform_create(self, serializer):
@@ -412,11 +437,16 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
         These data cannot be changed later
         """
         db_task = self.get_object() # call check_object_permissions as well
-        serializer = TaskDataSerializer(db_task, data=request.data)
+        external_files_serializer = ExternalFilesSerializer(data=request.data['external_files'], context=dict(task=db_task))
+        external_files_serializer.is_valid(raise_exception=True)
+        data = request.data.copy()
+        data.pop('external_files')
+        serializer = TaskDataSerializer(db_task, data=data)
         context = {"times_annotated": db_task.times_annotated}
         options_serializer = DataOptionsSerializer(data=request.query_params, context=context)
         options_serializer.is_valid(raise_exception=True)
         if serializer.is_valid(raise_exception=True):
+            external_files_serializer.save()
             serializer.save()
             task.create(db_task.id, serializer.data, options_serializer.validated_data)
             return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
@@ -668,6 +698,14 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
         serializer = ImageMetaSerializer(many=True, data=data['original_size'])
         if serializer.is_valid(raise_exception=True):
             return Response(serializer.data)
+
+    @action(detail=True, methods=['GET'], serializer_class=ImageMetaSerializer, url_path='frames/external')
+    def get_external_frames(self, request, pk):
+        task = self.get_object()
+        images = task.image_set.all() if task.external else []
+        serializer = ExternalImageSerializer(images, many=True)
+        data = dict(external=task.external, images=serializer.data)
+        return Response(data)
 
     @swagger_auto_schema(method='get', manual_parameters=[openapi.Parameter('frame', openapi.IN_PATH, required=True,
             description="A unique integer value identifying this frame", type=openapi.TYPE_INTEGER)],

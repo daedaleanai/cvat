@@ -1,13 +1,15 @@
 # Copyright (C) 2019 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
-
+import json
 import os
 import re
 import shutil
 
+from django.conf import settings
 from rest_framework import serializers
 from django.contrib.auth.models import User, Group
+from rest_framework.reverse import reverse
 
 from cvat.apps.annotation.models import AnnotationDumper
 from cvat.apps.engine import models
@@ -206,6 +208,44 @@ class TaskDataSerializer(serializers.ModelSerializer):
         return instance
 
 
+class ExternalFrameSerializer(serializers.Serializer):
+    path = serializers.CharField()
+    url = serializers.CharField()
+
+
+class ExternalSequenceSerializer(serializers.Serializer):
+    width = serializers.IntegerField()
+    height = serializers.IntegerField()
+    camera_index = serializers.IntegerField()
+    sequence_name = serializers.CharField()
+    frames = ExternalFrameSerializer(many=True)
+
+
+class ExternalFilesSerializer(serializers.ListSerializer):
+    child = ExternalSequenceSerializer()
+
+    def to_internal_value(self, data):
+        if isinstance(data, str):
+            data = json.loads(data)
+        return super().to_internal_value(data)
+
+    def create(self, validated_data):
+        sequences = sorted(validated_data, key=lambda s: natural_order(s['sequence_name']))
+        images = []
+        task = self.context['task']
+        frame_index = 0
+        for sequence in sequences:
+            width = sequence['width']
+            height = sequence['height']
+            for frame in sequence['frames']:
+                path = frame['path']
+                url = frame['url']
+                images.append(models.Image(task=task, path=path, url=url, frame=frame_index, width=width, height=height))
+                frame_index += 1
+
+        return models.Image.objects.bulk_create(images)
+
+
 class DataOptionsSerializer(serializers.Serializer):
     split_on_sequence = serializers.BooleanField(default=False)
     assignees = CommaSeparatedValuesField(
@@ -272,6 +312,18 @@ class RequestExtraAnnotationSerializer(serializers.Serializer):
         return data
 
 
+class ExternalImageSerializer(serializers.Serializer):
+    frame = serializers.IntegerField()
+    width = serializers.IntegerField()
+    height = serializers.IntegerField()
+    url = serializers.SerializerMethodField()
+
+    def get_url(self, image):
+        path = image.url
+        host = settings.EXTERNAL_STORAGE_HOST
+        return "{}{}".format(host, path)
+
+
 class WriteOnceMixin:
     """Adds support for write once fields to serializers.
 
@@ -322,6 +374,8 @@ class TaskSerializer(WriteOnceMixin, serializers.ModelSerializer):
     segments = SegmentSerializer(many=True, source='segment_set', read_only=True)
     image_quality = serializers.IntegerField(min_value=0, max_value=100)
     times_annotated = serializers.IntegerField(default=1, min_value=1, max_value=10)
+    external = serializers.BooleanField(default=False)
+    preview_url = serializers.SerializerMethodField()
 
     class Meta:
         model = models.Task
@@ -329,11 +383,24 @@ class TaskSerializer(WriteOnceMixin, serializers.ModelSerializer):
             'bug_tracker', 'created_date', 'updated_date', 'overlap',
             'segment_size', 'z_order', 'status', 'labels', 'segments',
             'image_quality', 'start_frame', 'stop_frame', 'frame_filter',
-            'project', 'times_annotated')
+            'project', 'times_annotated', 'external', 'preview_url')
         read_only_fields = ('size', 'mode', 'created_date', 'updated_date',
             'status')
-        write_once_fields = ('overlap', 'segment_size', 'image_quality', 'times_annotated')
+        write_once_fields = ('overlap', 'segment_size', 'image_quality', 'times_annotated', 'external')
         ordering = ['-id']
+
+    def get_preview_url(self, task):
+        if task.external:
+            try:
+                image = models.Image.objects.get(frame=0, task=task)
+                path = image.url
+            except models.Image.DoesNotExist:
+                path = None
+            if path:
+                host = settings.EXTERNAL_STORAGE_HOST
+                return "{}{}".format(host, path)
+        request = self.context.get('request')
+        return reverse("cvat:task-frame", args=[task.id, 0], request=request)
 
     def to_representation(self, instance):
         value = super().to_representation(instance)

@@ -16,7 +16,6 @@ class AnnotationParser {
         this._parser = new DOMParser();
         this._startFrame = job.start;
         this._stopFrame = job.stop;
-        this._im_meta = job.image_meta_data;
         this._labelsInfo = labelsInfo;
     }
 
@@ -25,9 +24,7 @@ class AnnotationParser {
     }
 
     _getBoxPosition(box, frame) {
-        frame = Math.min(frame - this._startFrame, this._im_meta.length - 1);
-        const imWidth = this._im_meta[frame].width;
-        const imHeight = this._im_meta[frame].height;
+        const { width: imWidth, height: imHeight } = window.cvat.job.getImageSize(frame);
 
         const xtl = +box.getAttribute("xtl");
         const ytl = +box.getAttribute("ytl");
@@ -48,9 +45,7 @@ class AnnotationParser {
     }
 
     _getPolyPosition(shape, frame) {
-        frame = Math.min(frame - this._startFrame, this._im_meta.length - 1);
-        const imWidth = this._im_meta[frame].width;
-        const imHeight = this._im_meta[frame].height;
+        const { width: imWidth, height: imHeight } = window.cvat.job.getImageSize(frame);
         let points = shape.getAttribute('points').split(';').join(' ');
         points = PolyShapeModel.convertStringToNumberArray(points);
 
