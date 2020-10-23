@@ -312,6 +312,17 @@ class RequestExtraAnnotationSerializer(serializers.Serializer):
         return data
 
 
+class AcceptSegmentsSerializer(serializers.Serializer):
+    segments = serializers.PrimaryKeyRelatedField(queryset=models.Segment.objects.with_sequence_name(), many=True)
+
+    def validate(self, data):
+        task = self.context['task']
+        wrong_segments = [s.id for s in data['segments'] if s.task_id != task.id]
+        if wrong_segments:
+            raise serializers.ValidationError({"message": "Segments don't belong to the task", "segments": wrong_segments})
+        return data
+
+
 class ExternalImageSerializer(serializers.Serializer):
     frame = serializers.IntegerField()
     width = serializers.IntegerField()

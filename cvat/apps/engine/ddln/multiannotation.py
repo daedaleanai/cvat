@@ -47,6 +47,32 @@ def request_extra_annotation(task, segments, assignees):
     record_extra_annotation_creation(task, assignments, version)
 
 
+def accept_segments(task, file_path, segments):
+    root_dir = Path(file_path)
+    sequences = [s.sequence_name for s in segments]
+    _move_accepted_sequences(root_dir, sequences)
+    _remove_archive_file(file_path)
+
+
+def _move_accepted_sequences(root_dir, sequences):
+    rejected_dir = root_dir / "Rejected_annotation_output"
+    accepted_dir = root_dir / "Annotation_output"
+
+    for sequence_name in sequences:
+        dest_dir = accepted_dir / sequence_name
+        src_dir = rejected_dir / sequence_name
+        dest_dir.mkdir(exist_ok=True)
+
+        for src_file in src_dir.iterdir():
+            dest_file = dest_dir / src_file.relative_to(src_dir)
+            src_file.rename(dest_file)
+
+        src_dir.rmdir()
+
+    if len(list(rejected_dir.iterdir())) == 0:
+        rejected_dir.rmdir()
+
+
 class FailedAssignmentError(Exception):
     """Error raised when proper assignees cannot be found for some of the segments"""
     def __init__(self, failed_segments):

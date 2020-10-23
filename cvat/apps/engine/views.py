@@ -35,7 +35,7 @@ from . import annotation, task, models
 from cvat.settings.base import JS_3RDPARTY, CSS_3RDPARTY
 from cvat.apps.authentication.decorators import login_required
 from .ddln.grey_export import export_single_annotation, ExportError
-from .ddln.multiannotation import request_extra_annotation, FailedAssignmentError, merge
+from .ddln.multiannotation import request_extra_annotation, FailedAssignmentError, merge, accept_segments
 from .log import slogger, clogger
 from cvat.apps.engine.models import StatusChoice, Task, Job, Plugin, Segment
 from cvat.apps.engine.serializers import (
@@ -45,6 +45,7 @@ from cvat.apps.engine.serializers import (
     RqStatusSerializer, TaskDataSerializer, DataOptionsSerializer, LabeledDataSerializer,
     PluginSerializer, FileInfoSerializer, LogEventSerializer, JobSelectionSerializer,
     ProjectSerializer, BasicUserSerializer, TaskDumpSerializer, TaskValidateSerializer, ExternalFilesSerializer,
+    AcceptSegmentsSerializer,
 )
 from cvat.apps.engine.utils import natural_order, safe_path_join
 from cvat.apps.annotation.serializers import AnnotationFileSerializer, AnnotationFormatSerializer
@@ -685,6 +686,16 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
         if not os.path.exists(archive_path) and os.path.exists(file_path):
             make_zip_archive(file_path, archive_path)
         return sendfile(request, archive_path, attachment=True, attachment_filename=filename)
+
+    @action(detail=True, methods=['POST'], url_path='accept-segments', serializer_class=AcceptSegmentsSerializer)
+    def accept_segments(self, request, pk):
+        db_task = self.get_object()
+        file_path, _, _, _ = self._get_merge_params()
+        serializer = AcceptSegmentsSerializer(data=request.data, context={"task": db_task})
+        serializer.is_valid(raise_exception=True)
+        segments = serializer.validated_data["segments"]
+        accept_segments(db_task, file_path, segments)
+        return Response(status=status.HTTP_202_ACCEPTED)
 
     def _get_merge_params(self):
         acceptance_score = float(self.request.query_params.get("acceptance_score", 0))
