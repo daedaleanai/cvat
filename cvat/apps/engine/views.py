@@ -650,7 +650,7 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
 
     @action(detail=True, methods=['POST'], url_path='merge-annotations')
     def merge_annotations(self, request, pk):
-        file_path, filename, acceptance_score = self._get_merge_params()
+        file_path, filename, acceptance_score, times_annotated = self._get_merge_params()
 
         queue = django_rq.get_queue("default")
         rq_id = "/api/v1/tasks/{}/merge/{}/{}".format(pk, filename, acceptance_score)
@@ -659,7 +659,7 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
             if rq_job.is_finished:
                 data = json.load(open(file_path + ".json"))
                 download_url = reverse("cvat:task-merge-annotations-result", args=[pk], request=request)
-                download_url = "{}?acceptance_score={}".format(download_url, acceptance_score)
+                download_url = "{}?acceptance_score={}&times_annotated={}".format(download_url, acceptance_score, times_annotated)
                 data["download_url"] = download_url
                 rq_job.delete()
                 return Response(data, status=status.HTTP_201_CREATED)
@@ -679,7 +679,7 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
 
     @action(detail=True, methods=['GET'], url_path='merge-annotations-result', url_name='merge-annotations-result')
     def get_merge_result(self, request, pk=None):
-        file_path, filename, _ = self._get_merge_params()
+        file_path, filename, _, _ = self._get_merge_params()
         filename = "{}.zip".format(filename)
         archive_path = "{}.zip".format(file_path)
         if not os.path.exists(archive_path) and os.path.exists(file_path):
@@ -689,11 +689,11 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
     def _get_merge_params(self):
         acceptance_score = float(self.request.query_params.get("acceptance_score", 0))
         db_task = self.get_object()
-        times_annotated = db_task.times_annotated
+        times_annotated = int(self.request.query_params.get("times_annotated", db_task.times_annotated))
         filename = re.sub(r'[\\/*?:"<>|]', '_', db_task.name)
         filename = "{}-{}-x{}".format(filename, acceptance_score, times_annotated)
         file_path = os.path.join(db_task.get_task_dirname(), filename)
-        return file_path, filename, acceptance_score
+        return file_path, filename, acceptance_score, times_annotated
 
     @swagger_auto_schema(method='get', operation_summary='When task is being created the method returns information about a status of the creation process')
     @action(detail=True, methods=['GET'], serializer_class=RqStatusSerializer)
