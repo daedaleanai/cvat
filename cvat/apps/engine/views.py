@@ -630,7 +630,7 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
 
         return Response(status=status.HTTP_202_ACCEPTED)
 
-    @action(detail=AttributeError, methods=['POST'], url_path='request-extra-annotation',
+    @action(detail=True, methods=['POST'], url_path='request-extra-annotation',
             serializer_class=RequestExtraAnnotationSerializer)
     def request_extra_anno(self, request, pk):
         db_task = self.get_object()
