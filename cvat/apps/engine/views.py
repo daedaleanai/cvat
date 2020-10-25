@@ -34,7 +34,7 @@ from django.utils import timezone
 from . import annotation, task, models
 from cvat.settings.base import JS_3RDPARTY, CSS_3RDPARTY
 from cvat.apps.authentication.decorators import login_required
-from .ddln.grey_export import export_single_annotation, ExportError
+from .ddln.grey_export import export_annotation
 from .ddln.multiannotation import request_extra_annotation, FailedAssignmentError, merge, accept_segments
 from .log import slogger, clogger
 from cvat.apps.engine.models import StatusChoice, Task, Job, Plugin, Segment
@@ -525,14 +525,13 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=['POST'], url_path='grey-export')
     def grey_export(self, request, pk):
         task = self.get_object()
+        file_path, _, _, _ = self._get_merge_params(task)
 
-        if task.times_annotated != 1:
-            raise serializers.ValidationError("Export of triple-annotated task is not supported")
         if task.status != StatusChoice.COMPLETED:
             raise serializers.ValidationError("All task jobs should be completed")
 
         queue = django_rq.get_queue("default")
-        rq_id = "/api/v1/tasks/{}/grey-export".format(pk)
+        rq_id = "/api/v1/tasks/{}/{}/grey-export".format(pk, file_path)
         rq_job = queue.fetch_job(rq_id)
         if rq_job:
             if rq_job.is_finished:
@@ -551,8 +550,8 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
                 return Response(status=status.HTTP_202_ACCEPTED)
 
         queue.enqueue_call(
-            func=export_single_annotation,
-            args=(pk,),
+            func=export_annotation,
+            args=(pk, file_path),
             job_id=rq_id,
         )
         return Response(status=status.HTTP_202_ACCEPTED)
@@ -651,7 +650,8 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
 
     @action(detail=True, methods=['POST'], url_path='merge-annotations')
     def merge_annotations(self, request, pk):
-        file_path, filename, acceptance_score, times_annotated = self._get_merge_params()
+        db_task = self.get_object()
+        file_path, filename, acceptance_score, times_annotated = self._get_merge_params(db_task)
 
         queue = django_rq.get_queue("default")
         rq_id = "/api/v1/tasks/{}/merge/{}/{}".format(pk, filename, acceptance_score)
@@ -680,7 +680,8 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
 
     @action(detail=True, methods=['GET'], url_path='merge-annotations-result', url_name='merge-annotations-result')
     def get_merge_result(self, request, pk=None):
-        file_path, filename, _, _ = self._get_merge_params()
+        db_task = self.get_object()
+        file_path, filename, _, _ = self._get_merge_params(db_task)
         filename = "{}.zip".format(filename)
         archive_path = "{}.zip".format(file_path)
         if not os.path.exists(archive_path) and os.path.exists(file_path):
@@ -690,16 +691,15 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=['POST'], url_path='accept-segments', serializer_class=AcceptSegmentsSerializer)
     def accept_segments(self, request, pk):
         db_task = self.get_object()
-        file_path, _, _, _ = self._get_merge_params()
+        file_path, _, _, _ = self._get_merge_params(db_task)
         serializer = AcceptSegmentsSerializer(data=request.data, context={"task": db_task})
         serializer.is_valid(raise_exception=True)
         segments = serializer.validated_data["segments"]
         accept_segments(db_task, file_path, segments)
         return Response(status=status.HTTP_202_ACCEPTED)
 
-    def _get_merge_params(self):
+    def _get_merge_params(self, db_task):
         acceptance_score = float(self.request.query_params.get("acceptance_score", 0))
-        db_task = self.get_object()
         times_annotated = int(self.request.query_params.get("times_annotated", db_task.times_annotated))
         filename = re.sub(r'[\\/*?:"<>|]', '_', db_task.name)
         filename = "{}-{}-x{}".format(filename, acceptance_score, times_annotated)
