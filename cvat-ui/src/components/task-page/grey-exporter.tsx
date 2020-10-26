@@ -45,7 +45,7 @@ function GreyExporterComponent(props: Props & StateToProps): JSX.Element {
       })
     };
 
-    if (!me.isAdmin) return false;
+    if (!me.isAdmin || taskInstance.timesAnnotated > 1) return false;
 
     let content;
     if (loading) {
