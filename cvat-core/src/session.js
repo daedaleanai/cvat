@@ -1340,6 +1340,22 @@
         }
 
         /**
+            * Manually accept incomplete/rejected sequences
+            * @method acceptSequences
+            * @memberof module:API.cvat.classes.Task
+            * @readonly
+            * @instance
+            * @async
+            * @throws {module:API.cvat.exceptions.ServerError}
+            * @throws {module:API.cvat.exceptions.PluginError}
+        */
+        async acceptSequences(segmentIds) {
+            const result = await PluginRegistry
+                .apiWrapper.call(this, Task.prototype.acceptSequences, segmentIds);
+            return result;
+        }
+
+        /**
             * Export finished task to grey
             * @method exportToGrey
             * @memberof module:API.cvat.classes.Task
@@ -1639,6 +1655,11 @@
 
     Task.prototype.requestExtraAnnotation.implementation = async function (segmentIds, assigneeIds) {
         const result = await serverProxy.tasks.requestExtraAnnotation(this.id, segmentIds, assigneeIds);
+        return result;
+    };
+
+    Task.prototype.acceptSequences.implementation = async function (segmentIds) {
+        const result = await serverProxy.tasks.acceptSequences(this.id, segmentIds);
         return result;
     };
 

@@ -322,6 +322,17 @@
                 });
             }
 
+            async function acceptSequences(taskId, segmentIds) {
+                const { backendAPI } = config;
+                const url = `${backendAPI}/tasks/${taskId}/accept-segments`;
+                const data = { segments: segmentIds };
+                return Axios.post(url, data, {
+                    proxy: config.proxy,
+                }).catch((errorData) => {
+                    throw generateError(errorData);
+                });
+            }
+
             async function exportToGrey(taskId) {
                 const { backendAPI } = config;
                 const url = `${backendAPI}/tasks/${taskId}/grey-export`;
@@ -736,6 +747,7 @@
                         validateTask,
                         mergeAnnotations,
                         requestExtraAnnotation,
+                        acceptSequences,
                         exportToGrey,
                         exportDataset,
                     }),

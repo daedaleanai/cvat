@@ -39,6 +39,20 @@ function AnnotationMergerComponent(props: Props & StateToProps): JSX.Element {
 
     const showComponent = me.isAdmin && taskInstance.timesAnnotated > 1;
 
+    const handleAcceptSequences = (acceptedSegmentIds) => {
+        const mapSegments = (segments) => segments.map(segment => {
+            if (acceptedSegmentIds.indexOf(segment.id) === -1) {
+                return segment;
+            }
+            return {
+                ...segment,
+                rejected_frames_count: 0,
+                incomplete_frames_count: 0,
+            };
+        });
+        setSegments(mapSegments);
+    };
+
     const loadData = () : void => {
       setLoading(true);
       taskInstance.mergeAnnotations(acceptanceScore)
@@ -67,7 +81,14 @@ function AnnotationMergerComponent(props: Props & StateToProps): JSX.Element {
     if (loading) {
         content = <Spin size='large' className='cvat-spinner'/>;
     } else if (segments.length) {
-        content = <MergeFeedbackComponent segments={segments} taskInstance={taskInstance} downloadUrl={downloadUrl} />;
+        content = (
+            <MergeFeedbackComponent
+                segments={segments}
+                taskInstance={taskInstance}
+                downloadUrl={downloadUrl}
+                onAccept={handleAcceptSequences}
+            />
+        );
     } else {
         content = (
             <Row type='flex' justify='center' align='middle'>
@@ -107,10 +128,11 @@ function AnnotationMergerComponent(props: Props & StateToProps): JSX.Element {
     );
 }
 
-function MergeFeedbackComponent({ segments, taskInstance, downloadUrl }) {
+function MergeFeedbackComponent({ segments, taskInstance, downloadUrl, onAccept }) {
     const [segmentIds, setSegmentIds] = useState([]);
     const [assignees, setAssignees] = useState([]);
     const [extraAnnotationRequested, setExtraAnnotationRequested] = useState(false);
+    const [acceptSequencesRequested, setAcceptSequencesRequested] = useState(false);
     const getSequenceNameById = useMemo(() => buildNameGetter(segments), [segments]);
 
     const isExtraAnnotationAllowed = taskInstance.timesAnnotated === 3;
@@ -178,6 +200,24 @@ function MergeFeedbackComponent({ segments, taskInstance, downloadUrl }) {
             });
     };
 
+    const acceptSequences = () => {
+        setAcceptSequencesRequested(true);
+        taskInstance.acceptSequences(segmentIds)
+            .then(() => {
+                notification.info({
+                    message: 'Given sequences has been accepted successfully',
+                });
+                onAccept(segmentIds);
+                setSegmentIds([]);
+            })
+            .catch((error) => {
+                console.log(error);
+            })
+            .finally(() => {
+                setAcceptSequencesRequested(false);
+            });
+    };
+
     return (
         <>
             <Table rowKey="id" rowSelection={rowSelection} dataSource={segments} pagination={false}>
@@ -206,8 +246,8 @@ function MergeFeedbackComponent({ segments, taskInstance, downloadUrl }) {
                 />
             </Table>
             <Form className="annotation-merger-request-extra">
-                <Row type='flex' justify='start' align='middle'>
-                    <Col span={15}>
+                <Row type='flex' justify='end' align='middle'>
+                    <Col span={12}>
                         <Form.Item>
                             {isExtraAnnotationAllowed &&
                                 <MultipleUserSelector
@@ -218,7 +258,7 @@ function MergeFeedbackComponent({ segments, taskInstance, downloadUrl }) {
                             }
                         </Form.Item>
                     </Col>
-                    <Col span={7} offset={1}>
+                    <Col offset={1}>
                         <Form.Item>
                             <Button
                                 type='primary'
@@ -228,6 +268,19 @@ function MergeFeedbackComponent({ segments, taskInstance, downloadUrl }) {
                                 disabled={!isRequestButtonEnabled}
                             >
                                 Request extra annotation
+                            </Button>
+                        </Form.Item>
+                    </Col>
+                    <Col offset={1}>
+                        <Form.Item>
+                            <Button
+                                type='primary'
+                                size='large'
+                                ghost
+                                onClick={acceptSequences}
+                                disabled={acceptSequencesRequested || segmentIds.length === 0}
+                            >
+                                Accept sequences
                             </Button>
                         </Form.Item>
                     </Col>
