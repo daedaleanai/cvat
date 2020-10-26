@@ -232,7 +232,7 @@ function MergeFeedbackComponent({ segments, taskInstance, downloadUrl }) {
                         </Form.Item>
                     </Col>
                 </Row>
-                <Row type='flex' justify='start' align='middle'>
+                <Row type='flex' justify='end' align='middle'>
                     <Col>
                         <Form.Item>
                             <Button
@@ -245,9 +245,54 @@ function MergeFeedbackComponent({ segments, taskInstance, downloadUrl }) {
                             </Button>
                         </Form.Item>
                     </Col>
+                    <Col  offset={1}>
+                        <Form.Item>
+                            <ExportButton taskInstance={taskInstance} />
+                        </Form.Item>
+                    </Col>
                 </Row>
             </Form>
         </>
+    );
+}
+
+function ExportButton({ taskInstance }) {
+    const [loading, setLoading] = useState(false);
+    const [exported, setExported] = useState(false);
+
+    const exportTask = () : void => {
+        setLoading(true);
+        taskInstance.exportToGrey()
+            .then(() => {
+                setExported(true);
+                notification.info({
+                    message: 'Task has been exported to grey successfully',
+                });
+            }).catch((error) => {
+                if (typeof error === 'string') {
+                    notification.error({
+                        message: 'Could not export task to grey',
+                        description: error,
+                    });
+                } else {
+                    console.log(error);
+                }
+            }).finally(() => {
+                setLoading(false);
+            });
+    };
+
+    return (
+        <Button
+            loading={loading}
+            disabled={loading || exported}
+            type='primary'
+            size='large'
+            ghost
+            onClick={exportTask}
+        >
+            Export to grey
+        </Button>
     );
 }
 
