@@ -27,7 +27,7 @@ from rest_framework.decorators import action
 from rest_framework import mixins
 from django_filters import rest_framework as filters
 import django_rq
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 
@@ -880,19 +880,19 @@ class JobViewSet(viewsets.GenericViewSet,
         if user_id == "0":
             user_id = None
 
-        updated = Job.objects.filter(
-            id=pk,
-            concurrent_version=version,
-        ).update(
-            assignee_id=user_id,
-            concurrent_version=version + 1,
-        )
+        with transaction.atomic():
+            segment = models.Segment.objects.select_for_update().get(job__id=pk)
+            if segment.concurrent_version != version:
+                return Response(status=status.HTTP_409_CONFLICT)
 
-        if updated > 0:
-            response_status = status.HTTP_200_OK
-        else:
-            response_status = status.HTTP_409_CONFLICT
-        return Response(status=response_status)
+            current_job = models.Job.objects.get(id=pk)
+
+            current_job.assignee_id = user_id
+            current_job.save()
+            segment.concurrent_version = version + 1
+            segment.save()
+        return Response(status=status.HTTP_200_OK)
+
 
 @method_decorator(name='list', decorator=swagger_auto_schema(
     operation_summary='Method provides a paginated list of users registered on the server'))

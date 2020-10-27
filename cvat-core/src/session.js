@@ -566,7 +566,7 @@
                 stop_frame: undefined,
                 sequence_name: undefined,
                 version: undefined,
-                concurrent_version: undefined,
+                concurrent_version_ref: undefined,
                 task: undefined,
             };
 
@@ -690,9 +690,12 @@
                     * @instance
                 */
                 concurrentVersion: {
-                    get: () => data.concurrent_version,
+                    // use "reference" (object storing the value)
+                    // in order to have concurrentVersion updated for all jobs related to the same segment
+                    // when any job's version is updated
+                    get: () => data.concurrent_version_ref.value,
                     set: (value) => {
-                        data.concurrent_version = value;
+                        data.concurrent_version_ref.value = value;
                     },
                 },
                 /**
@@ -834,6 +837,7 @@
             if (Array.isArray(initialData.segments)) {
                 for (const segment of initialData.segments) {
                     if (Array.isArray(segment.jobs)) {
+                        const concurrent_version_ref = { value: segment.concurrent_version };
                         for (const job of segment.jobs) {
                             const jobInstance = new Job({
                                 url: job.url,
@@ -844,8 +848,8 @@
                                 stop_frame: segment.stop_frame,
                                 sequence_name: segment.sequence_name,
                                 version: job.version,
-                                concurrent_version: job.concurrent_version,
                                 task: this,
+                                concurrent_version_ref,
                             });
                             data.jobs.push(jobInstance);
                         }

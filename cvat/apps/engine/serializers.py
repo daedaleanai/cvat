@@ -105,8 +105,7 @@ class JobSerializer(serializers.ModelSerializer):
 class SimpleJobSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Job
-        fields = ('url', 'id', 'assignee', 'status', 'version', 'concurrent_version')
-        read_only_fields = ('concurrent_version',)
+        fields = ('url', 'id', 'assignee', 'status', 'version')
 
 class SegmentSerializer(serializers.ModelSerializer):
     jobs = SimpleJobSerializer(many=True, source='job_set')
@@ -114,8 +113,8 @@ class SegmentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.Segment
-        fields = ('start_frame', 'stop_frame', 'jobs', 'sequence_name')
-        read_only_fields = ('sequence_name',)
+        fields = ('start_frame', 'stop_frame', 'jobs', 'sequence_name', 'concurrent_version')
+        read_only_fields = ('sequence_name', 'concurrent_version')
 
     def to_representation(self, instance):
         value = super().to_representation(instance)

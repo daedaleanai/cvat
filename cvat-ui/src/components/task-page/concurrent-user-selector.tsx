@@ -44,8 +44,9 @@ function ConcurrentUserSelector(props: Props & StateToProps): JSX.Element {
             job.assignee = prevAssignee;
             if (error.code === 409) {
                 notification.error({
-                    message: 'The job has been picked up by another annotator',
-                    description: 'Please, refresh the page to see the updated version',
+                    message: 'Cannot assign the job',
+                    description: "One of sequence's jobs has been picked up by another annotator. " +
+                        "Please, refresh the page to see the updated version",
                 });
             } else {
                 console.log(error);

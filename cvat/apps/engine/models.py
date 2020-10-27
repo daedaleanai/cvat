@@ -209,6 +209,8 @@ class Segment(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
     start_frame = models.IntegerField()
     stop_frame = models.IntegerField()
+    # version field for optimistic/pessimistic locks
+    concurrent_version = models.PositiveIntegerField(default=0)
 
     objects = SegmentQuerySet.as_manager()
 
@@ -238,9 +240,6 @@ class Job(models.Model):
     status = models.CharField(max_length=32, choices=StatusChoice.choices(),
         default=StatusChoice.ANNOTATION)
     version = models.PositiveIntegerField(default=0)
-
-    # version field for optimistic locks
-    concurrent_version = models.PositiveIntegerField(default=0)
 
     class Meta:
         default_permissions = ()
