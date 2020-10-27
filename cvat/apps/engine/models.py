@@ -234,6 +234,17 @@ class Segment(models.Model):
         """Return queryset of users which have worked on the given segment"""
         return User.objects.filter(job__segment=self)
 
+    def split_jobs(self, job_id):
+        job_id = int(job_id)
+        current_job = None
+        other_jobs = []
+        for j in self.job_set.all():
+            if j.id == job_id:
+                current_job = j
+            else:
+                other_jobs.append(j)
+        return current_job, other_jobs
+
 class Job(models.Model):
     segment = models.ForeignKey(Segment, on_delete=models.CASCADE)
     assignee = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)

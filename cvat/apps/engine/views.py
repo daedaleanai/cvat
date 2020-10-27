@@ -877,7 +877,8 @@ class JobViewSet(viewsets.GenericViewSet,
     @action(detail=True, methods=['POST'], url_path=r'(?P<version>\d+)/assign/(?P<user_id>\d+)')
     def assign(self, request, pk, version, user_id):
         version = int(version)
-        if user_id == "0":
+        user_id = int(user_id)
+        if user_id == 0:
             user_id = None
 
         with transaction.atomic():
@@ -885,7 +886,9 @@ class JobViewSet(viewsets.GenericViewSet,
             if segment.concurrent_version != version:
                 return Response(status=status.HTTP_409_CONFLICT)
 
-            current_job = models.Job.objects.get(id=pk)
+            current_job, other_jobs = segment.split_jobs(pk)
+            if user_id and any(j.assignee_id == user_id for j in other_jobs):
+                raise serializers.ValidationError("User is already working on another job for the given sequence.")
 
             current_job.assignee_id = user_id
             current_job.save()

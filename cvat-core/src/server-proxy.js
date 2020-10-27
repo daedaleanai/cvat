@@ -328,6 +328,10 @@
                 return Axios.post(url, {
                     proxy: config.proxy,
                 }).catch((errorData) => {
+                    if (errorData.response && errorData.response.status === 400) {
+                        const message = errorData.response.data.join(' ');
+                        throw new ServerError(message, errorData.response.status);
+                    }
                     throw generateError(errorData);
                 });
 
