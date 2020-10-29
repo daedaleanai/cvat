@@ -97,6 +97,7 @@ def merge(task_id, file_path, acceptance_score):
     log_file = logs_dir / "final_merge.log"
     score_file = logs_dir / "final_scores.txt"
     ddln_yaml_file = root_dir / "ddln.yaml"
+    invalid_frames_file = root_dir / "invalid.yaml"
 
     annotation_dirs = []
     extra_annotation_dir = None
@@ -127,7 +128,8 @@ def merge(task_id, file_path, acceptance_score):
 
     write_task_mapping_file(task, root_dir.joinpath("task_mapping.csv").open("wt"))
     yaml_writer = DdlnYamlWriter(task.name)
-    yaml_writer.write(ddln_yaml_file.open("wt"), rejected_frames)
+    yaml_writer.write_metadata(ddln_yaml_file.open("wt"))
+    yaml_writer.write_invalid_frames(invalid_frames_file.open("wt"), rejected_frames)
     copy_previous_merge_logs(root_dir, task.times_annotated)
 
     segments = Segment.objects.with_sequence_name().filter(task_id=task.id).prefetch_related('job_set__assignee')

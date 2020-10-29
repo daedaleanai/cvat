@@ -2,7 +2,9 @@ import datetime
 import itertools
 import re
 from pathlib import PurePath
+from collections import OrderedDict
 
+import yaml
 from django.conf import settings
 
 from cvat.apps.engine.utils import natural_order
@@ -76,6 +78,22 @@ def get_sequence_id_mapping(task_name):
     return {f.parent.name: f.read_text().strip() for f in task_dir.glob("*/ddln_id")}
 
 
+class OrderedDumper(yaml.Dumper):
+    pass
+
+
+def _represent_ordered_dict(dumper, data):
+    return dumper.represent_mapping(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, data.items())
+
+
+def _represent_none(dumper, data):
+    return dumper.represent_scalar('tag:yaml.org,2002:null', '')
+
+
+OrderedDumper.add_representer(OrderedDict, _represent_ordered_dict)
+OrderedDumper.add_representer(type(None), _represent_none)
+
+
 class DdlnYamlWriter:
     def __init__(self, task_name, add_merger_info=True):
         self.task_name = guess_task_name(task_name)
@@ -91,63 +109,45 @@ class DdlnYamlWriter:
             warnings.append("Failure while getting sequence to dataset-id mapping")
         return warnings
 
-    def write(self, file, rejected_frames=None, date=None):
+    def write_metadata(self, file, date=None):
         if date is None:
             date = datetime.date.today()
-        curr_date = date.isoformat()
         annotation_request_id = self.annotation_request_id or ''
         group = settings.ANNOTATION_TEAM
         map_file = "task_mapping.csv"
-        merger_info = self._format_merger_info()
-        invalid_data = self._format_invalid_data(rejected_frames)
 
-        yml_data = _YML_TEMPLATE.format(
-            ddln_id=annotation_request_id,
-            curr_date=curr_date,
-            group=group,
-            map_file=map_file,
-            task_name=self.task_name,
-            merger_info=merger_info,
-            invalid_data=invalid_data,
-        )
-        file.write(yml_data)
+        data = OrderedDict([
+            ("sources", [annotation_request_id]),
+            ("date", date),
+            ("team", [
+                {"group": group},
+                {"mapping": map_file},
+            ]),
+            ("phabricator", self.task_name),
+            ("tool", [
+                OrderedDict([("name", "CVAT"), ("version", 2.3)]),
+            ]),
+            ("comment", None),
+            ("quality", None),
+            ("recommendations", None),
+        ])
+        if self._add_merger_info:
+            merger = OrderedDict([
+                ("name", "merge tool https://git-ng.daedalean.ai/daedalean/exp-devtools/src/branch/master/annotations/multi/process_annotations_msq.py"),
+                ("version", settings.EXP_DEVTOOLS_HASH),
+            ])
+            data["tool"].append(merger)
+        yaml.dump(data, file, OrderedDumper, default_flow_style=False)
 
-    def _format_merger_info(self):
-        merger_version = settings.EXP_DEVTOOLS_HASH
-        return _MERGER_INFO_TEMPLATE.format(merger_version=merger_version)
-
-    def _format_invalid_data(self, invalid_frames):
-        if not invalid_frames:
-            return ""
-        return "".join(self._format_invalid_sequence(seq, frames) for seq, frames in invalid_frames.items())
-
-    def _format_invalid_sequence(self, sequence_name, frames):
-        dataset_id = self.id_by_seq_name.get(sequence_name, "### UNKNOWN ###")
-        frame_rows = "".join("    frame: {}\n".format(f) for f in frames)
-        return _INVALID_SEQUENCE_TEMPLATE.format(dataset_id=dataset_id, frame_rows=frame_rows)
-
-
-_YML_TEMPLATE = """sources:
-  - {ddln_id}
-date: {curr_date}
-team:
-  - group: {group}
-  - mapping: {map_file}
-phabricator: {task_name}
-tool:
-  - name: CVAT
-    version: 2.3
-{merger_info}invalid:
-{invalid_data}comment:
-quality:
-recommendations:
-"""
-
-_MERGER_INFO_TEMPLATE = """
-  - name: merge tool https://git-ng.daedalean.ai/daedalean/exp-devtools/src/branch/master/annotations/multi/process_annotations_msq.py
-    version: {merger_version}
-""".lstrip('\n')
-
-_INVALID_SEQUENCE_TEMPLATE = """  - dataset_id:  {dataset_id}
-{frame_rows}    reason: no agreement
-"""
+    def write_invalid_frames(self, file, rejected_frames):
+        if not rejected_frames:
+            return
+        data = [
+            OrderedDict([
+                ("dataset_id", self.id_by_seq_name.get(sequence_name, "### UNKNOWN ###")),
+                ("frame", frame),
+                ("reason", "no agreement"),
+            ])
+            for sequence_name, frames in rejected_frames.items() for frame in frames
+        ]
+        yaml.dump(data, file, OrderedDumper, default_flow_style=False)

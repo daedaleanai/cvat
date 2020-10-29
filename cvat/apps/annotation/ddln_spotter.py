@@ -49,7 +49,7 @@ def dump(file_object, annotations):
 
         with open(yml_file_path, 'w', newline='') as yml_file:
             yaml_writer = DdlnYamlWriter(annotations.meta['task']['name'], add_merger_info=False)
-            yaml_writer.write(yml_file)
+            yaml_writer.write_metadata(yml_file)
 
         with open(log_file_path, 'w', newline='') as log_file:
             for frame_annotation in annotations.group_by_frame(omit_empty_frames=False):

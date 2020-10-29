@@ -56,7 +56,7 @@ def export_single_annotation(task):
 
         write_task_mapping_file(task, task_mapping_file.open('w'))
         yaml_writer = DdlnYamlWriter(task.name)
-        yaml_writer.write(ddln_yaml_file.open('wt'))
+        yaml_writer.write_metadata(ddln_yaml_file.open('wt'))
         warnings = yaml_writer.get_warnings()
         if warnings:
             message = ", ".join(warnings)
