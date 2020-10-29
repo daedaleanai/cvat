@@ -4,6 +4,7 @@ import shutil
 from pathlib import Path
 from types import SimpleNamespace
 
+import yaml
 from django.db import transaction
 from django.conf import settings
 from rest_framework import serializers
@@ -51,6 +52,7 @@ def accept_segments(task, file_path, segments):
     root_dir = Path(file_path)
     sequences = [s.sequence_name for s in segments]
     _move_accepted_sequences(root_dir, sequences)
+    _update_invalid_frames_yaml_file(task, segments, root_dir / "invalid.yaml")
     _remove_archive_file(file_path)
 
 
@@ -71,6 +73,31 @@ def _move_accepted_sequences(root_dir, sequences):
 
     if len(list(rejected_dir.iterdir())) == 0:
         rejected_dir.rmdir()
+
+
+def _update_invalid_frames_yaml_file(task, segments, file_path):
+    """Remove accepted sequences from invalid frames yaml file."""
+    accepted_sequences = {s.sequence_name for s in segments}
+    yaml_writer = DdlnYamlWriter(task.name)
+    seq_name_by_ddln_id = {ddln_id: seq for seq, ddln_id in yaml_writer.id_by_seq_name.items()}
+    rejected_frames = _load_rejected_frames(file_path, seq_name_by_ddln_id)
+    still_rejected_frames = {seq: frames for seq, frames in rejected_frames.items() if seq not in accepted_sequences}
+    yaml_writer.write_invalid_frames(file_path.open('wt'), still_rejected_frames)
+
+
+def _load_rejected_frames(file_path, seq_name_by_ddln_id):
+    data = yaml.load(file_path.open('rt'))
+    rejected_frames = {}
+    if not data:
+        return rejected_frames
+    for entry in data:
+        ddln_id = entry['dataset_id']
+        sequence_name = seq_name_by_ddln_id.get(ddln_id, '### UNKNOWN ###')
+        frame = entry['frame']
+        if sequence_name not in rejected_frames:
+            rejected_frames[sequence_name] = []
+        rejected_frames[sequence_name].append(frame)
+    return rejected_frames
 
 
 class FailedAssignmentError(Exception):
