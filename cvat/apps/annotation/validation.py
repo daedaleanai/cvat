@@ -182,7 +182,7 @@ class ValidationReporter:
         self._report("Bounding box jumps too much from the position on the previous frame", Severity.WARNING)
 
     def report_track_id_non_consecutive(self, ids):
-        self._report("track-id values are not consecutive: {}".format(', '.join(sorted(ids))))
+        self._report("track-id values are not consecutive: {}".format(', '.join(sorted(ids))), Severity.WARNING)
 
     def count_frame(self, sequence_name):
         self._frames_count_by_sequence[sequence_name] = self._frames_count_by_sequence.get(sequence_name, 0) + 1
