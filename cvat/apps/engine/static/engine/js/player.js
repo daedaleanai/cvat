@@ -113,8 +113,8 @@ class PlayerModel extends Listener {
             multipleStep: 10,
             fps: 25,
             gamma: 1,
-            rotateAll: task.mode === 'interpolation',
-            resetZoom: task.mode === 'annotation',
+            rotateAll: true,
+            resetZoom: false,
         };
 
         this._playInterval = null;
