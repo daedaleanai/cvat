@@ -93,7 +93,7 @@ def dump(file_object, annotations):
                     log_file.write("Converted data: {}".format(csv_line))
 
                 csv_file_name, dir_name = parse_frame_name(image_name)
-                csv_file_name += ".csv"
+                csv_file_name += "_y.csv"
                 dir_name = dir_name or "dummpy"
                 dir_name = os.path.join(temp_dir, dir_name)
                 log_file.write("Dir: {}; Added to file: {}\n".format(dir_name, csv_file_name))
