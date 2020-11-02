@@ -119,10 +119,7 @@ class DdlnYamlWriter:
         data = OrderedDict([
             ("sources", [annotation_request_id]),
             ("date", date),
-            ("team", [
-                {"group": group},
-                {"mapping": map_file},
-            ]),
+            ("team", OrderedDict([("group", group), ("mapping", map_file)])),
             ("phabricator", self.task_name),
             ("tool", [
                 OrderedDict([("name", "CVAT"), ("version", 2.3)]),
