@@ -17,6 +17,7 @@ from cvat.apps.engine.models import Task
 logger = logging.getLogger(__name__)
 
 TARGET_DIR_PERMS = stat.S_ISGID | stat.S_IRWXU | stat.S_IRWXG | stat.S_IROTH | stat.S_IXOTH
+DDLN_ID_CALCULATION_SCRIPT_PATH = str(Path(settings.BASE_DIR) / 'cvat/exp-devtools/datatools/create_ddln_id.sh')
 
 
 class ExportError(Exception):
@@ -37,8 +38,8 @@ def export_single_annotation(task):
     if destination_dir.exists():
         raise ExportError("Task has already been exported")
 
-    with TemporaryDirectory() as root_dir:
-        root_dir = Path(root_dir)
+    with TemporaryDirectory() as root_dir_name:
+        root_dir = Path(root_dir_name)
         task_mapping_file = root_dir / 'task_mapping.csv'
         ddln_yaml_file = root_dir / 'ddln.yaml'
 
@@ -61,15 +62,7 @@ def export_single_annotation(task):
         if warnings:
             message = ", ".join(warnings)
             raise ExportError(message)
-
-        try:
-            ddln_id = calculate_ddln_id(root_dir, namespace="annout")
-        except Exception:
-            logger.exception("Error while calculating ddln_id")
-            raise ExportError("Cannot calculate ddln_id")
-        root_dir.joinpath('ddln_id').write_text(ddln_id)
-        root_dir.chmod(TARGET_DIR_PERMS)
-        shutil.copytree(str(root_dir), str(destination_dir))
+        _finalize_export(root_dir, destination_dir)
 
 
 def export_mutiannotation(task, file_path):
@@ -78,22 +71,25 @@ def export_mutiannotation(task, file_path):
     destination_dir = settings.OUTGOING_TASKS_ROOT / task_name
     if destination_dir.exists():
         raise ExportError("Task has already been exported")
+    _finalize_export(root_dir, destination_dir)
 
+
+def _finalize_export(root_dir, destination_dir):
     try:
         ddln_id = calculate_ddln_id(root_dir, namespace="annout")
     except Exception:
         logger.exception("Error while calculating ddln_id")
         raise ExportError("Cannot calculate ddln_id")
-
     root_dir.joinpath('ddln_id').write_text(ddln_id)
     root_dir.chmod(TARGET_DIR_PERMS)
     shutil.copytree(str(root_dir), str(destination_dir))
 
 
 def calculate_ddln_id(directory, namespace):
-    process = subprocess.run(['/bin/bash', _ddln_id_script_path, namespace], stdout=subprocess.PIPE, cwd=str(directory))
+    process = subprocess.run(
+        ['/bin/bash', DDLN_ID_CALCULATION_SCRIPT_PATH, namespace],
+        stdout=subprocess.PIPE,
+        cwd=str(directory)
+    )
     process.check_returncode()
     return process.stdout.decode('utf-8')
-
-
-_ddln_id_script_path = str(Path(settings.BASE_DIR) / 'cvat/exp-devtools/datatools/create_ddln_id.sh')

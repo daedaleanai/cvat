@@ -40,16 +40,19 @@ function AnnotationMergerComponent(props: Props & StateToProps): JSX.Element {
     const showComponent = me.isAdmin && taskInstance.timesAnnotated > 1;
 
     const handleAcceptSequences = (acceptedSegmentIds) => {
-        const mapSegments = (segments) => segments.map(segment => {
-            if (acceptedSegmentIds.indexOf(segment.id) === -1) {
-                return segment;
-            }
-            return {
-                ...segment,
-                rejected_frames_count: 0,
-                incomplete_frames_count: 0,
-            };
-        });
+        function mapSegments(segments) {
+            return segments.map(segment => {
+                if (acceptedSegmentIds.indexOf(segment.id) === -1) {
+                    return segment;
+                }
+                return {
+                    ...segment,
+                    rejected_frames_count: 0,
+                    incomplete_frames_count: 0,
+                };
+            });
+        }
+
         setSegments(mapSegments);
     };
 
@@ -322,14 +325,10 @@ function ExportButton({ taskInstance }) {
                     message: 'Task has been exported to grey successfully',
                 });
             }).catch((error) => {
-                if (typeof error === 'string') {
-                    notification.error({
-                        message: 'Could not export task to grey',
-                        description: error,
-                    });
-                } else {
-                    console.log(error);
-                }
+                notification.error({
+                    message: 'Could not export task to grey',
+                    description: error.toString(),
+                });
             }).finally(() => {
                 setLoading(false);
             });

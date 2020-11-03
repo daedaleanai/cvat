@@ -32,17 +32,19 @@ function GreyExporterComponent(props: Props & StateToProps): JSX.Element {
     const exportTask = () : void => {
       setLoading(true);
       taskInstance.exportToGrey()
-      .then(() => {
-          setExported(true);
-      }).catch((error) => {
-          if (typeof error === 'string') {
-              setErrorMessage(error);
-          } else {
-              console.log(error);
-          }
-      }).finally(() => {
-          setLoading(false);
-      })
+          .then(() => {
+              setExported(true);
+          })
+          .catch((error) => {
+              if (typeof error === 'string') {
+                  setErrorMessage(error);
+              } else {
+                  console.log(error);
+              }
+          })
+          .finally(() => {
+              setLoading(false);
+          });
     };
 
     if (!me.isAdmin || taskInstance.timesAnnotated > 1) return false;

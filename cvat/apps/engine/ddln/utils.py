@@ -112,12 +112,12 @@ class DdlnYamlWriter:
     def write_metadata(self, file, date=None):
         if date is None:
             date = datetime.date.today()
-        annotation_request_id = self.annotation_request_id or ''
+        sources = [("sources", [self.annotation_request_id])] if self.annotation_request_id else []
         group = settings.ANNOTATION_TEAM
         map_file = "task_mapping.csv"
 
         data = OrderedDict([
-            ("sources", [annotation_request_id]),
+            *sources,
             ("date", date),
             ("team", OrderedDict([("group", group), ("mapping", map_file)])),
             ("phabricator", self.task_name),
@@ -139,12 +139,13 @@ class DdlnYamlWriter:
     def write_invalid_frames(self, file, rejected_frames):
         if not rejected_frames:
             return
-        data = [
-            OrderedDict([
-                ("dataset_id", self.id_by_seq_name.get(sequence_name, "### UNKNOWN ###")),
-                ("frame", frame),
-                ("reason", "no agreement"),
-            ])
-            for sequence_name, frames in rejected_frames.items() for frame in frames
-        ]
+        data = []
+        for sequence_name, frames in rejected_frames.items():
+            for frame in frames:
+                item = OrderedDict([
+                    ("dataset_id", self.id_by_seq_name.get(sequence_name, "### UNKNOWN ###")),
+                    ("frame", frame),
+                    ("reason", "no agreement"),
+                ])
+                data.append(item)
         yaml.dump(data, file, OrderedDumper, default_flow_style=False)
