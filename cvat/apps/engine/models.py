@@ -209,6 +209,8 @@ class Segment(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
     start_frame = models.IntegerField()
     stop_frame = models.IntegerField()
+    # version field for optimistic/pessimistic locks
+    concurrent_version = models.PositiveIntegerField(default=0)
 
     objects = SegmentQuerySet.as_manager()
 
@@ -231,6 +233,17 @@ class Segment(models.Model):
     def get_performers(self):
         """Return queryset of users which have worked on the given segment"""
         return User.objects.filter(job__segment=self)
+
+    def split_jobs(self, job_id):
+        job_id = int(job_id)
+        current_job = None
+        other_jobs = []
+        for j in self.job_set.all():
+            if j.id == job_id:
+                current_job = j
+            else:
+                other_jobs.append(j)
+        return current_job, other_jobs
 
 class Job(models.Model):
     segment = models.ForeignKey(Segment, on_delete=models.CASCADE)

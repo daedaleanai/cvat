@@ -27,7 +27,7 @@ from rest_framework.decorators import action
 from rest_framework import mixins
 from django_filters import rest_framework as filters
 import django_rq
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 
@@ -864,7 +864,7 @@ class JobViewSet(viewsets.GenericViewSet,
 
         if http_method in SAFE_METHODS:
             permissions.append(auth.JobAccessPermission)
-        elif http_method in ["PATCH", "PUT", "DELETE"]:
+        elif http_method in ["PATCH", "PUT", "POST", "DELETE"]:
             permissions.append(auth.JobChangePermission)
         else:
             permissions.append(auth.AdminRolePermission)
@@ -926,6 +926,29 @@ class JobViewSet(viewsets.GenericViewSet,
                 except (AttributeError, IntegrityError) as e:
                     return Response(data=str(e), status=status.HTTP_400_BAD_REQUEST)
                 return Response(data)
+
+    @action(detail=True, methods=['POST'], url_path=r'(?P<version>\d+)/assign/(?P<user_id>\d+)')
+    def assign(self, request, pk, version, user_id):
+        version = int(version)
+        user_id = int(user_id)
+        if user_id == 0:
+            user_id = None
+
+        with transaction.atomic():
+            segment = models.Segment.objects.select_for_update().get(job__id=pk)
+            if segment.concurrent_version != version:
+                return Response(status=status.HTTP_409_CONFLICT)
+
+            current_job, other_jobs = segment.split_jobs(pk)
+            if user_id and any(j.assignee_id == user_id for j in other_jobs):
+                raise serializers.ValidationError("User is already working on another job for the given sequence.")
+
+            current_job.assignee_id = user_id
+            current_job.save()
+            segment.concurrent_version = version + 1
+            segment.save()
+        return Response(status=status.HTTP_200_OK)
+
 
 @method_decorator(name='list', decorator=swagger_auto_schema(
     operation_summary='Method provides a paginated list of users registered on the server'))

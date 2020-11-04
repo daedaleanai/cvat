@@ -566,6 +566,7 @@
                 stop_frame: undefined,
                 sequence_name: undefined,
                 version: undefined,
+                concurrent_version_ref: undefined,
                 task: undefined,
             };
 
@@ -682,6 +683,22 @@
                     get: () => data.version + 1,
                 },
                 /**
+                    * @name concurrentVersion
+                    * @type {number}
+                    * @memberof module:API.cvat.classes.Job
+                    * @readonly
+                    * @instance
+                */
+                concurrentVersion: {
+                    // use "reference" (object storing the value)
+                    // in order to have concurrentVersion updated for all jobs related to the same segment
+                    // when any job's version is updated
+                    get: () => data.concurrent_version_ref.value,
+                    set: (value) => {
+                        data.concurrent_version_ref.value = value;
+                    },
+                },
+                /**
                     * @name task
                     * @type {module:API.cvat.classes.Task}
                     * @memberof module:API.cvat.classes.Job
@@ -739,6 +756,22 @@
         async save() {
             const result = await PluginRegistry
                 .apiWrapper.call(this, Job.prototype.save);
+            return result;
+        }
+
+        /**
+            * Method assigns the job to the user with given userId
+            * @method assign
+            * @memberof module:API.cvat.classes.Job
+            * @readonly
+            * @instance
+            * @async
+            * @throws {module:API.cvat.exceptions.ServerError}
+            * @throws {module:API.cvat.exceptions.PluginError}
+        */
+        async assign() {
+            const result = await PluginRegistry
+                .apiWrapper.call(this, Job.prototype.assign);
             return result;
         }
     }
@@ -804,6 +837,7 @@
             if (Array.isArray(initialData.segments)) {
                 for (const segment of initialData.segments) {
                     if (Array.isArray(segment.jobs)) {
+                        const concurrent_version_ref = { value: segment.concurrent_version };
                         for (const job of segment.jobs) {
                             const jobInstance = new Job({
                                 url: job.url,
@@ -815,6 +849,7 @@
                                 sequence_name: segment.sequence_name,
                                 version: job.version,
                                 task: this,
+                                concurrent_version_ref,
                             });
                             data.jobs.push(jobInstance);
                         }
@@ -1432,6 +1467,15 @@
         throw new ArgumentError(
             'Can not save job without and id',
         );
+    };
+
+    Job.prototype.assign.implementation = async function () {
+        const userId = this.assignee ? this.assignee.id : '0';
+        return serverProxy.jobs.assignJob(this.id, this.concurrentVersion, userId)
+            .then((response) => {
+                this.concurrentVersion += 1;
+                return response;
+            });
     };
 
     Job.prototype.frames.get.implementation = async function (frame) {

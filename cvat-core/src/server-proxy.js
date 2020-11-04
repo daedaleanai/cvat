@@ -364,6 +364,21 @@
                 });
             }
 
+            async function assignJob(jobId, version, userId) {
+                const { backendAPI } = config;
+                const url = `${backendAPI}/jobs/${jobId}/${version}/assign/${userId}`;
+                return Axios.post(url, {
+                    proxy: config.proxy,
+                }).catch((errorData) => {
+                    if (errorData.response && errorData.response.status === 400) {
+                        const message = errorData.response.data.join(' ');
+                        throw new ServerError(message, errorData.response.status);
+                    }
+                    throw generateError(errorData);
+                });
+
+            }
+
             async function exportDataset(id, format) {
                 const { backendAPI } = config;
                 let url = `${backendAPI}/tasks/${id}/dataset?format=${format}`;
@@ -758,6 +773,7 @@
                     value: Object.freeze({
                         getJob,
                         saveJob,
+                        assignJob,
                     }),
                     writable: false,
                 },

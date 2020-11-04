@@ -113,8 +113,8 @@ class SegmentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.Segment
-        fields = ('start_frame', 'stop_frame', 'jobs', 'sequence_name')
-        read_only_fields = ('sequence_name',)
+        fields = ('start_frame', 'stop_frame', 'jobs', 'sequence_name', 'concurrent_version')
+        read_only_fields = ('sequence_name', 'concurrent_version')
 
     def to_representation(self, instance):
         value = super().to_representation(instance)
