@@ -71,9 +71,9 @@ class ShapeModel extends Listener {
             let attrInfo = labelsInfo.attrInfo(attrId);
             if (attrInfo.mutable) {
                 this._attributes.mutable[this._frame] = this._attributes.mutable[this._frame] || {};
-                this._attributes.mutable[this._frame][attrId] = attrInfo.values[0];
+                this._attributes.mutable[this._frame][attrId] = attrInfo.defaultValue;
             } else {
-                this._attributes.immutable[attrId] = attrInfo.values[0];
+                this._attributes.immutable[attrId] = attrInfo.defaultValue;
             }
         }
 
@@ -267,12 +267,14 @@ class ShapeModel extends Listener {
         }, frame);
         // End of undo/redo code
 
+        const attrValue = LabelsInfo.normalize(attrInfo.type, value);
+        labelsInfo.updateDefaultValue(attrId, attrValue);
         if (attrInfo.mutable) {
             this._attributes.mutable[frame] = this._attributes.mutable[frame]|| {};
-            this._attributes.mutable[frame][attrId] = LabelsInfo.normalize(attrInfo.type, value);
+            this._attributes.mutable[frame][attrId] = attrValue;
             this._setupKeyFrames();
         } else {
-            this._attributes.immutable[attrId] = LabelsInfo.normalize(attrInfo.type, value);
+            this._attributes.immutable[attrId] = attrValue;
         }
 
         this.notify('attributes');
