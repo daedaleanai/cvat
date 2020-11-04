@@ -263,6 +263,10 @@
     cursor: default;
 }
 
+body.hide-box-size .shapeText {
+    display: none;
+}
+
 .highlightedShape {
     fill-opacity: 0.2;
     stroke-opacity: 1;

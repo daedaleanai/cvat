@@ -30,6 +30,7 @@ class LabelsInfo {
 
             for (const attr of label.attributes) {
                 this._attributes[attr.id] = convertAttribute(attr);
+                this._attributes[attr.id].defaultValue = this._attributes[attr.id].values[0];
                 this._labels[label.id].attributes[attr.id] = this._attributes[attr.id];
             }
 
@@ -94,6 +95,14 @@ class LabelsInfo {
             return JSON.parse(JSON.stringify(this._attributes[attrId]));
         }
         throw Error('Unknown attribute ID');
+    }
+
+
+    updateDefaultValue(attrId, attrValue) {
+        if (!(attrId in this._attributes)) {
+            throw Error('Unknown attribute ID');
+        }
+        this._attributes[attrId].defaultValue = attrValue;
     }
 
 

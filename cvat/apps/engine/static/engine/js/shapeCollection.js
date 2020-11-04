@@ -1177,6 +1177,9 @@ class ShapeCollectionView {
         this._colorSettings = {
             'fill-opacity': 0,
             'projection-lines':false,
+            'color-by-label': true,
+            'color-by-group': false,
+            'colors-by-label': this._controller.colorsByGroup.bind(this._controller),
         };
 
         this._showAllInterpolationBox.on('change', (e) => {

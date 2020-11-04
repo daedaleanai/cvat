@@ -113,8 +113,8 @@ class PlayerModel extends Listener {
             multipleStep: 10,
             fps: 25,
             gamma: 1,
-            rotateAll: task.mode === 'interpolation',
-            resetZoom: task.mode === 'annotation',
+            rotateAll: true,
+            resetZoom: false,
         };
 
         this._playInterval = null;
@@ -706,6 +706,7 @@ class PlayerView {
         this._playerStepUI = $('#playerStep');
         this._playerSpeedUI = $('#speedSelect');
         this._playerGammaUI = $('#playerGammaRange');
+        this._showShapesSizesUI = $('#show-shape-sizes');
         this._resetZoomUI = $('#resetZoomBox');
         this._frameNumber = $('#frameNumber');
         this._playerGridPattern = $('#playerGridPattern');
@@ -739,6 +740,14 @@ class PlayerView {
                 this._controller.frameMouseDown(e);
             }
             e.preventDefault();
+        });
+
+        this._showShapesSizesUI.on('change', (e) => {
+            if (e.target.checked) {
+                $(document.body).removeClass('hide-box-size');
+            } else {
+                $(document.body).addClass('hide-box-size');
+            }
         });
 
         this._playerContentUI.on('wheel', e => this._controller.zoom(e, this._playerBackgroundUI[0]));
