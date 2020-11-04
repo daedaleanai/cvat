@@ -16,6 +16,7 @@ ENV TERM=xterm \
     TZ=${TZ}
 
 ARG USER
+ARG UID=1000
 ARG DJANGO_CONFIGURATION
 ENV DJANGO_CONFIGURATION=${DJANGO_CONFIGURATION}
 
@@ -61,7 +62,7 @@ RUN apt-get update && \
 ENV USER=${USER}
 ENV HOME /home/${USER}
 WORKDIR ${HOME}
-RUN adduser --shell /bin/bash --disabled-password --gecos "" ${USER}
+RUN useradd -l -u "${UID}" -s /bin/bash -M "${USER}"
 
 COPY components /tmp/components
 

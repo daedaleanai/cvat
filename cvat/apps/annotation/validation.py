@@ -1,8 +1,14 @@
 import io
 from itertools import groupby
+from enum import IntEnum
 
-from cvat.apps.annotation.structures import BoundingBox, label_by_class_id
+from cvat.apps.annotation.structures import label_by_class_id
 from cvat.apps.engine.utils import natural_order
+
+
+class Severity(IntEnum):
+    WARNING = 30
+    ERROR = 40
 
 
 def validate(sequences, jump_threshold=10):
@@ -105,6 +111,8 @@ def is_valid_bbox(bbox):
 
 
 class ValidationReporter:
+    severity = Severity
+
     def __init__(self):
         self.sequence = None
         self.frame = None
@@ -113,11 +121,11 @@ class ValidationReporter:
         self._violations = []
         self._frames_count_by_sequence = {}
 
-    def has_violations(self):
-        return len(self._violations) > 0
+    def has_violations(self, severity=Severity.ERROR):
+        return any(True for *_, sev in self._violations if sev >= severity)
 
-    def write_text_report(self, file):
-        data = self.get_json_report()
+    def write_text_report(self, file, severity=Severity.ERROR):
+        data = self.get_json_report(severity)
         for sequence in data['violations']:
             file.write("Sequence {}:\n".format(sequence["name"]))
             for seq_message in sequence["messages"]:
@@ -136,13 +144,13 @@ class ValidationReporter:
             file.write("\t{}: {}\n".format(sequence, count))
         file.write("Total frames: {}\n".format(data['counts']['total']))
 
-    def get_text_report(self):
+    def get_text_report(self, severity=Severity.ERROR):
         buffer = io.StringIO()
-        self.write_text_report(buffer)
+        self.write_text_report(buffer, severity)
         return buffer.getvalue()
 
-    def get_json_report(self):
-        violations = _group_violations(self._violations)
+    def get_json_report(self, severity=Severity.ERROR):
+        violations = _group_violations(self._violations, severity)
         counts = _serialize_counts(self._frames_count_by_sequence)
         return dict(violations=violations, counts=counts)
 
@@ -168,27 +176,28 @@ class ValidationReporter:
         self._report("class-id changes from '{}' to '{}'".format(prev_value, value))
 
     def report_no_move(self):
-        self._report("Bounding box has the same position as on the previous frame")
+        self._report("Bounding box has the same position as on the previous frame", Severity.WARNING)
 
     def report_large_jump(self):
-        self._report("Bounding box jumps too much from the position on the previous frame")
+        self._report("Bounding box jumps too much from the position on the previous frame", Severity.WARNING)
 
     def report_track_id_non_consecutive(self, ids):
-        self._report("track-id values are not consecutive: {}".format(', '.join(sorted(ids))))
+        self._report("track-id values are not consecutive: {}".format(', '.join(sorted(ids))), Severity.WARNING)
 
     def count_frame(self, sequence_name):
         self._frames_count_by_sequence[sequence_name] = self._frames_count_by_sequence.get(sequence_name, 0) + 1
 
-    def _report(self, message):
+    def _report(self, message, severity=Severity.ERROR):
         frame_name = self.frame
         if self.frame_index is not None:
             index = "({})".format(self.frame_index)
             index = index.rjust(6, ' ')
             frame_name = "{}{}".format(frame_name, index)
-        self._violations.append((self.sequence, frame_name, self.bbox_index, message))
+        self._violations.append((self.sequence, frame_name, self.bbox_index, message, severity))
 
 
-def _group_violations(data):
+def _group_violations(data, severity):
+    data = [item for item in data if item[-1] >= severity]
     return [_serialize_sequence(s_data, s_name) for s_name, s_data in groupby(data, key=lambda r: r[0])]
 
 

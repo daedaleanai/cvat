@@ -34,7 +34,8 @@ from django.utils import timezone
 from . import annotation, task, models
 from cvat.settings.base import JS_3RDPARTY, CSS_3RDPARTY
 from cvat.apps.authentication.decorators import login_required
-from .ddln.multiannotation import request_extra_annotation, FailedAssignmentError, merge
+from .ddln.grey_export import export_annotation
+from .ddln.multiannotation import request_extra_annotation, FailedAssignmentError, merge, accept_segments
 from .log import slogger, clogger
 from cvat.apps.engine.models import StatusChoice, Task, Job, Plugin, Segment
 from cvat.apps.engine.serializers import (
@@ -44,6 +45,7 @@ from cvat.apps.engine.serializers import (
     RqStatusSerializer, TaskDataSerializer, DataOptionsSerializer, LabeledDataSerializer,
     PluginSerializer, FileInfoSerializer, LogEventSerializer, JobSelectionSerializer,
     ProjectSerializer, BasicUserSerializer, TaskDumpSerializer, TaskValidateSerializer, ExternalFilesSerializer,
+    AcceptSegmentsSerializer,
 )
 from cvat.apps.engine.utils import natural_order, safe_path_join
 from cvat.apps.annotation.serializers import AnnotationFileSerializer, AnnotationFormatSerializer
@@ -56,6 +58,7 @@ from cvat.apps.annotation.format import get_annotation_formats
 from cvat.apps.annotation.transports.cvat import CVATImporter
 from cvat.apps.annotation.structures import load_sequences
 from cvat.apps.annotation.validation import validate
+from cvat.apps.dataset_manager.util import make_zip_archive
 import cvat.apps.dataset_manager.task as DatumaroTask
 
 from drf_yasg.utils import swagger_auto_schema
@@ -515,9 +518,43 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
         importer = CVATImporter.for_task(pk, job_selection)
         sequences = load_sequences(importer)
         reporter = validate(sequences, **options)
-        report = reporter.get_text_report()
+        report = reporter.get_text_report(reporter.severity.WARNING)
 
         return Response(data={"report": report}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['POST'], url_path='grey-export')
+    def grey_export(self, request, pk):
+        task = self.get_object()
+        file_path, _, _, _ = self._get_merge_params(task)
+
+        if task.status != StatusChoice.COMPLETED:
+            raise serializers.ValidationError("All task jobs should be completed")
+
+        queue = django_rq.get_queue("default")
+        rq_id = "/api/v1/tasks/{}/{}/grey-export".format(pk, file_path)
+        rq_job = queue.fetch_job(rq_id)
+        if rq_job:
+            if rq_job.is_finished:
+                rq_job.delete()
+                return Response(status=status.HTTP_200_OK)
+            elif rq_job.is_failed:
+                exc_info = rq_job.exc_info
+                rq_job.delete()
+                message_prefix = "ExportError: "
+                if message_prefix in exc_info:
+                    message_index = exc_info.index(message_prefix) + len(message_prefix)
+                    message = exc_info[message_index:]
+                    return Response(data=message, status=status.HTTP_400_BAD_REQUEST)
+                return Response(data=exc_info, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            else:  # still in progress
+                return Response(status=status.HTTP_202_ACCEPTED)
+
+        queue.enqueue_call(
+            func=export_annotation,
+            args=(pk, file_path),
+            job_id=rq_id,
+        )
+        return Response(status=status.HTTP_202_ACCEPTED)
 
     @swagger_auto_schema(method='get', operation_summary='Method allows to download annotations as a file',
         manual_parameters=[openapi.Parameter('filename', openapi.IN_PATH, description="A name of a file with annotations",
@@ -593,7 +630,7 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
 
         return Response(status=status.HTTP_202_ACCEPTED)
 
-    @action(detail=AttributeError, methods=['POST'], url_path='request-extra-annotation',
+    @action(detail=True, methods=['POST'], url_path='request-extra-annotation',
             serializer_class=RequestExtraAnnotationSerializer)
     def request_extra_anno(self, request, pk):
         db_task = self.get_object()
@@ -613,7 +650,8 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
 
     @action(detail=True, methods=['POST'], url_path='merge-annotations')
     def merge_annotations(self, request, pk):
-        file_path, filename, acceptance_score = self._get_merge_params()
+        db_task = self.get_object()
+        file_path, filename, acceptance_score, times_annotated = self._get_merge_params(db_task)
 
         queue = django_rq.get_queue("default")
         rq_id = "/api/v1/tasks/{}/merge/{}/{}".format(pk, filename, acceptance_score)
@@ -622,7 +660,7 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
             if rq_job.is_finished:
                 data = json.load(open(file_path + ".json"))
                 download_url = reverse("cvat:task-merge-annotations-result", args=[pk], request=request)
-                download_url = "{}?acceptance_score={}".format(download_url, acceptance_score)
+                download_url = "{}?acceptance_score={}&times_annotated={}".format(download_url, acceptance_score, times_annotated)
                 data["download_url"] = download_url
                 rq_job.delete()
                 return Response(data, status=status.HTTP_201_CREATED)
@@ -642,16 +680,31 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
 
     @action(detail=True, methods=['GET'], url_path='merge-annotations-result', url_name='merge-annotations-result')
     def get_merge_result(self, request, pk=None):
-        file_path, filename, _ = self._get_merge_params()
-        return sendfile(request, file_path, attachment=True, attachment_filename=filename)
-
-    def _get_merge_params(self):
-        acceptance_score = float(self.request.query_params.get("acceptance_score", 0))
         db_task = self.get_object()
+        file_path, filename, _, _ = self._get_merge_params(db_task)
+        filename = "{}.zip".format(filename)
+        archive_path = "{}.zip".format(file_path)
+        if not os.path.exists(archive_path) and os.path.exists(file_path):
+            make_zip_archive(file_path, archive_path)
+        return sendfile(request, archive_path, attachment=True, attachment_filename=filename)
+
+    @action(detail=True, methods=['POST'], url_path='accept-segments', serializer_class=AcceptSegmentsSerializer)
+    def accept_segments(self, request, pk):
+        db_task = self.get_object()
+        file_path, _, _, _ = self._get_merge_params(db_task)
+        serializer = AcceptSegmentsSerializer(data=request.data, context={"task": db_task})
+        serializer.is_valid(raise_exception=True)
+        segments = serializer.validated_data["segments"]
+        accept_segments(db_task, file_path, segments)
+        return Response(status=status.HTTP_202_ACCEPTED)
+
+    def _get_merge_params(self, db_task):
+        acceptance_score = float(self.request.query_params.get("acceptance_score", 0))
+        times_annotated = int(self.request.query_params.get("times_annotated", db_task.times_annotated))
         filename = re.sub(r'[\\/*?:"<>|]', '_', db_task.name)
-        filename = "{}-{}.zip".format(filename, acceptance_score)
+        filename = "{}-{}-x{}".format(filename, acceptance_score, times_annotated)
         file_path = os.path.join(db_task.get_task_dirname(), filename)
-        return file_path, filename, acceptance_score
+        return file_path, filename, acceptance_score, times_annotated
 
     @swagger_auto_schema(method='get', operation_summary='When task is being created the method returns information about a status of the creation process')
     @action(detail=True, methods=['GET'], serializer_class=RqStatusSerializer)

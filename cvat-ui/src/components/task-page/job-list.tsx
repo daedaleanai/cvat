@@ -155,7 +155,7 @@ function JobListComponent(props: Props & RouteComponentProps): JSX.Element {
         `${completed} of ${data.length} jobs`;
 
     return (
-        <div className='cvat-task-job-list'>
+        <div className='task-section-container'>
             <Row type='flex' justify='space-between' align='middle'>
                 <Col>
                     <Text className='cvat-text-color cvat-jobs-header'> Jobs </Text>
