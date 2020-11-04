@@ -12,7 +12,7 @@ services:
       INVENTORY_CREDENTIALS_FILENAME: cvat-inentory-file-writer-948543f62305.json
       INVENTORY_SPREADSHEET_ID: 11nn8OJlvMllfpF8qkcLqbvefclF0iIiawFO9xN-2MrI
     volumes:
-      - cvat_share:/home/django/share:ro
+      - cvat_share:/home/django/share:rw
 volumes:
   cvat_share:
     driver_opts:

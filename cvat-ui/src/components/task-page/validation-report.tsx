@@ -75,8 +75,8 @@ function ValidationReportComponent(props: Props): JSX.Element {
     }
 
     return (
-        <div className='validation-report-block'>
-            <Row className='validation-report-header' type='flex' justify='end' align='middle'>
+        <div className='task-section-container'>
+            <Row className='task-section-header' type='flex' justify='end' align='middle'>
                 <Col>
                     <Text className='cvat-text-color  cvat-validation-header'> Validation </Text>
                 </Col>

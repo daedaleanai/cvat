@@ -6,9 +6,9 @@ from pathlib import Path
 
 
 class CsvDirectoryExporter:
-    def __init__(self, base_dir):
+    def __init__(self, base_dir, clear_if_exists=True):
         self._base_dir_path = Path(base_dir)
-        if self._base_dir_path.exists():
+        if clear_if_exists and self._base_dir_path.exists():
             shutil.rmtree(str(self._base_dir_path))
 
     def __enter__(self):

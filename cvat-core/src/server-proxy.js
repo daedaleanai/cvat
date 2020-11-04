@@ -322,6 +322,48 @@
                 });
             }
 
+            async function acceptSequences(taskId, segmentIds) {
+                const { backendAPI } = config;
+                const url = `${backendAPI}/tasks/${taskId}/accept-segments`;
+                const data = { segments: segmentIds };
+                return Axios.post(url, data, {
+                    proxy: config.proxy,
+                }).catch((errorData) => {
+                    throw generateError(errorData);
+                });
+            }
+
+            async function exportToGrey(taskId) {
+                const { backendAPI } = config;
+                const url = `${backendAPI}/tasks/${taskId}/grey-export`;
+                const pollInterval = 3000;
+
+                return new Promise((resolve, reject) => {
+                    async function request() {
+                        Axios.post(url, {
+                            proxy: config.proxy,
+                        }).then((response) => {
+                            if (response.status === 202) {
+                                setTimeout(request, pollInterval);
+                            } else {
+                                resolve();
+                            }
+                        }).catch((errorData) => {
+                            if (errorData.response && errorData.response.status === 400) {
+                                let errorMessage = errorData.response.data;
+                                if (Array.isArray(errorMessage)) {
+                                    errorMessage = errorMessage.join(", ");
+                                }
+                                reject(errorMessage);
+                            } else {
+                                reject(generateError(errorData));
+                            }
+                        });
+                    }
+                    setTimeout(request);
+                });
+            }
+
             async function exportDataset(id, format) {
                 const { backendAPI } = config;
                 let url = `${backendAPI}/tasks/${id}/dataset?format=${format}`;
@@ -705,6 +747,8 @@
                         validateTask,
                         mergeAnnotations,
                         requestExtraAnnotation,
+                        acceptSequences,
+                        exportToGrey,
                         exportDataset,
                     }),
                     writable: false,

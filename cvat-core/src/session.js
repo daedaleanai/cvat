@@ -1340,6 +1340,38 @@
         }
 
         /**
+            * Manually accept incomplete/rejected sequences
+            * @method acceptSequences
+            * @memberof module:API.cvat.classes.Task
+            * @readonly
+            * @instance
+            * @async
+            * @throws {module:API.cvat.exceptions.ServerError}
+            * @throws {module:API.cvat.exceptions.PluginError}
+        */
+        async acceptSequences(segmentIds) {
+            const result = await PluginRegistry
+                .apiWrapper.call(this, Task.prototype.acceptSequences, segmentIds);
+            return result;
+        }
+
+        /**
+            * Export finished task to grey
+            * @method exportToGrey
+            * @memberof module:API.cvat.classes.Task
+            * @readonly
+            * @instance
+            * @async
+            * @throws {module:API.cvat.exceptions.ServerError}
+            * @throws {module:API.cvat.exceptions.PluginError}
+        */
+        async exportToGrey() {
+            const result = await PluginRegistry
+                .apiWrapper.call(this, Task.prototype.exportToGrey);
+            return result;
+        }
+
+        /**
             * Method deletes a task from a server
             * @method delete
             * @memberof module:API.cvat.classes.Task
@@ -1626,8 +1658,18 @@
         return result;
     };
 
+    Task.prototype.acceptSequences.implementation = async function (segmentIds) {
+        const result = await serverProxy.tasks.acceptSequences(this.id, segmentIds);
+        return result;
+    };
+
     Task.prototype.mergeAnnotations.implementation = async function (acceptanceScore) {
         const result = await serverProxy.tasks.mergeAnnotations(this.id, acceptanceScore);
+        return result;
+    };
+
+    Task.prototype.exportToGrey.implementation = async function () {
+        const result = await serverProxy.tasks.exportToGrey(this.id);
         return result;
     };
 
