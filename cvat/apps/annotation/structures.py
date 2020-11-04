@@ -240,5 +240,6 @@ label_by_class_id = {
     "3": "Flying bird",
     "4": "Fixed wing aircraft",
     "5": "Helicopter",
+    "6": "Hot air balloon",
     "100": "Unknown",
 }
