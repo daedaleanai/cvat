@@ -4,7 +4,7 @@ import {
     Row,
     Col,
     Button,
-    Spin,
+    notification,
 } from 'antd';
 import Text from 'antd/lib/typography/Text';
 import { CombinedState } from "reducers/interfaces";
@@ -25,50 +25,8 @@ function mapStateToProps(state: CombinedState): StateToProps {
 
 function GreyExporterComponent(props: Props & StateToProps): JSX.Element {
     const { taskInstance, me } = props;
-    const [loading, setLoading] = useState(false);
-    const [errorMessage, setErrorMessage] = useState('');
-    const [exported, setExported] = useState(false);
-
-    const exportTask = () : void => {
-      setLoading(true);
-      taskInstance.exportToGrey()
-          .then(() => {
-              setExported(true);
-          })
-          .catch((error) => {
-              if (typeof error === 'string') {
-                  setErrorMessage(error);
-              } else {
-                  console.log(error);
-              }
-          })
-          .finally(() => {
-              setLoading(false);
-          });
-    };
 
     if (!me.isAdmin || taskInstance.timesAnnotated > 1) return false;
-
-    let content;
-    if (loading) {
-        content = <Spin size='large' className='cvat-spinner' />;
-    } else if (errorMessage) {
-        content = <Text type="danger"><pre>{errorMessage}</pre></Text>;
-    } else if (exported) {
-        content = "The task has been exported successfully";
-    } else {
-        content = (
-            <Button
-                type='primary'
-                size='large'
-                ghost
-                onClick={exportTask}
-            >
-                Export
-            </Button>
-        );
-    }
-
     return (
         <div className='task-section-container'>
             <Row className='task-section-header' type='flex' justify='start' align='middle'>
@@ -78,10 +36,46 @@ function GreyExporterComponent(props: Props & StateToProps): JSX.Element {
             </Row>
             <Row type='flex' justify='center' align='middle'>
                 <Col>
-                    {content}
+                    <ExportButton taskInstance={taskInstance} />
                 </Col>
             </Row>
         </div>
+    );
+}
+
+export function ExportButton({taskInstance}) {
+    const [loading, setLoading] = useState(false);
+    const [exported, setExported] = useState(false);
+
+    const exportTask = (): void => {
+        setLoading(true);
+        taskInstance.exportToGrey()
+            .then(() => {
+                setExported(true);
+                notification.info({
+                    message: 'Task has been exported to grey successfully',
+                });
+            }).catch((error) => {
+            notification.error({
+                message: 'Could not export task to grey',
+                description: error.toString(),
+            });
+        }).finally(() => {
+            setLoading(false);
+        });
+    };
+
+    return (
+        <Button
+            loading={loading}
+            disabled={loading || exported}
+            type='primary'
+            size='large'
+            ghost
+            onClick={exportTask}
+        >
+            Export to grey
+        </Button>
     );
 }
 
