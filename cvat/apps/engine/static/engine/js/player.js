@@ -19,7 +19,7 @@
 class FrameProvider extends Listener {
     constructor(stop, tid) {
         super('onFrameLoad', () => this._loaded);
-        this._MAX_PRELOAD_FRAMES = 100;
+        this._MAX_PRELOAD_FRAMES = 500;
         this._MAX_CONCCURENT_LOADS = 4;
 
         this._queue = [];
