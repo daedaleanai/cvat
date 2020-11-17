@@ -1,7 +1,8 @@
 import csv
+import io
+import re
 import shutil
 import zipfile
-import io
 from pathlib import Path
 
 
@@ -41,25 +42,7 @@ class CsvZipExporter:
         return self._archive
 
 
-class BaseWriter:
-    def write_bbox(self, bbox):
-        row = (_ff(bbox.left), _ff(bbox.top), _ff(bbox.right), _ff(bbox.bottom), bbox.class_id, bbox.track_id)
-        self._writer.writerow(row)
-
-    def write_runway(self, runway):
-        self._writer.writerow((
-            runway.id,
-            int(runway.full_visible),
-            *runway.start_left.as_row(),
-            *runway.start_right.as_row(),
-            *runway.end_left.as_row(),
-            *runway.end_right.as_row(),
-            *runway.threshold_left.as_row(),
-            *runway.threshold_right.as_row(),
-        ))
-
-
-class FrameZipWriter(BaseWriter):
+class FrameZipWriter:
     def __init__(self, archive, annotation_path):
         self._path = str(annotation_path)
         self._archive = archive
@@ -73,7 +56,7 @@ class FrameZipWriter(BaseWriter):
         self._archive.writestr(self._path, self._file.getvalue())
 
 
-class FrameFileWriter(BaseWriter):
+class FrameFileWriter:
     def __init__(self, file_path):
         self._path = Path(file_path)
         self._file = io.StringIO(newline="")
@@ -87,5 +70,39 @@ class FrameFileWriter(BaseWriter):
         self._path.write_text(self._file.getvalue())
 
 
-def _ff(value):
-    return "{0:.6f}".format(value)
+class CsvZipImporter:
+    def __init__(self, file_object):
+        self._archive = zipfile.ZipFile(file_object, "r")
+
+    def iterate_frames(self):
+        for path in self._archive.namelist():
+            match = _filename_regex.match(path)
+            if not match:
+                continue
+            sequence_name, frame_name = match.groups()
+            yield FrameReader(self._archive.open(path), frame_name, sequence_name)
+
+
+class CsvDirectoryImporter:
+    def __init__(self, directory_path):
+        self._path = Path(directory_path)
+
+    def iterate_frames(self):
+        for path in self._path.glob('*/*_y.csv'):
+            short_path = str(path.relative_to(self._path))
+            match = _filename_regex.match(short_path)
+            if not match:
+                continue
+            sequence_name, frame_name = match.groups()
+            yield FrameReader(path.open('rb'), frame_name, sequence_name)
+
+
+class FrameReader:
+    def __init__(self, file, frame_name, sequence_name):
+        self.name = frame_name
+        self.sequence_name = sequence_name
+        self._file = io.TextIOWrapper(file, newline="")
+        self._reader = csv.reader(self._file, lineterminator="\n")
+
+
+_filename_regex = re.compile(r"(.*)/(.*)_y.csv")

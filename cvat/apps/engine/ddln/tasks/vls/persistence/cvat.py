@@ -1,13 +1,57 @@
-from cvat.apps.annotation.structures import RunwayPoint, Runway
-from cvat.apps.annotation.transports.cvat.utils import build_attrs_dict
 from cvat.apps.engine.utils import grouper
+from ..models import RunwayPoint, Runway
+from ...utils import build_attrs_dict
 
 
 class RunwayParseError(ValueError):
     pass
 
 
-def parse_polyline(shape):
+def iterate_runways(reader, reporter):
+    if not reader._frame_annotation:
+        return
+
+    try:
+        runway = _parse_points(reader._frame_annotation.labeled_shapes)
+        if runway:
+            visibility_message = runway.validate_visibility()
+            if visibility_message:
+                reporter._report(visibility_message)
+            yield runway
+    except RunwayParseError as e:
+        reporter._report(e.args[0])
+
+    for shape in reader._frame_annotation.labeled_shapes:
+        if shape.type != "polyline":
+            continue
+        try:
+            runway = _parse_polyline(shape)
+            visibility_message = runway.validate_visibility()
+            if visibility_message:
+                reporter._report(visibility_message)
+            yield runway
+        except RunwayParseError as e:
+            reporter._report(e.args[0])
+
+
+def write_runway(runway: Runway, writer):
+    attributes = _get_attributes(runway)
+    attributes = [writer._annotations.Attribute(name=name, value=value) for name, value in attributes.items()]
+
+    shape = {
+        "attributes": attributes,
+        "points": _get_points_list(runway),
+        "frame": writer._frame_id,
+        "group": 0,
+        "z_order": 0,
+        "occluded": False,
+        "type": "polyline",
+        "label": "Runway",
+    }
+    writer._annotations.add_shape(writer._annotations.LabeledShape(**shape))
+
+
+def _parse_polyline(shape):
     attrs = build_attrs_dict(shape)
     runway_id = attrs['Runway_ID']
     full_visible = _str_to_bool[attrs['Runway_visibility']]
@@ -40,7 +84,7 @@ def _build_point(coordinates, visible):
     return RunwayPoint(visible, x, y)
 
 
-def parse_points(shapes):
+def _parse_points(shapes):
     points = [s for s in shapes if s.type == "points"]
     if len(points) == 0:
         return None
@@ -95,3 +139,34 @@ def _parse_runway_info(shapes):
 _str_to_bool = {"false": False, "true": True}
 
 
+def _get_points_list(runway):
+    # have to provide valid coordinates for all points to pass cvat validation,
+    # but coordinates for non-visible threshold points are not stored in csv,
+    # so have to interpolate them
+    threshold_left = runway.threshold_left
+    if not threshold_left.has_valid_coordinates():
+        threshold_left = runway.start_left.get_midpoint(runway.end_left)
+
+    threshold_right = runway.threshold_right
+    if not threshold_right.has_valid_coordinates():
+        threshold_right = runway.start_right.get_midpoint(runway.end_right)
+
+    result = []
+    points = [runway.start_left, runway.start_right, runway.end_left, runway.end_right, threshold_left, threshold_right]
+    for point in points:
+        result.append(point.x)
+        result.append(point.y)
+    return result
+
+
+def _get_attributes(runway):
+    return {
+        "Runway_visibility": str(runway.full_visible).lower(),
+        "Runway_ID": runway.id,
+        "Left_D(1)": int(runway.start_left.visible),
+        "Right_D(2)": int(runway.start_right.visible),
+        "Left_U(3)": int(runway.end_left.visible),
+        "Right_U(4)": int(runway.end_right.visible),
+        "Left_M(5)": int(runway.threshold_left.visible),
+        "Right_M(6)": int(runway.threshold_right.visible),
+    }

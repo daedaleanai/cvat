@@ -7,12 +7,10 @@ from tempfile import TemporaryDirectory
 
 from django.conf import settings
 
-from cvat.apps.annotation.structures import load_sequences
-from cvat.apps.annotation.transports.cvat import CVATImporter
-from cvat.apps.annotation.transports.csv import CsvDirectoryExporter, CsvDirectoryImporter
-from cvat.apps.annotation.validation import validate
-from cvat.apps.engine.ddln.utils import write_task_mapping_file, DdlnYamlWriter, guess_task_name
 from cvat.apps.engine.models import Task
+from .tasks.spotter import SpotterTaskHandler
+from .transports import CVATImporter, CsvDirectoryExporter, CsvDirectoryImporter, migrate
+from .utils import write_task_mapping_file, DdlnYamlWriter, guess_task_name
 
 logger = logging.getLogger(__name__)
 
@@ -43,15 +41,13 @@ def export_single_annotation(task):
         task_mapping_file = root_dir / 'task_mapping.csv'
         ddln_yaml_file = root_dir / 'ddln.yaml'
 
+        handler = SpotterTaskHandler()
         importer = CVATImporter.for_task(task.id)
-        with CsvDirectoryExporter(root_dir, clear_if_exists=False) as exporter:
-            for frame_reader in importer.iterate_frames():
-                with exporter.begin_frame(frame_reader.name, frame_reader.sequence_name) as frame_writer:
-                    for bbox in frame_reader.iterate_bboxes():
-                        frame_writer.write_bbox(bbox)
+        exporter = CsvDirectoryExporter(root_dir, clear_if_exists=False)
+        migrate(importer, exporter, handler)
 
-        sequences = load_sequences(CsvDirectoryImporter(root_dir))
-        reporter = validate(sequences)
+        sequences = handler.load_sequences(CsvDirectoryImporter(root_dir))
+        reporter = handler.validate(sequences)
         if reporter.has_violations(reporter.severity.ERROR):
             raise ExportError("Task has validation errors. Please run the validation.")
 
