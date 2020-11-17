@@ -8,6 +8,7 @@ import {
 } from 'antd';
 import Text from 'antd/lib/typography/Text';
 import { CombinedState } from "reducers/interfaces";
+import { buildConfirmDialog } from "./confirmation";
 
 interface Props {
     taskInstance: any;
@@ -72,11 +73,18 @@ export function ExportButton({taskInstance}) {
             type='primary'
             size='large'
             ghost
-            onClick={exportTask}
+            onClick={confirmExport(exportTask)}
         >
             Export to grey
         </Button>
     );
 }
+
+const confirmExport = buildConfirmDialog({
+    title: 'Do you want to export this task to grey?',
+    okText: 'yes',
+    okType: 'danger',
+    cancelText: 'No',
+});
 
 export default connect(mapStateToProps)(GreyExporterComponent);
