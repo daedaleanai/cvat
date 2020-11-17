@@ -410,8 +410,7 @@ class TaskSerializer(WriteOnceMixin, serializers.ModelSerializer):
             if path:
                 host = settings.EXTERNAL_STORAGE_HOST
                 return "{}{}".format(host, path)
-        request = self.context.get('request')
-        return reverse("cvat:task-frame", args=[task.id, 0], request=request)
+        return reverse("cvat:task-frame", args=[task.id, 0])
 
     def to_representation(self, instance):
         value = super().to_representation(instance)
