@@ -13,6 +13,7 @@ from rest_framework.reverse import reverse
 
 from cvat.apps.annotation.models import AnnotationDumper
 from cvat.apps.engine import models
+from cvat.apps.engine.ddln.tasks import guess_task_type
 from cvat.apps.engine.log import slogger
 from cvat.apps.engine.utils import natural_order
 
@@ -388,6 +389,7 @@ class TaskSerializer(WriteOnceMixin, serializers.ModelSerializer):
     times_annotated = serializers.IntegerField(default=1, min_value=1, max_value=10)
     external = serializers.BooleanField(default=False)
     preview_url = serializers.SerializerMethodField()
+    task_type = serializers.SerializerMethodField()
 
     class Meta:
         model = models.Task
@@ -395,7 +397,7 @@ class TaskSerializer(WriteOnceMixin, serializers.ModelSerializer):
             'bug_tracker', 'created_date', 'updated_date', 'overlap',
             'segment_size', 'z_order', 'status', 'labels', 'segments',
             'image_quality', 'start_frame', 'stop_frame', 'frame_filter',
-            'project', 'times_annotated', 'external', 'preview_url')
+            'project', 'times_annotated', 'external', 'preview_url', 'task_type')
         read_only_fields = ('size', 'mode', 'created_date', 'updated_date',
             'status')
         write_once_fields = ('overlap', 'segment_size', 'image_quality', 'times_annotated', 'external')
@@ -412,6 +414,9 @@ class TaskSerializer(WriteOnceMixin, serializers.ModelSerializer):
                 host = settings.EXTERNAL_STORAGE_HOST
                 return "{}{}".format(host, path)
         return reverse("cvat:task-frame", args=[task.id, 0])
+
+    def get_task_type(self, task):
+        return guess_task_type(task)
 
     def to_representation(self, instance):
         value = super().to_representation(instance)
