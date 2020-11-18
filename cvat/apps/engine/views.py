@@ -36,7 +36,7 @@ from cvat.settings.base import JS_3RDPARTY, CSS_3RDPARTY
 from cvat.apps.authentication.decorators import login_required
 from .ddln.grey_export import export_annotation
 from .ddln.multiannotation import request_extra_annotation, FailedAssignmentError, merge, accept_segments
-from .ddln.tasks.spotter import SpotterTaskHandler
+from .ddln.tasks import create_task_handler
 from .ddln.transports import CVATImporter
 from .log import slogger, clogger
 from cvat.apps.engine.models import StatusChoice, Task, Job, Plugin, Segment
@@ -511,11 +511,12 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
         params_serializer.is_valid(raise_exception=True)
         job_selection = params_serializer.save()
         options = params_serializer.validated_data
+        task_type = options.pop('task_type')
         options.pop('version')
         options.pop('jobs')
 
         importer = CVATImporter.for_task(pk, job_selection)
-        handler = SpotterTaskHandler()
+        handler = create_task_handler(task_type)
         sequences = handler.load_sequences(importer)
         reporter = handler.validate(sequences, **options)
         report = reporter.get_text_report(reporter.severity.WARNING)
@@ -526,6 +527,7 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
     def grey_export(self, request, pk):
         task = self.get_object()
         file_path, _, _, _ = self._get_merge_params(task)
+        task_type = self.request.query_params.get("task_type")
 
         if task.status != StatusChoice.COMPLETED:
             raise serializers.ValidationError("All task jobs should be completed")
@@ -551,7 +553,7 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
 
         queue.enqueue_call(
             func=export_annotation,
-            args=(pk, file_path),
+            args=(pk, task_type, file_path),
             job_id=rq_id,
         )
         return Response(status=status.HTTP_202_ACCEPTED)

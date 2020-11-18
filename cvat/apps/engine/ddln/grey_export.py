@@ -8,7 +8,7 @@ from tempfile import TemporaryDirectory
 from django.conf import settings
 
 from cvat.apps.engine.models import Task
-from .tasks.spotter import SpotterTaskHandler
+from .tasks import create_task_handler
 from .transports import CVATImporter, CsvDirectoryExporter, CsvDirectoryImporter, migrate
 from .utils import write_task_mapping_file, DdlnYamlWriter, guess_task_name
 
@@ -22,15 +22,15 @@ class ExportError(Exception):
     pass
 
 
-def export_annotation(task_id, file_path):
+def export_annotation(task_id, task_type, file_path):
     task = Task.objects.get(pk=task_id)
     if task.times_annotated == 1:
-        export_single_annotation(task)
+        export_single_annotation(task, task_type)
     else:
         export_mutiannotation(task, file_path)
 
 
-def export_single_annotation(task):
+def export_single_annotation(task, task_type):
     task_name = guess_task_name(task.name)
     destination_dir = settings.OUTGOING_TASKS_ROOT / task_name
     if destination_dir.exists():
@@ -41,7 +41,7 @@ def export_single_annotation(task):
         task_mapping_file = root_dir / 'task_mapping.csv'
         ddln_yaml_file = root_dir / 'ddln.yaml'
 
-        handler = SpotterTaskHandler()
+        handler = create_task_handler(task_type)
         importer = CVATImporter.for_task(task.id)
         exporter = CsvDirectoryExporter(root_dir, clear_if_exists=False)
         migrate(importer, exporter, handler)
