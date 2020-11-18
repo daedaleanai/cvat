@@ -260,11 +260,14 @@
                 }
             }
 
-            async function validateTask(id, jobSelection) {
+            async function validateTask(id, taskType, jobSelection) {
                 const { backendAPI } = config;
 
                 const queryParams = new URLSearchParams();
                 applyJobSelection(jobSelection, queryParams);
+                if (taskType) {
+                    queryParams.append("task_type", taskType);
+                }
                 const query = [...queryParams].length > 0 ? `?${queryParams}` : "";
 
                 let response = null;
@@ -333,9 +336,12 @@
                 });
             }
 
-            async function exportToGrey(taskId) {
+            async function exportToGrey(taskId, taskType) {
                 const { backendAPI } = config;
-                const url = `${backendAPI}/tasks/${taskId}/grey-export`;
+                let url = `${backendAPI}/tasks/${taskId}/grey-export`;
+                if (taskType) {
+                    url += `?task_type=${taskType}`;
+                }
                 const pollInterval = 3000;
 
                 return new Promise((resolve, reject) => {

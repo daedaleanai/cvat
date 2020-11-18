@@ -23,6 +23,7 @@ import getCore from 'cvat-core';
 import patterns from 'utils/validation-patterns';
 import { getReposData, syncRepos } from 'utils/git-utils';
 import UserSelector from './user-selector';
+import TaskTypeLabel from './task-type-label';
 import LabelsEditorComponent from '../labels-editor/labels-editor';
 
 const core = getCore();
@@ -174,6 +175,13 @@ export default class DetailsComponent extends React.PureComponent<Props, State> 
                         <Text strong className='cvat-text-color'>Z-order</Text>
                         <br />
                         <Text className='cvat-text-color'>{zOrder}</Text>
+                    </Col>
+                </Row>
+                <Row type='flex' justify='space-between' align='middle'>
+                    <Col span={12}>
+                        <Text strong className='cvat-text-color'>Task type</Text>
+                        <br />
+                        <TaskTypeLabel value={taskInstance.taskType} />
                     </Col>
                 </Row>
             </>
