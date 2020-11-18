@@ -5,6 +5,7 @@ import {
     Button,
     Select,
     Spin,
+    notification,
 } from 'antd';
 import Text from 'antd/lib/typography/Text';
 
@@ -22,12 +23,21 @@ function ValidationReportComponent(props: Props): JSX.Element {
     const showVersionSelector = !report && !jobs && taskInstance.timesAnnotated > 1;
 
     const loadData = () : void => {
-      setLoading(true);
-      const jobSelection = { jobs, version: showVersionSelector ? version : null };
-      taskInstance.validate(jobSelection).then(responseData => {
-          setReport(responseData.report);
-          setLoading(false);
-      })
+        setLoading(true);
+        const jobSelection = { jobs, version: showVersionSelector ? version : null };
+        taskInstance.validate(jobSelection)
+            .then(responseData => {
+                setReport(responseData.report);
+            })
+            .catch((error) => {
+                notification.error({
+                    message: 'Error while getting scenarios',
+                    description: error.toString(),
+                });
+            })
+            .finally(() => {
+                setLoading(false);
+            });
     };
 
     let actionButton = report ?
