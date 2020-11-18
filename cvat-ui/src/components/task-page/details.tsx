@@ -151,6 +151,10 @@ export default class DetailsComponent extends React.PureComponent<Props, State> 
         const { imageQuality } = taskInstance;
         const zOrder = taskInstance.zOrder.toString();
 
+        const handleTaskTypeChange = (value) => {
+            taskInstance.taskType = value;
+            this.forceUpdate();
+        };
         return (
             <>
                 <Row type='flex' justify='start' align='middle'>
@@ -181,7 +185,7 @@ export default class DetailsComponent extends React.PureComponent<Props, State> 
                     <Col span={12}>
                         <Text strong className='cvat-text-color'>Task type</Text>
                         <br />
-                        <TaskTypeLabel value={taskInstance.taskType} />
+                        <TaskTypeLabel value={taskInstance.taskType} onChange={handleTaskTypeChange} />
                     </Col>
                 </Row>
             </>
