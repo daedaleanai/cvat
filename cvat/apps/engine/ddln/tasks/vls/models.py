@@ -48,16 +48,16 @@ class Runway:
     def track_id(self):
         return self.id
 
-    def validate_visibility(self):
-        """Returns None if runway visibility is valid, error message otherwise"""
-        if not self.full_visible:
-            return None
-        violators = set()
-        for point_name in ('start_left', 'start_right', 'end_left', 'end_right'):
-            point = getattr(self, point_name)
-            if not point.visible:
-                name = point_name.replace('_', ' ')
-                violators.add(name)
-        if not violators:
-            return None
-        return "Runway is visible, but its {} points are not".format(', '.join(violators))
+    @property
+    def points(self):
+        yield 'start_left', self.start_left
+        yield 'start_right', self.start_right
+        yield 'end_left', self.end_left
+        yield 'end_right', self.end_right
+
+    def validate_visibility(self, reporter):
+        if all(p.visible for _, p in self.points) and not self.full_visible:
+            reporter.report_likely_full_visible()
+        if self.full_visible:
+            violators = [n for n, p in self.points if not p.visible]
+            reporter.report_inconsistent_visibility(violators)

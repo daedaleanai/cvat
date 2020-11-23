@@ -12,3 +12,13 @@ def validate(sequences, reporter=None, **kwargs):
 
 class VlsValidationReporter(BaseValidationReporter):
     object_name = 'Runway'
+
+    def report_inconsistent_visibility(self, violators):
+        if not violators:
+            return
+        violators = (p.replace('_', ' ') for p in violators)
+        self._report("Runway is visible, but its {} points are not".format(', '.join(violators)))
+
+    def report_likely_full_visible(self):
+        message = "All runway's points are visible but the runway is not (possibly should be visible too)"
+        self._report(message, self.severity.WARNING)
