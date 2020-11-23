@@ -14,9 +14,7 @@ def iterate_runways(reader, reporter):
     try:
         runway = _parse_points(reader._frame_annotation.labeled_shapes)
         if runway:
-            visibility_message = runway.validate_visibility()
-            if visibility_message:
-                reporter._report(visibility_message)
+            runway.validate_visibility(reporter)
             yield runway
     except RunwayParseError as e:
         reporter._report(e.args[0])
@@ -26,9 +24,7 @@ def iterate_runways(reader, reporter):
             continue
         try:
             runway = _parse_polyline(shape)
-            visibility_message = runway.validate_visibility()
-            if visibility_message:
-                reporter._report(visibility_message)
+            runway.validate_visibility(reporter)
             yield runway
         except RunwayParseError as e:
             reporter._report(e.args[0])
