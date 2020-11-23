@@ -817,6 +817,7 @@
                 times_annotated: undefined,
                 external: undefined,
                 preview_url: undefined,
+                task_type: undefined,
             };
 
             for (const property in data) {
@@ -942,6 +943,18 @@
                 */
                 previewUrl: {
                     get: () => data.preview_url,
+                },
+                /**
+                    * @name taskType
+                    * @type {string}
+                    * @memberof module:API.cvat.classes.Task
+                    * @instance
+                */
+                taskType: {
+                    get: () => data.task_type || "",
+                    set: (value) => {
+                        data.task_type = value || null;
+                    },
                 },
                 /**
                     * @name mode
@@ -1693,7 +1706,7 @@
     };
 
     Task.prototype.validate.implementation = async function (jobSelection) {
-        const result = await serverProxy.tasks.validateTask(this.id, jobSelection);
+        const result = await serverProxy.tasks.validateTask(this.id, this.taskType, jobSelection);
         return result;
     };
 
@@ -1713,7 +1726,7 @@
     };
 
     Task.prototype.exportToGrey.implementation = async function () {
-        const result = await serverProxy.tasks.exportToGrey(this.id);
+        const result = await serverProxy.tasks.exportToGrey(this.id, this.taskType);
         return result;
     };
 

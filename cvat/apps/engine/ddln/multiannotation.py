@@ -9,19 +9,17 @@ from django.db import transaction
 from django.conf import settings
 from rest_framework import serializers
 
-from cvat.apps.annotation.transports.csv import CsvDirectoryExporter
-from cvat.apps.annotation.transports.cvat import CVATImporter
+from merge_annotations import merge_annotations
 
 from cvat.apps.engine import models
-from cvat.apps.engine.ddln.inventory_client import record_extra_annotation_creation, record_task_validation
-from cvat.apps.engine.ddln.sequences import extend_assignees
-from cvat.apps.engine.ddln.utils import (
-    write_task_mapping_file,
-    DdlnYamlWriter,
-)
 from cvat.apps.engine.models import Task, Segment
 from cvat.apps.engine.utils import natural_order
-from merge_annotations import merge_annotations
+from .inventory_client import record_extra_annotation_creation, record_task_validation
+from .sequences import extend_assignees
+from .tasks.spotter import SpotterTaskHandler
+from .transports import CsvDirectoryExporter, CVATImporter, migrate
+from .utils import write_task_mapping_file, DdlnYamlWriter
+
 
 logger = logging.getLogger(__name__)
 ignored_logger = logger.getChild("ignored")
@@ -225,9 +223,7 @@ def _remove_archive_file(file_path):
 
 def _dump_version(task, version, target_dir):
     job_selection = dict(version=version, jobs=[])
+    handler = SpotterTaskHandler()
     importer = CVATImporter.for_task(task.id, job_selection)
-    with CsvDirectoryExporter(target_dir) as exporter:
-        for frame_reader in importer.iterate_frames():
-            with exporter.begin_frame(frame_reader.name, frame_reader.sequence_name) as frame_writer:
-                for bbox in frame_reader.iterate_bboxes():
-                    frame_writer.write_bbox(bbox)
+    exporter = CsvDirectoryExporter(target_dir)
+    migrate(importer, exporter, handler)

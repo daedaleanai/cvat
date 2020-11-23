@@ -36,6 +36,8 @@ from cvat.settings.base import JS_3RDPARTY, CSS_3RDPARTY
 from cvat.apps.authentication.decorators import login_required
 from .ddln.grey_export import export_annotation
 from .ddln.multiannotation import request_extra_annotation, FailedAssignmentError, merge, accept_segments
+from .ddln.tasks import create_task_handler
+from .ddln.transports import CVATImporter
 from .log import slogger, clogger
 from cvat.apps.engine.models import StatusChoice, Task, Job, Plugin, Segment
 from cvat.apps.engine.serializers import (
@@ -53,11 +55,8 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from cvat.apps.authentication import auth
 from rest_framework.permissions import SAFE_METHODS
-from cvat.apps.annotation.models import AnnotationDumper, AnnotationLoader
+from cvat.apps.annotation.models import AnnotationLoader
 from cvat.apps.annotation.format import get_annotation_formats
-from cvat.apps.annotation.transports.cvat import CVATImporter
-from cvat.apps.annotation.structures import load_sequences
-from cvat.apps.annotation.validation import validate
 from cvat.apps.dataset_manager.util import make_zip_archive
 import cvat.apps.dataset_manager.task as DatumaroTask
 
@@ -512,12 +511,14 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
         params_serializer.is_valid(raise_exception=True)
         job_selection = params_serializer.save()
         options = params_serializer.validated_data
+        task_type = options.pop('task_type')
         options.pop('version')
         options.pop('jobs')
 
         importer = CVATImporter.for_task(pk, job_selection)
-        sequences = load_sequences(importer)
-        reporter = validate(sequences, **options)
+        handler = create_task_handler(task_type)
+        sequences = handler.load_sequences(importer)
+        reporter = handler.validate(sequences, **options)
         report = reporter.get_text_report(reporter.severity.WARNING)
 
         return Response(data={"report": report}, status=status.HTTP_200_OK)
@@ -526,6 +527,7 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
     def grey_export(self, request, pk):
         task = self.get_object()
         file_path, _, _, _ = self._get_merge_params(task)
+        task_type = self.request.query_params.get("task_type")
 
         if task.status != StatusChoice.COMPLETED:
             raise serializers.ValidationError("All task jobs should be completed")
@@ -551,7 +553,7 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
 
         queue.enqueue_call(
             func=export_annotation,
-            args=(pk, file_path),
+            args=(pk, task_type, file_path),
             job_id=rq_id,
         )
         return Response(status=status.HTTP_202_ACCEPTED)
