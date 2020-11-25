@@ -56,4 +56,34 @@ const webConfig = {
     },
 };
 
-module.exports = [nodeConfig, webConfig];
+const graphicConfig = {
+    target: 'web',
+    mode: 'production',
+    devtool: 'source-map',
+    entry: './src/graphic-entrypoint.js',
+    output: {
+        path: path.resolve(__dirname, 'dist'),
+        filename: 'graphic-primitives.min.js',
+        library: 'graphicPrimitives',
+        libraryTarget: 'window',
+    },
+    module: {
+        rules: [{
+            test: /.js?$/,
+            exclude: /node_modules/,
+            use: {
+                loader: 'babel-loader',
+                options: {
+                    presets: [
+                        ['@babel/preset-env', {
+                            targets: '> 2.5%', // https://github.com/browserslist/browserslist
+                        }],
+                    ],
+                    sourceType: 'unambiguous',
+                },
+            },
+        }],
+    },
+};
+
+module.exports = [nodeConfig, webConfig, graphicConfig];
