@@ -128,7 +128,7 @@ class ShapeCreatorModel extends Listener {
     }
 
     set defaultType(type) {
-        if (!['box', 'box_by_4_points', 'points', 'polygon', 'polyline', "cuboid"].includes(type)) {
+        if (!['box', 'box_by_4_points', 'points', 'polygon', 'polyline', "cuboid", "rays"].includes(type)) {
             throw Error(`Unknown shape type found ${type}`);
         }
         this._defaultType = type;
@@ -289,7 +289,7 @@ class ShapeCreatorView {
         });
 
         this._playerFrame.on('mousemove.shapeCreatorAIM', (e) => {
-            if (!['polygon', 'polyline', 'points'].includes(this._type)) {
+            if (!['polygon', 'polyline', 'points', 'rays'].includes(this._type)) {
                 this._aimCoord = window.cvat.translate.point.clientToCanvas(this._frameContent.node, e.clientX, e.clientY);
                 if (this._aim) {
                     this._aim.x.attr({
@@ -852,6 +852,9 @@ class ShapeCreatorView {
                 });
             this._createPolyEvents();
             break;
+        case 'rays':
+            this._drawInstance = new RaysDrawInstance(this);
+            break;
         case "cuboid":
             this._drawInstance = this._frameContent.polyline().draw({ snapToGrid: 0.1 }).addClass("shapeCreation").attr({
                 "stroke-width": STROKE_WIDTH / this._scale,
@@ -954,10 +957,106 @@ class ShapeCreatorView {
                     this._aim.x.attr('stroke-width', STROKE_WIDTH / this._scale);
                     this._aim.y.attr('stroke-width', STROKE_WIDTH / this._scale);
                 }
-                if (['box', 'polygon', 'polyline'].includes(this._type)) {
+                if (['box', 'polygon', 'polyline', 'rays'].includes(this._type)) {
                     this._drawInstance.attr('stroke-width', STROKE_WIDTH / this._scale);
                 }
             }
         }
+    }
+}
+
+class RaysDrawInstance {
+    constructor(creatorView) {
+        this._creatorView = creatorView;
+        this._finishedRays = [];
+        this._currentRay = null;
+        this._isRayInProgress = false;
+        this._beginRay();
+    }
+
+    draw(type) {
+        if (type === 'done') {
+            this._finish();
+        } else if (type === 'cancel') {
+            this._delegate(el => el.draw('cancel'));
+        } else {
+            throw new Error(`Event ${type} is not supported`);
+        }
+    }
+
+    remove(){
+        this._delegate(el => el.remove());
+    }
+
+    attr(key, value) {
+        this._delegate(el => el.attr(key, value));
+    }
+
+    _delegate(callback) {
+        if (this._currentRay) {
+            callback(this._currentRay);
+        }
+        this._finishedRays.forEach(r => callback(r));
+    }
+
+    _beginRay() {
+        this._currentRay = this._creatorView._frameContent.polyline().draw({snapToGrid: 0.1})
+            .addClass('shapeCreation').attr({
+                'stroke-width': STROKE_WIDTH / this._creatorView._scale,
+            });
+        this._currentRay.attr({
+            z_order: Number.MAX_SAFE_INTEGER,
+        });
+
+        this._currentRay.on('drawstart', (e) => {
+            this._isRayInProgress = true;
+        });
+
+        this._currentRay.on('drawpoint', (e) => {
+            this._currentRay.draw("done");
+            this._isRayInProgress = false;
+            this._finishRay();
+        });
+
+        this._currentRay.on('drawstart', this._creatorView._rescaleDrawPoints.bind(this._creatorView));
+        this._currentRay.on('drawpoint', this._creatorView._rescaleDrawPoints.bind(this._creatorView));
+
+        this._currentRay.on('drawstop', () => {
+            this._creatorView._frameContent.off('mousedown.shapeCreator');
+            this._creatorView._frameContent.off('mousemove.shapeCreator');
+            $('body').off('keydown.shapeCreator');
+        });
+    }
+
+    _finishRay() {
+        this._finishedRays.push(this._currentRay);
+        if (this._creatorView._polyShapeSize && this._finishedRays.length >= this._creatorView._polyShapeSize) {
+            this._finish();
+        } {
+            this._beginRay();
+        }
+    }
+
+    _finish() {
+        let actualPoints = this._finishedRays.map(e => e.attr('points')).join(" ");
+        actualPoints = window.cvat.translate.points.canvasToActual(actualPoints);
+        actualPoints = PolyShapeModel.convertStringToNumberArray(actualPoints);
+        for (const point of actualPoints) {
+            point.x = window.cvat.frameClipper.clampX(point.x);
+            point.y = window.cvat.frameClipper.clampY(point.y);
+        }
+        let segments = [];
+        let vanishingPoint;
+        for (let i = 0; i < actualPoints.length; i += 2) {
+            segments.push([actualPoints[i], actualPoints[i+1]]);
+        }
+        if (segments.length > 1) {
+            const { frameHeight, frameWidth } = window.cvat.player.geometry;
+            const infinityDistance = Math.min(frameWidth, frameHeight) * 10;
+            [segments, vanishingPoint] = window.graphicPrimitives.findVanishingPoint(segments, infinityDistance);
+            const points = PolyShapeModel.convertNumberArrayToString(segments.flat(1));
+            this._creatorView._controller.finish({ points, vanishingPoint }, this._type);
+        }
+        this._creatorView._controller.switchCreateMode(true);
     }
 }
