@@ -432,6 +432,7 @@ class ShapeCollectionModel extends Listener {
                 }
                 break;
             case 'polyline':
+            case 'rays':
             case 'points': {
                 let distance = shape.model.distance(pos, this._frame);
                 if (distance < openShape.minDistance) {
@@ -1644,7 +1645,7 @@ class ShapeCollectionView {
     static sortByZOrder() {
         if (window.cvat.job.z_order) {
             let content = $('#frameContent');
-            let shapes = $(content.find('.shape, .pointTempGroup, .shapeCreation, .aim').toArray().sort(
+            let shapes = $(content.find('.shape, .pointTempGroup, .raysTempGroup, .shapeCreation, .aim').toArray().sort(
                 (a,b) => (+a.attributes.z_order.nodeValue - +b.attributes.z_order.nodeValue)
             ));
             let children = content.children().not(shapes);

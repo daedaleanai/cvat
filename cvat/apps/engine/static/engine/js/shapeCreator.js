@@ -1038,6 +1038,7 @@ class RaysDrawInstance {
     }
 
     _finish() {
+        const { arePointsEqual, findVanishingPoint } = window.graphicPrimitives;
         let actualPoints = this._finishedRays.map(e => e.attr('points')).join(" ");
         actualPoints = window.cvat.translate.points.canvasToActual(actualPoints);
         actualPoints = PolyShapeModel.convertStringToNumberArray(actualPoints);
@@ -1045,16 +1046,14 @@ class RaysDrawInstance {
             point.x = window.cvat.frameClipper.clampX(point.x);
             point.y = window.cvat.frameClipper.clampY(point.y);
         }
-        let segments = [];
+        let segments = RaysModel.convertStringToSegments(actualPoints);
+        segments = segments.filter(([a, b]) => !arePointsEqual(a, b));
         let vanishingPoint;
-        for (let i = 0; i < actualPoints.length; i += 2) {
-            segments.push([actualPoints[i], actualPoints[i+1]]);
-        }
         if (segments.length > 1) {
             const { frameHeight, frameWidth } = window.cvat.player.geometry;
             const infinityDistance = Math.min(frameWidth, frameHeight) * 10;
-            [segments, vanishingPoint] = window.graphicPrimitives.findVanishingPoint(segments, infinityDistance);
-            const points = PolyShapeModel.convertNumberArrayToString(segments.flat(1));
+            [segments, vanishingPoint] = findVanishingPoint(segments, infinityDistance);
+            const points = RaysModel.convertSegmentsToString(segments);
             this._creatorView._controller.finish({ points, vanishingPoint }, this._type);
         }
         this._creatorView._controller.switchCreateMode(true);
