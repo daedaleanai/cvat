@@ -528,6 +528,11 @@ class ShapeBufferView {
                 'stroke-width': STROKE_WIDTH / scale,
             });
             break;
+        case 'rays':
+            this._shapeView = this._frameContent.polyline(points).addClass('shapeCreation').attr({
+                'stroke-width': STROKE_WIDTH / scale,
+            });
+            break;
         case 'points':
             this._shapeView = this._frameContent.polyline(points).addClass('shapeCreation').attr({
                 'stroke-width': 0,

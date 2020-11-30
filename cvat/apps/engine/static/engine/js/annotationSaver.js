@@ -107,12 +107,14 @@ class AnnotationSaverModel extends Listener {
             'track count': totalStat.boxes.annotation + totalStat.boxes.interpolation
                 + totalStat.polygons.annotation + totalStat.polygons.interpolation
                 + totalStat.polylines.annotation + totalStat.polylines.interpolation
+                + totalStat.rays.annotation + totalStat.rays.interpolation
                 + totalStat.points.annotation + totalStat.points.interpolation,
             'frame count': window.cvat.player.frames.stop - window.cvat.player.frames.start + 1,
             'object count': totalStat.total,
             'box count': totalStat.boxes.annotation + totalStat.boxes.interpolation,
             'polygon count': totalStat.polygons.annotation + totalStat.polygons.interpolation,
             'polyline count': totalStat.polylines.annotation + totalStat.polylines.interpolation,
+            'rays count': totalStat.rays.annotation + totalStat.rays.interpolation,
             'points count': totalStat.points.annotation + totalStat.points.interpolation,
         });
 
