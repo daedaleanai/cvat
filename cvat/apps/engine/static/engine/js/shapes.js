@@ -1270,6 +1270,15 @@ class RaysModel extends PolyShapeModel {
     constructor(data, type, clientID, color) {
         super(data, type, clientID, color);
         this._vanishingPoint = data.vanishingPoint;
+        if (typeof this._vanishingPoint === 'undefined') {
+            // vanishing point is not initialized when rays are loaded from db
+            let segments = RaysModel.convertStringToSegments(data.points);
+            const {frameHeight, frameWidth} = window.cvat.player.geometry;
+            const infinityDistance = Math.min(frameWidth, frameHeight) * 10;
+            let vanishingPoint;
+            [segments, vanishingPoint] = window.graphicPrimitives.findVanishingPoint(segments, infinityDistance);
+            this._vanishingPoint = vanishingPoint;
+        }
     }
 
     static convertStringToSegments(points) {
