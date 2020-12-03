@@ -3430,6 +3430,7 @@ class RaysView extends PolyShapeView {
     constructor(pointsModel, pointsController, svgScene, menusScene, textsScene) {
         super(pointsModel, pointsController, svgScene, menusScene, textsScene);
         this._uis.lines = null;
+        this._uis.vanishingPoint = null;
     }
 
     _setupMergeView(merge) {
@@ -3487,6 +3488,47 @@ class RaysView extends PolyShapeView {
         }
     }
 
+    _drawVanishingPoint() {
+        if (this._isVanishingPointVisible()) {
+            const radius = POINT_RADIUS * 2 / window.cvat.player.geometry.scale;
+            const scaledStroke = STROKE_WIDTH / window.cvat.player.geometry.scale;
+            const point = window.cvat.translate.points.actualToCanvas([this._controller._model._vanishingPoint])[0];
+
+            this._uis.vanishingPoint = this._scenes.svg.circle(radius)
+                .move(point.x - radius / 2, point.y - radius / 2)
+                .fill(this._appearance.fill || this._appearance.colors.shape)
+                .stroke('black')
+                .attr('stroke-width', scaledStroke)
+                .addClass('tempMarker');
+            const zOrder = this._uis.shape.node.getAttribute('z_order');
+            this._uis.vanishingPoint.node.setAttribute('z_order', zOrder);
+        }
+    }
+
+
+    _removeVanishingPoint() {
+        if (this._uis.vanishingPoint) {
+            this._uis.vanishingPoint.remove();
+            this._uis.vanishingPoint = null;
+        }
+    }
+
+    _isVanishingPointVisible() {
+        const point = this._controller._model._vanishingPoint;
+        if (!point) {
+            return false;
+        }
+        const { frameWidth, frameHeight } = window.cvat.player.geometry;
+        if (point.x < -frameWidth || point.x > 2*frameWidth){
+            return false;
+        }
+        if (point.y < -frameHeight || point.y > 2*frameHeight){
+            return false;
+        }
+        return true;
+    }
+
+
 
     _makeEditable() {
         PolyShapeView.prototype._makeEditable.call(this);
@@ -3494,10 +3536,12 @@ class RaysView extends PolyShapeView {
             $('.svg_select_points').on('click', () => this._positionateMenus());
             this._removeLines();
         }
+        this._drawVanishingPoint();
     }
 
 
     _makeNotEditable() {
+        this._removeVanishingPoint();
         PolyShapeView.prototype._makeNotEditable.call(this);
         if (!this._controller.hiddenShape) {
             let interpolation = this._controller.interpolate(window.cvat.player.frames.current);
@@ -3572,6 +3616,13 @@ class RaysView extends PolyShapeView {
                     'visibility': 'visible',
                     'fill': this._appearance.fill || this._appearance.colors.shape,
                     'stroke': this._appearance.stroke || this._appearance.colors.shape,
+                });
+            }
+
+            if (this._uis.vanishingPoint) {
+                this._uis.vanishingPoint.attr({
+                    'visibility': 'visible',
+                    'fill': this._appearance.fill || this._appearance.colors.shape,
                 });
             }
 
