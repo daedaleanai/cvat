@@ -1270,15 +1270,24 @@ class RaysModel extends PolyShapeModel {
     constructor(data, type, clientID, color) {
         super(data, type, clientID, color);
         this._vanishingPoint = data.vanishingPoint;
+    }
+
+    get vanishingPoint() {
+        // vanishing point is not initialized when rays are loaded from db
         if (typeof this._vanishingPoint === 'undefined') {
-            // vanishing point is not initialized when rays are loaded from db
-            let segments = RaysModel.convertStringToSegments(data.points);
+            const { points } = this._positions[this._frame];
+            let segments = RaysModel.convertStringToSegments(points);
             const {frameHeight, frameWidth} = window.cvat.player.geometry;
-            const infinityDistance = Math.min(frameWidth, frameHeight) * 10;
+            let infinityDistance = Math.min(frameWidth, frameHeight) * 10;
+            // window.cvat.player.geometry might not be initialized when attribute is accessed
+            if (typeof infinityDistance === 'undefined') {
+                infinityDistance = 100000;
+            }
             let vanishingPoint;
             [segments, vanishingPoint] = window.graphicPrimitives.findVanishingPoint(segments, infinityDistance);
             this._vanishingPoint = vanishingPoint;
         }
+        return this._vanishingPoint;
     }
 
     static convertStringToSegments(points) {
@@ -1308,21 +1317,12 @@ class RaysModel extends PolyShapeModel {
         }
     }
 
-    updatePosition(frame, position, silent) {
-        const prevSegments = RaysModel.convertStringToSegments(this._positions[frame].points);
-        let nextSegments = RaysModel.convertStringToSegments(position.points);
-        nextSegments = nextSegments.map((next, i) => {
-            return window.graphicPrimitives.updateSegment(prevSegments[i], next, this._vanishingPoint);
-        });
-        position.points = RaysModel.convertSegmentsToString(nextSegments);
-        super.updatePosition(frame, position, silent);
-    }
-
     _verifyArea(box) {
         return ((box.xbr - box.xtl) >= AREA_TRESHOLD || (box.ybr - box.ytl) >= AREA_TRESHOLD);
     }
 
     distance(mousePos, frame) {
+        const { pointsDistance } = window.graphicPrimitives;
         let pos = this._interpolatePosition(frame);
         if (pos.outside) return Number.MAX_SAFE_INTEGER;
         const segments = RaysModel.convertStringToSegments(pos.points);
@@ -1330,12 +1330,12 @@ class RaysModel extends PolyShapeModel {
         segments.forEach(([p1, p2]) => {
             // perpendicular from point to straight length
             let distance = (Math.abs((p2.y - p1.y) * mousePos.x - (p2.x - p1.x) * mousePos.y + p2.x * p1.y - p2.y * p1.x)) /
-                Math.sqrt(Math.pow(p2.y - p1.y, 2) + Math.pow(p2.x - p1.x, 2));
+                pointsDistance(p1, p2);
 
             // check if perpendicular belongs to the straight segment
-            let a = Math.pow(p1.x - mousePos.x, 2) + Math.pow(p1.y - mousePos.y, 2);
-            let b = Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2);
-            let c = Math.pow(p2.x - mousePos.x, 2) + Math.pow(p2.y - mousePos.y, 2);
+            let a = pointsDistance(p1, mousePos);
+            let b = pointsDistance(p1, p2);
+            let c = pointsDistance(mousePos, p2);
             if (distance < minDistance && (a + b - c) >= 0 && (c + b - a) >= 0) {
                 minDistance = distance;
             }
@@ -3429,50 +3429,67 @@ class PointsView extends PolyShapeView {
 class RaysView extends PolyShapeView {
     constructor(pointsModel, pointsController, svgScene, menusScene, textsScene) {
         super(pointsModel, pointsController, svgScene, menusScene, textsScene);
-        this._uis.lines = null;
+        this._draggable = false;
         this._uis.vanishingPoint = null;
+        this._z_order = null;
+        this._lines = [];
     }
 
+    _buildPosition() {
+        const points = this._lines.map(line => line.attr('points')).join(' ');
+        return {
+            points: window.cvat.translate.points.canvasToActual(points),
+            occluded: this._uis.shape.hasClass('occludedShape'),
+            outside: false,
+            z_order: +this._z_order,
+        };
+    }
+
+
     _setupMergeView(merge) {
-        if (this._uis.lines) {
+        if (this._uis.shape) {
             if (merge) {
-                this._uis.lines.addClass('mergePoints');
+                this._uis.shape.addClass('mergePoints');
             }
             else {
-                this._uis.lines.removeClass('mergePoints');
+                this._uis.shape.removeClass('mergePoints');
             }
         }
     }
 
 
     _setupGroupView(group) {
-        if (this._uis.lines) {
+        if (this._uis.shape) {
             if (group) {
-                this._uis.lines.addClass('groupPoints');
+                this._uis.shape.addClass('groupPoints');
             }
             else {
-                this._uis.lines.removeClass('groupPoints');
+                this._uis.shape.removeClass('groupPoints');
             }
         }
     }
 
 
     _drawLines(position) {
-        if (this._uis.lines || position.outside) {
+        if (this._uis.shape || position.outside) {
             return;
         }
-        this._uis.lines = this._scenes.svg.group()
+        this._uis.shape = this._scenes.svg.group()
             .fill(this._appearance.fill || this._appearance.colors.shape)
             .stroke(this._appearance.stroke || this._appearance.colors.shape)
             .on('click', () => {
                 this._positionateMenus();
                 this._controller.click();
             }).addClass('raysTempGroup');
-        this._uis.lines.node.setAttribute('z_order', position.z_order);
+        this._uis.shape.node.setAttribute('z_order', position.z_order);
 
+        this._lines = [];
+        this._z_order = position.z_order;
         const lines = this._splitIntoLines(position.points);
         lines.forEach(points => {
-            this._uis.lines.polyline(points).fill('inherit').stroke('inherit').attr({
+            const line = this._uis.shape.polyline(points);
+            this._lines.push(line);
+            line.fill('inherit').stroke('inherit').attr({
                 'stroke-width': STROKE_WIDTH / window.cvat.player.geometry.scale,
                 'z_order': position.z_order,
             }).addClass('shape polyline');
@@ -3481,10 +3498,12 @@ class RaysView extends PolyShapeView {
 
 
     _removeLines() {
-        if (this._uis.lines) {
-            this._uis.lines.off('click');
-            this._uis.lines.remove();
-            this._uis.lines = null;
+        if (this._uis.shape) {
+            this._uis.shape.off('click');
+            this._uis.shape.remove();
+            this._uis.shape = null;
+            this._z_order = null;
+            this._lines = [];
         }
     }
 
@@ -3492,7 +3511,7 @@ class RaysView extends PolyShapeView {
         if (this._isVanishingPointVisible()) {
             const radius = POINT_RADIUS * 2 / window.cvat.player.geometry.scale;
             const scaledStroke = STROKE_WIDTH / window.cvat.player.geometry.scale;
-            const point = window.cvat.translate.points.actualToCanvas([this._controller._model._vanishingPoint])[0];
+            const point = window.cvat.translate.points.actualToCanvas([this._controller._model.vanishingPoint])[0];
 
             this._uis.vanishingPoint = this._scenes.svg.circle(radius)
                 .move(point.x - radius / 2, point.y - radius / 2)
@@ -3500,8 +3519,7 @@ class RaysView extends PolyShapeView {
                 .stroke('black')
                 .attr('stroke-width', scaledStroke)
                 .addClass('tempMarker');
-            const zOrder = this._uis.shape.node.getAttribute('z_order');
-            this._uis.vanishingPoint.node.setAttribute('z_order', zOrder);
+            this._uis.vanishingPoint.node.setAttribute('z_order', this._z_order - 1);
         }
     }
 
@@ -3514,7 +3532,7 @@ class RaysView extends PolyShapeView {
     }
 
     _isVanishingPointVisible() {
-        const point = this._controller._model._vanishingPoint;
+        const point = this._controller._model.vanishingPoint;
         if (!point) {
             return false;
         }
@@ -3532,10 +3550,6 @@ class RaysView extends PolyShapeView {
 
     _makeEditable() {
         PolyShapeView.prototype._makeEditable.call(this);
-        if (!this._controller.lock) {
-            $('.svg_select_points').on('click', () => this._positionateMenus());
-            this._removeLines();
-        }
         this._drawVanishingPoint();
     }
 
@@ -3543,13 +3557,6 @@ class RaysView extends PolyShapeView {
     _makeNotEditable() {
         this._removeVanishingPoint();
         PolyShapeView.prototype._makeNotEditable.call(this);
-        if (!this._controller.hiddenShape) {
-            let interpolation = this._controller.interpolate(window.cvat.player.frames.current);
-            if (interpolation.position.points) {
-                let points = window.cvat.translate.points.actualToCanvas(interpolation.position.points);
-                this._drawLines(Object.assign(interpolation.position, {points: points}));
-            }
-        }
     }
 
     _splitIntoLines(points) {
@@ -3564,10 +3571,7 @@ class RaysView extends PolyShapeView {
 
     _drawShapeUI(position) {
         let points = window.cvat.translate.points.actualToCanvas(position.points);
-        this._drawLines(Object.assign(position, {points: points}));
-        this._uis.shape = this._scenes.svg.polyline(points).addClass('shape points').attr({
-            'z_order': position.z_order,
-        });
+        this._drawLines(Object.assign({}, position, {points: points}));
         ShapeView.prototype._drawShapeUI.call(this);
     }
 
@@ -3580,8 +3584,8 @@ class RaysView extends PolyShapeView {
         ShapeView.prototype._deselect.call(this);
 
         if (this._appearance.whiteOpacity) {
-            if (this._uis.lines) {
-                this._uis.lines.attr({
+            if (this._uis.shape) {
+                this._uis.shape.attr({
                     'visibility': 'hidden'
                 });
             }
@@ -3598,12 +3602,6 @@ class RaysView extends PolyShapeView {
         ShapeView.prototype._applyColorSettings.call(this);
 
         if (this._appearance.whiteOpacity) {
-            if (this._uis.lines) {
-                this._uis.lines.attr({
-                    'visibility': 'hidden'
-                });
-            }
-
             if (this._uis.shape) {
                 this._uis.shape.attr({
                     'visibility': 'hidden'
@@ -3611,8 +3609,8 @@ class RaysView extends PolyShapeView {
             }
         }
         else {
-            if (this._uis.lines) {
-                this._uis.lines.attr({
+            if (this._uis.shape) {
+                this._uis.shape.attr({
                     'visibility': 'visible',
                     'fill': this._appearance.fill || this._appearance.colors.shape,
                     'stroke': this._appearance.stroke || this._appearance.colors.shape,
@@ -3623,12 +3621,6 @@ class RaysView extends PolyShapeView {
                 this._uis.vanishingPoint.attr({
                     'visibility': 'visible',
                     'fill': this._appearance.fill || this._appearance.colors.shape,
-                });
-            }
-
-            if (this._uis.shape) {
-                this._uis.shape.attr({
-                    'visibility': 'visible',
                 });
             }
         }
