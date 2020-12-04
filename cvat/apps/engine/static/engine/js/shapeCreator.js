@@ -1032,7 +1032,7 @@ class RaysDrawInstance {
         this._finishedRays.push(this._currentRay);
         if (this._creatorView._polyShapeSize && this._finishedRays.length >= this._creatorView._polyShapeSize) {
             this._finish();
-        } {
+        } else {
             this._beginRay();
         }
     }
