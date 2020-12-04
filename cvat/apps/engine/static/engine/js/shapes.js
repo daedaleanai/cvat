@@ -1266,6 +1266,85 @@ class PolylineModel extends PolyShapeModel {
 }
 
 
+class RaysModel extends PolyShapeModel {
+    constructor(data, type, clientID, color) {
+        super(data, type, clientID, color);
+        this._vanishingPoint = data.vanishingPoint;
+    }
+
+    get vanishingPoint() {
+        // vanishing point is not initialized when rays are loaded from db
+        if (typeof this._vanishingPoint === 'undefined') {
+            const { points } = this._positions[this._frame];
+            let segments = RaysModel.convertStringToSegments(points);
+            const {frameHeight, frameWidth} = window.cvat.player.geometry;
+            let infinityDistance = Math.min(frameWidth, frameHeight) * 10;
+            // window.cvat.player.geometry might not be initialized when attribute is accessed
+            if (typeof infinityDistance === 'undefined') {
+                infinityDistance = 100000;
+            }
+            let vanishingPoint;
+            [segments, vanishingPoint] = window.graphicPrimitives.findVanishingPoint(segments, infinityDistance);
+            this._vanishingPoint = vanishingPoint;
+        }
+        return this._vanishingPoint;
+    }
+
+    static convertStringToSegments(points) {
+        if (typeof (points) === 'string') {
+            points = PolyShapeModel.convertStringToNumberArray(points);
+        }
+        const segments = [];
+        for (let i = 0; i < points.length; i += 2) {
+            segments.push([points[i], points[i+1]]);
+        }
+        return segments;
+    }
+
+    static convertSegmentsToString(segments) {
+        return PolyShapeModel.convertNumberArrayToString(segments.flat(1));
+    }
+
+    removePoint(idx) {
+        const segmentIndex = Math.floor(idx/2);
+        let frame = window.cvat.player.frames.current;
+        let position = this._interpolatePosition(frame);
+        const segments = RaysModel.convertStringToSegments(position.points);
+        if (segments.length > 1) {
+            segments.splice(segmentIndex, 1);
+            position.points = RaysModel.convertSegmentsToString(segments);
+            this.updatePosition(frame, position);
+        }
+    }
+
+    _verifyArea(box) {
+        return ((box.xbr - box.xtl) >= AREA_TRESHOLD || (box.ybr - box.ytl) >= AREA_TRESHOLD);
+    }
+
+    distance(mousePos, frame) {
+        const { pointsDistance } = window.graphicPrimitives;
+        let pos = this._interpolatePosition(frame);
+        if (pos.outside) return Number.MAX_SAFE_INTEGER;
+        const segments = RaysModel.convertStringToSegments(pos.points);
+        let minDistance = Number.MAX_SAFE_INTEGER;
+        segments.forEach(([p1, p2]) => {
+            // perpendicular from point to straight length
+            let distance = (Math.abs((p2.y - p1.y) * mousePos.x - (p2.x - p1.x) * mousePos.y + p2.x * p1.y - p2.y * p1.x)) /
+                pointsDistance(p1, p2);
+
+            // check if perpendicular belongs to the straight segment
+            let a = pointsDistance(p1, mousePos);
+            let b = pointsDistance(p1, p2);
+            let c = pointsDistance(mousePos, p2);
+            if (distance < minDistance && (a + b - c) >= 0 && (c + b - a) >= 0) {
+                minDistance = distance;
+            }
+        });
+        return minDistance;
+    }
+}
+
+
 class PolygonModel extends PolyShapeModel {
     constructor(data, type, id, color) {
         super(data, type, id, color);
@@ -1489,6 +1568,43 @@ class PolylineController extends PolyShapeController {
     }
 }
 
+
+class RaysController extends PolyShapeController {
+    constructor(raysModel) {
+        super(raysModel);
+    }
+
+    updateLineCoordinates(lineElement, linePhi, mousePos) {
+        const { toPolarCoordinates, fromPolarCoordinates, rotate } = window.graphicPrimitives;
+        const rotationPoint = this._model.vanishingPoint;
+        const points = lineElement.array().value
+            .map(([x, y]) => ({x, y}))
+            .map(p => window.cvat.translate.box.canvasToActual(p));
+        let newPoints;
+        if (rotationPoint) {
+            const { phi } = toPolarCoordinates(mousePos, rotationPoint);
+            newPoints = points
+                .map(p => toPolarCoordinates(p, rotationPoint))
+                .map(coords => ({...coords, phi}))
+                .map(coords => fromPolarCoordinates(coords, rotationPoint));
+        } else {
+            const { y } = rotate(mousePos, linePhi);
+            newPoints = points
+                .map(p => rotate(p, linePhi))
+                .map(coords => ({...coords, y}))
+                .map(p => rotate(p, -linePhi));
+        }
+        lineElement.plot(
+            newPoints
+                .map(p => window.cvat.translate.box.actualToCanvas(p))
+                .map(p => [p.x, p.y])
+        );
+
+    }
+
+}
+
+
 class PolygonController extends PolyShapeController {
     constructor(polygonModel) {
         super(polygonModel);
@@ -1579,36 +1695,7 @@ class ShapeView extends Listener {
                     this.notify('drag');
                 });
 
-                // Setup resize events
-                let objWasResized = false;
-                this._uis.shape.selectize({
-                    classRect: 'shapeSelect',
-                    rotationPoint: false,
-                    pointSize: POINT_RADIUS * 2 / window.cvat.player.geometry.scale,
-                    deepSelect: true,
-                }).resize({
-                    snapToGrid: 0.1,
-                }).on('resizestart', () => {
-                    objWasResized = false;
-                    this._flags.resizing = true;
-                    events.resize = Logger.addContinuedEvent(Logger.EventType.resizeObject);
-                    blurAllElements();
-                    this._hideShapeText();
-                    this.notify('resize');
-                }).on('resizing', () => {
-                    objWasResized = true;
-                }).on('resizedone', () => {
-                    events.resize.close();
-                    events.resize = null;
-                    this._flags.resizing = false;
-                    if (objWasResized) {
-                        const frame = window.cvat.player.frames.current;
-                        this._controller.updatePosition(frame, this._buildPosition());
-                        objWasResized = false;
-                    }
-                    this._showShapeText();
-                    this.notify('resize');
-                });
+                this.setupResizeEvents(events);
 
                 let centers = ['t', 'r', 'b', 'l'];
                 let corners = ['lt', 'rt', 'rb', 'lb'];
@@ -1706,15 +1793,8 @@ class ShapeView extends Listener {
 
     _makeNotEditable() {
         if (this._uis.shape && this._flags.editable) {
-            this._uis.shape.draggable(false).selectize(false, {
-                deepSelect: true,
-            }).resize(false);
-
-            if (this._flags.resizing) {
-                this._flags.resizing = false;
-                this.notify('resize');
-            }
-
+            this._uis.shape.draggable(false);
+            this.tearDownResizeEvents();
             if (this._flags.dragging) {
                 this._flags.dragging = false;
                 this.notify('drag');
@@ -1722,9 +1802,6 @@ class ShapeView extends Listener {
 
             this._uis.shape.off('dragstart')
                 .off('dragend')
-                .off('resizestart')
-                .off('resizing')
-                .off('resizedone')
                 .off('contextmenu.contextMenu')
                 .off('mousedown.contextMenu');
 
@@ -1732,6 +1809,47 @@ class ShapeView extends Listener {
         }
 
         $('.custom-menu').hide(100);
+    }
+
+    setupResizeEvents(events) {
+        let objWasResized = false;
+        this._uis.shape.selectize({
+            classRect: 'shapeSelect',
+            rotationPoint: false,
+            pointSize: POINT_RADIUS * 2 / window.cvat.player.geometry.scale,
+            deepSelect: true,
+        }).resize({
+            snapToGrid: 0.1,
+        }).on('resizestart', () => {
+            objWasResized = false;
+            this._flags.resizing = true;
+            events.resize = Logger.addContinuedEvent(Logger.EventType.resizeObject);
+            blurAllElements();
+            this._hideShapeText();
+            this.notify('resize');
+        }).on('resizing', () => {
+            objWasResized = true;
+        }).on('resizedone', () => {
+            events.resize.close();
+            events.resize = null;
+            this._flags.resizing = false;
+            if (objWasResized) {
+                const frame = window.cvat.player.frames.current;
+                this._controller.updatePosition(frame, this._buildPosition());
+                objWasResized = false;
+            }
+            this._showShapeText();
+            this.notify('resize');
+        });
+    }
+
+    tearDownResizeEvents() {
+        this._uis.shape.selectize(false, { deepSelect: true }).resize(false);
+        if (this._flags.resizing) {
+            this._flags.resizing = false;
+            this.notify('resize');
+        }
+        this._uis.shape.off('resizestart').off('resizing').off('resizedone');
     }
 
 
@@ -3338,6 +3456,265 @@ class PointsView extends PolyShapeView {
     }
 }
 
+
+class RaysView extends PolyShapeView {
+    constructor(pointsModel, pointsController, svgScene, menusScene, textsScene) {
+        super(pointsModel, pointsController, svgScene, menusScene, textsScene);
+        this._draggable = false;
+        this._uis.vanishingPoint = null;
+        this._z_order = null;
+        this._lines = [];
+    }
+
+    _buildPosition() {
+        const points = this._lines.map(line => line.attr('points')).join(' ');
+        return {
+            points: window.cvat.translate.points.canvasToActual(points),
+            occluded: this._uis.shape.hasClass('occludedShape'),
+            outside: false,
+            z_order: +this._z_order,
+        };
+    }
+
+
+    _setupMergeView(merge) {
+        if (this._uis.shape) {
+            if (merge) {
+                this._uis.shape.addClass('mergePoints');
+            }
+            else {
+                this._uis.shape.removeClass('mergePoints');
+            }
+        }
+    }
+
+
+    _setupGroupView(group) {
+        if (this._uis.shape) {
+            if (group) {
+                this._uis.shape.addClass('groupPoints');
+            }
+            else {
+                this._uis.shape.removeClass('groupPoints');
+            }
+        }
+    }
+
+
+    _drawLines(position) {
+        if (this._uis.shape || position.outside) {
+            return;
+        }
+        this._uis.shape = this._scenes.svg.group()
+            .fill(this._appearance.fill || this._appearance.colors.shape)
+            .stroke(this._appearance.stroke || this._appearance.colors.shape)
+            .on('click', () => {
+                this._positionateMenus();
+                this._controller.click();
+            }).addClass('raysTempGroup');
+        this._uis.shape.node.setAttribute('z_order', position.z_order);
+
+        this._lines = [];
+        this._z_order = position.z_order;
+        const lines = this._splitIntoLines(position.points);
+        lines.forEach(points => {
+            const line = this._uis.shape.polyline(points);
+            this._lines.push(line);
+            line.fill('inherit').stroke('inherit').attr({
+                'stroke-width': STROKE_WIDTH / window.cvat.player.geometry.scale,
+                'z_order': position.z_order,
+            }).addClass('shape polyline');
+        });
+    }
+
+
+    _removeLines() {
+        if (this._uis.shape) {
+            this._uis.shape.off('click');
+            this._uis.shape.remove();
+            this._uis.shape = null;
+            this._z_order = null;
+            this._lines = [];
+        }
+    }
+
+    _drawVanishingPoint() {
+        if (this._isVanishingPointVisible()) {
+            const radius = POINT_RADIUS * 2 / window.cvat.player.geometry.scale;
+            const scaledStroke = STROKE_WIDTH / window.cvat.player.geometry.scale;
+            const point = window.cvat.translate.points.actualToCanvas([this._controller._model.vanishingPoint])[0];
+
+            this._uis.vanishingPoint = this._scenes.svg.circle(radius)
+                .move(point.x - radius / 2, point.y - radius / 2)
+                .fill(this._appearance.fill || this._appearance.colors.shape)
+                .stroke('black')
+                .attr('stroke-width', scaledStroke)
+                .addClass('tempMarker');
+            this._uis.vanishingPoint.node.setAttribute('z_order', this._z_order - 1);
+        }
+    }
+
+
+    _removeVanishingPoint() {
+        if (this._uis.vanishingPoint) {
+            this._uis.vanishingPoint.remove();
+            this._uis.vanishingPoint = null;
+        }
+    }
+
+    _isVanishingPointVisible() {
+        const point = this._controller._model.vanishingPoint;
+        if (!point) {
+            return false;
+        }
+        const { frameWidth, frameHeight } = window.cvat.player.geometry;
+        if (point.x < -frameWidth || point.x > 2*frameWidth){
+            return false;
+        }
+        if (point.y < -frameHeight || point.y > 2*frameHeight){
+            return false;
+        }
+        return true;
+    }
+
+
+
+    _makeEditable() {
+        PolyShapeView.prototype._makeEditable.call(this);
+        this._drawVanishingPoint();
+    }
+
+
+    _makeNotEditable() {
+        this._removeVanishingPoint();
+        PolyShapeView.prototype._makeNotEditable.call(this);
+    }
+
+    setupResizeEvents(events) {
+        this._lines.forEach(lineElement => {
+            let objWasResized = false;
+            let linePhi;
+            lineElement.selectize({
+                classRect: 'shapeSelect',
+                rotationPoint: false,
+                pointSize: POINT_RADIUS * 2 / window.cvat.player.geometry.scale,
+                deepSelect: true,
+            }).resize({
+                snapToGrid: 0.1,
+            }).on('resizestart', () => {
+                const { getLineByTwoPoints, getAngle } = window.graphicPrimitives;
+                const [a, b] = lineElement.array().value
+                    .map(([x, y]) => ({ x, y }))
+                    .map(p => window.cvat.translate.box.canvasToActual(p));
+                linePhi = getAngle(getLineByTwoPoints(a, b));
+                objWasResized = false;
+                this._flags.resizing = true;
+                events.resize = Logger.addContinuedEvent(Logger.EventType.resizeObject);
+                blurAllElements();
+                this._hideShapeText();
+                this.notify('resize');
+            }).on('resizing', (event) => {
+                const { clientX, clientY } = event.detail.event;
+                let mousePos = window.cvat.translate.point.clientToCanvas(this._scenes.svg.node, clientX, clientY);
+                mousePos = window.cvat.translate.box.canvasToActual(mousePos);
+                this._controller.updateLineCoordinates(lineElement, linePhi, mousePos);
+                objWasResized = true;
+            }).on('resizedone', () => {
+                events.resize.close();
+                events.resize = null;
+                this._flags.resizing = false;
+                if (objWasResized) {
+                    const frame = window.cvat.player.frames.current;
+                    this._controller.updatePosition(frame, this._buildPosition());
+                    objWasResized = false;
+                }
+                this._showShapeText();
+                this.notify('resize');
+            });
+        });
+    }
+
+    tearDownResizeEvents() {
+        this._lines.forEach(lineElement => {
+            lineElement.selectize(false, {deepSelect: true}).resize(false);
+            lineElement.off('resizestart').off('resizing').off('resizedone');
+        });
+        if (this._flags.resizing) {
+            this._flags.resizing = false;
+            this.notify('resize');
+        }
+    }
+
+
+    _splitIntoLines(points) {
+        const pointsArray = PolyShapeModel.convertStringToNumberArray(points);
+        const lines = [];
+        for (let i = 0; i < pointsArray.length; i += 2) {
+            lines.push([pointsArray[i], pointsArray[i+1]]);
+        }
+        return lines.map(PolyShapeModel.convertNumberArrayToString);
+    }
+
+
+    _drawShapeUI(position) {
+        let points = window.cvat.translate.points.actualToCanvas(position.points);
+        this._drawLines(Object.assign({}, position, {points: points}));
+        ShapeView.prototype._drawShapeUI.call(this);
+    }
+
+    _removeShapeUI() {
+        ShapeView.prototype._removeShapeUI.call(this);
+        this._removeLines();
+    }
+
+    _deselect() {
+        ShapeView.prototype._deselect.call(this);
+
+        if (this._appearance.whiteOpacity) {
+            if (this._uis.shape) {
+                this._uis.shape.attr({
+                    'visibility': 'hidden'
+                });
+            }
+
+            if (this._uis.shape) {
+                this._uis.shape.attr({
+                    'visibility': 'hidden'
+                });
+            }
+        }
+    }
+
+    _applyColorSettings() {
+        ShapeView.prototype._applyColorSettings.call(this);
+
+        if (this._appearance.whiteOpacity) {
+            if (this._uis.shape) {
+                this._uis.shape.attr({
+                    'visibility': 'hidden'
+                });
+            }
+        }
+        else {
+            if (this._uis.shape) {
+                this._uis.shape.attr({
+                    'visibility': 'visible',
+                    'fill': this._appearance.fill || this._appearance.colors.shape,
+                    'stroke': this._appearance.stroke || this._appearance.colors.shape,
+                });
+            }
+
+            if (this._uis.vanishingPoint) {
+                this._uis.vanishingPoint.attr({
+                    'visibility': 'visible',
+                    'fill': this._appearance.fill || this._appearance.colors.shape,
+                });
+            }
+        }
+    }
+}
+
+
 function buildShapeModel(data, type, clientID, color) {
     switch (type) {
     case 'interpolation_box':
@@ -3359,6 +3736,9 @@ function buildShapeModel(data, type, clientID, color) {
     case 'interpolation_cuboid':
     case 'annotation_cuboid':
         return new CuboidModel(data, type, clientID, color);
+    case 'interpolation_rays':
+    case 'annotation_rays':
+        return new RaysModel(data, type, clientID, color);
     }
     throw Error('Unreacheable code was reached.');
 }
@@ -3380,6 +3760,9 @@ function buildShapeController(shapeModel) {
         case 'interpolation_cuboid':
         case 'annotation_cuboid':
             return new CuboidController(shapeModel);
+        case 'interpolation_rays':
+        case 'annotation_rays':
+            return new RaysController(shapeModel);
     }
     throw Error('Unreacheable code was reached.');
 }
@@ -3402,6 +3785,9 @@ function buildShapeView(shapeModel, shapeController, svgContent, UIContent, text
         case 'interpolation_cuboid':
         case 'annotation_cuboid':
             return new CuboidView(shapeModel, shapeController, svgContent, UIContent, textsContent);
+        case 'interpolation_rays':
+        case 'annotation_rays':
+            return new RaysView(shapeModel, shapeController, svgContent, UIContent, textsContent);
     }
     throw Error('Unreacheable code was reached.');
 }

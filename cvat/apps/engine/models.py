@@ -323,6 +323,7 @@ class ShapeType(str, Enum):
     RECTANGLE = 'rectangle' # (x0, y0, x1, y1)
     POLYGON = 'polygon'     # (x0, y0, ..., xn, yn)
     POLYLINE = 'polyline'   # (x0, y0, ..., xn, yn)
+    RAYS = 'rays'           # (x0, y0, ..., xn, yn)
     POINTS = 'points'       # (x0, y0, ..., xn, yn)
     CUBOID = 'cuboid'
 

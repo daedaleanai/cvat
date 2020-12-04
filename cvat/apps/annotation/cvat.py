@@ -114,6 +114,11 @@ def create_xml_dumper(file_object):
             self.xmlgen.startElement("polyline", polyline)
             self._level += 1
 
+        def open_rays(self, rays):
+            self._indent()
+            self.xmlgen.startElement("rays", rays)
+            self._level += 1
+
         def open_points(self, points):
             self._indent()
             self.xmlgen.startElement("points", points)
@@ -149,6 +154,11 @@ def create_xml_dumper(file_object):
             self._level -= 1
             self._indent()
             self.xmlgen.endElement("polyline")
+
+        def close_rays(self):
+            self._level -= 1
+            self._indent()
+            self.xmlgen.endElement("rays")
 
         def close_points(self):
             self._level -= 1
@@ -252,6 +262,8 @@ def dump_as_cvat_annotation(file_object, annotations):
                 dumper.open_polygon(dump_data)
             elif shape.type == "polyline":
                 dumper.open_polyline(dump_data)
+            elif shape.type == "rays":
+                dumper.open_rays(dump_data)
             elif shape.type == "points":
                 dumper.open_points(dump_data)
             elif shape.type == "cuboid":
@@ -271,6 +283,8 @@ def dump_as_cvat_annotation(file_object, annotations):
                 dumper.close_polygon()
             elif shape.type == "polyline":
                 dumper.close_polyline()
+            elif shape.type == "rays":
+                dumper.close_rays()
             elif shape.type == "points":
                 dumper.close_points()
             elif shape.type == "cuboid":
@@ -362,6 +376,8 @@ def dump_as_cvat_interpolation(file_object, annotations):
                 dumper.open_polygon(dump_data)
             elif shape.type == "polyline":
                 dumper.open_polyline(dump_data)
+            elif shape.type == "rays":
+                dumper.open_rays(dump_data)
             elif shape.type == "points":
                 dumper.open_points(dump_data)
             elif shape.type == "cuboid":
@@ -381,6 +397,8 @@ def dump_as_cvat_interpolation(file_object, annotations):
                 dumper.close_polygon()
             elif shape.type == "polyline":
                 dumper.close_polyline()
+            elif shape.type == "rays":
+                dumper.close_rays()
             elif shape.type == "points":
                 dumper.close_points()
             elif shape.type == "cuboid":

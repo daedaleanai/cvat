@@ -432,6 +432,7 @@ class ShapeCollectionModel extends Listener {
                 }
                 break;
             case 'polyline':
+            case 'rays':
             case 'points': {
                 let distance = shape.model.distance(pos, this._frame);
                 if (distance < openShape.minDistance) {
@@ -570,6 +571,10 @@ class ShapeCollectionModel extends Listener {
                     annotation: 0,
                     interpolation: 0,
                 },
+                rays: {
+                    annotation: 0,
+                    interpolation: 0,
+                },
                 points: {
                     annotation: 0,
                     interpolation: 0,
@@ -594,6 +599,10 @@ class ShapeCollectionModel extends Listener {
                 interpolation: 0,
             },
             polylines: {
+                annotation: 0,
+                interpolation: 0,
+            },
+            rays: {
                 annotation: 0,
                 interpolation: 0,
             },
@@ -626,6 +635,9 @@ class ShapeCollectionModel extends Listener {
             case 'polyline':
                 statistic[statShape.labelId].polylines[statShape.mode] ++;
                 break;
+            case 'rays':
+                statistic[statShape.labelId].rays[statShape.mode] ++;
+                break;
             case 'points':
                 statistic[statShape.labelId].points[statShape.mode] ++;
                 break;
@@ -646,6 +658,8 @@ class ShapeCollectionModel extends Listener {
             totalForLabels.polylines.interpolation += statistic[labelId].polylines.interpolation;
             totalForLabels.points.annotation += statistic[labelId].points.annotation;
             totalForLabels.points.interpolation += statistic[labelId].points.interpolation;
+            totalForLabels.rays.annotation += statistic[labelId].rays.annotation;
+            totalForLabels.rays.interpolation += statistic[labelId].rays.interpolation;
             totalForLabels.cuboids.annotation += statistic[labelId].cuboids.annotation;
             totalForLabels.cuboids.interpolation += statistic[labelId].cuboids.interpolation;
             totalForLabels.cuboids.interpolation += statistic[labelId].cuboids.interpolation;
@@ -1644,7 +1658,7 @@ class ShapeCollectionView {
     static sortByZOrder() {
         if (window.cvat.job.z_order) {
             let content = $('#frameContent');
-            let shapes = $(content.find('.shape, .pointTempGroup, .shapeCreation, .aim').toArray().sort(
+            let shapes = $(content.find('.shape, .pointTempGroup, .raysTempGroup, .shapeCreation, .aim').toArray().sort(
                 (a,b) => (+a.attributes.z_order.nodeValue - +b.attributes.z_order.nodeValue)
             ));
             let children = content.children().not(shapes);

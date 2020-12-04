@@ -76,7 +76,7 @@ def _parse_polyline(shape):
 
 def _build_point(coordinates, visible):
     visible = bool(int(visible))
-    x, y = [int(c) for c in coordinates]
+    x, y = [round(c) for c in coordinates]
     return RunwayPoint(visible, x, y)
 
 
@@ -113,7 +113,7 @@ def _parse_point(shape):
     label = shape.label
     # for some reason, sometimes 'points' shape have the same point with the same coordinates multiple times
     # have to remove duplicates by using set
-    points = {(int(x), int(y)) for x, y in grouper(shape.points, 2)}
+    points = {(round(x), round(y)) for x, y in grouper(shape.points, 2)}
     if len(points) > 1:
         raise RunwayParseError('Multiple points in element {!r}'.format(label))
     x, y = next(iter(points))
