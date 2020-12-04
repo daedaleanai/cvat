@@ -1,8 +1,21 @@
-const { findVanishingPoint, pullSegment, updateSegment, arePointsEqual } = require('./math');
+const {
+    findVanishingPoint,
+    arePointsEqual,
+    getLineByTwoPoints,
+    fromPolarCoordinates,
+    toPolarCoordinates,
+    rotate,
+    getAngle,
+    pointsDistance
+} = require('./math');
 
 module.exports = {
     findVanishingPoint,
     arePointsEqual,
-    pullSegment,
-    updateSegment,
+    getLineByTwoPoints,
+    fromPolarCoordinates,
+    toPolarCoordinates,
+    rotate,
+    getAngle,
+    pointsDistance
 };

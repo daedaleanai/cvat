@@ -28,67 +28,45 @@ function findVanishingPoint(lineSegments, infinityDistance) {
   return [adjustedLineSegments, vanishingPoint];
 }
 
-function updateSegment(previous, next, vanishingPoint) {
-    const [prevA, prevB] = previous;
-    const [nextA, nextB] = next;
-
-    if (vanishingPoint) {
-        if (!arePointsEqual(prevA, nextA)) {
-            const line = getLineByTwoPoints(vanishingPoint, nextA);
-            const newB = projectOntoLine(prevB, line);
-            return [nextA, newB];
-        } else if (!arePointsEqual(prevB, nextB)) {
-            const line = getLineByTwoPoints(vanishingPoint, nextB);
-            const newA = projectOntoLine(prevA, line);
-            return [newA, nextB];
-        }
-        return next;
+function toPolarCoordinates(point, rotationPoint = null) {
+    if (rotationPoint) {
+        point = { x: point.x - rotationPoint.x, y: point.y - rotationPoint.y };
     }
+    const { x, y } = point;
+    const r = Math.sqrt(x*x + y*y);
+    const phi = Math.atan2(y, x);
+    return { r, phi };
+}
 
-    let line = getLineByTwoPoints(prevA, prevB);
-    if (!arePointsEqual(prevA, nextA)) {
-        line = buildLineThrough(nextA, line);
-        const newB = projectOntoLine(prevB, line);
-        return [nextA, newB];
-    } else if (!arePointsEqual(prevB, nextB)) {
-        line = buildLineThrough(nextB, line);
-        const newA = projectOntoLine(prevA, line);
-        return [nextA, newA];
+function fromPolarCoordinates(point, rotationPoint = null) {
+    const { r, phi } = point;
+    let x = r * Math.cos(phi);
+    let y = r * Math.sin(phi);
+    if (rotationPoint) {
+        x += rotationPoint.x;
+        y += rotationPoint.y;
     }
-    return next;
+    return { x, y };
+}
+
+function getAngle(line) {
+    return Math.atan2(-line.a, line.b);
+}
+
+function rotate(point, phi) {
+    const { x, y } = point;
+    return {
+        x: x * Math.cos(phi) + y * Math.sin(phi),
+        y: -x * Math.sin(phi) + y * Math.cos(phi),
+    };
+}
+
+function pointsDistance(first, second) {
+    return Math.sqrt(Math.pow(second.y - first.y, 2) + Math.pow(second.x - first.x, 2));
 }
 
 function arePointsEqual(first, second) {
-    return Math.abs(first.x - second.x) < 0.001 && Math.abs(first.y - second.y) < 0.001;
-}
-
-function pullSegment(point, previousEdges, nextEdges) {
-  const [previousStart, previousEnd] = previousEdges;
-  const [nextStart, nextEnd] = nextEdges;
-  const [ratioX, lengthX] = _calcRatio(previousStart.x, point.x, previousEnd.x);
-  const [ratioY, lengthY] = _calcRatio(previousStart.y, point.y, previousEnd.y);
-  // The bigger length is, the less relative error is, the more precise ratio is
-  let ratio = Math.abs(lengthX) > Math.abs(lengthY) ? ratioX : ratioY;
-  if (!Number.isFinite(ratio)) {
-    ratio = 0.5;
-  }
-  const x = _calcCoordinate(nextStart.x, nextEnd.x, ratio);
-  const y = _calcCoordinate(nextStart.y, nextEnd.y, ratio);
-  return { x, y };
-}
-
-function _calcRatio(start, value, end) {
-  const offset = value - start;
-  const length = end - start;
-  const ratio = offset / length;
-  return [ratio, length];
-}
-
-function _calcCoordinate(start, end, ratio) {
-  const length = end - start;
-  const offset = length * ratio;
-  const value = start + offset;
-  return value;
+    return pointsDistance(first, second) < 0.001;
 }
 
 function approximateLinesIntersection(lines) {
@@ -152,7 +130,7 @@ function getLineByTwoPoints(first, second) {
     b: second.x - first.x,
     c: first.x * second.y - second.x * first.y
   };
-  if (line.a === 0 && line.b === 0 && line.c === 0) {
+  if (Math.abs(line.a) < Number.EPSILON && Math.abs(line.b) < Number.EPSILON) {
     return null;
   }
   return line;
@@ -185,7 +163,10 @@ module.exports = {
   approximateAngleFactor,
   arePointsEqual,
   getMidPoint,
-  pullSegment,
-  updateSegment,
-  findVanishingPoint
+  findVanishingPoint,
+  toPolarCoordinates,
+  fromPolarCoordinates,
+  getAngle,
+  rotate,
+  pointsDistance
 };
