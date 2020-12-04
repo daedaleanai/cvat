@@ -1573,6 +1573,35 @@ class RaysController extends PolyShapeController {
     constructor(raysModel) {
         super(raysModel);
     }
+
+    updateLineCoordinates(lineElement, linePhi, mousePos) {
+        const { toPolarCoordinates, fromPolarCoordinates, rotate } = window.graphicPrimitives;
+        const rotationPoint = this._model.vanishingPoint;
+        const points = lineElement.array().value
+            .map(([x, y]) => ({x, y}))
+            .map(p => window.cvat.translate.box.canvasToActual(p));
+        let newPoints;
+        if (rotationPoint) {
+            const { phi } = toPolarCoordinates(mousePos, rotationPoint);
+            newPoints = points
+                .map(p => toPolarCoordinates(p, rotationPoint))
+                .map(coords => ({...coords, phi}))
+                .map(coords => fromPolarCoordinates(coords, rotationPoint));
+        } else {
+            const { y } = rotate(mousePos, linePhi);
+            newPoints = points
+                .map(p => rotate(p, linePhi))
+                .map(coords => ({...coords, y}))
+                .map(p => rotate(p, -linePhi));
+        }
+        lineElement.plot(
+            newPoints
+                .map(p => window.cvat.translate.box.actualToCanvas(p))
+                .map(p => [p.x, p.y])
+        );
+
+    }
+
 }
 
 
@@ -1666,36 +1695,7 @@ class ShapeView extends Listener {
                     this.notify('drag');
                 });
 
-                // Setup resize events
-                let objWasResized = false;
-                this._uis.shape.selectize({
-                    classRect: 'shapeSelect',
-                    rotationPoint: false,
-                    pointSize: POINT_RADIUS * 2 / window.cvat.player.geometry.scale,
-                    deepSelect: true,
-                }).resize({
-                    snapToGrid: 0.1,
-                }).on('resizestart', () => {
-                    objWasResized = false;
-                    this._flags.resizing = true;
-                    events.resize = Logger.addContinuedEvent(Logger.EventType.resizeObject);
-                    blurAllElements();
-                    this._hideShapeText();
-                    this.notify('resize');
-                }).on('resizing', () => {
-                    objWasResized = true;
-                }).on('resizedone', () => {
-                    events.resize.close();
-                    events.resize = null;
-                    this._flags.resizing = false;
-                    if (objWasResized) {
-                        const frame = window.cvat.player.frames.current;
-                        this._controller.updatePosition(frame, this._buildPosition());
-                        objWasResized = false;
-                    }
-                    this._showShapeText();
-                    this.notify('resize');
-                });
+                this.setupResizeEvents(events);
 
                 let centers = ['t', 'r', 'b', 'l'];
                 let corners = ['lt', 'rt', 'rb', 'lb'];
@@ -1793,15 +1793,8 @@ class ShapeView extends Listener {
 
     _makeNotEditable() {
         if (this._uis.shape && this._flags.editable) {
-            this._uis.shape.draggable(false).selectize(false, {
-                deepSelect: true,
-            }).resize(false);
-
-            if (this._flags.resizing) {
-                this._flags.resizing = false;
-                this.notify('resize');
-            }
-
+            this._uis.shape.draggable(false);
+            this.tearDownResizeEvents();
             if (this._flags.dragging) {
                 this._flags.dragging = false;
                 this.notify('drag');
@@ -1809,9 +1802,6 @@ class ShapeView extends Listener {
 
             this._uis.shape.off('dragstart')
                 .off('dragend')
-                .off('resizestart')
-                .off('resizing')
-                .off('resizedone')
                 .off('contextmenu.contextMenu')
                 .off('mousedown.contextMenu');
 
@@ -1819,6 +1809,47 @@ class ShapeView extends Listener {
         }
 
         $('.custom-menu').hide(100);
+    }
+
+    setupResizeEvents(events) {
+        let objWasResized = false;
+        this._uis.shape.selectize({
+            classRect: 'shapeSelect',
+            rotationPoint: false,
+            pointSize: POINT_RADIUS * 2 / window.cvat.player.geometry.scale,
+            deepSelect: true,
+        }).resize({
+            snapToGrid: 0.1,
+        }).on('resizestart', () => {
+            objWasResized = false;
+            this._flags.resizing = true;
+            events.resize = Logger.addContinuedEvent(Logger.EventType.resizeObject);
+            blurAllElements();
+            this._hideShapeText();
+            this.notify('resize');
+        }).on('resizing', () => {
+            objWasResized = true;
+        }).on('resizedone', () => {
+            events.resize.close();
+            events.resize = null;
+            this._flags.resizing = false;
+            if (objWasResized) {
+                const frame = window.cvat.player.frames.current;
+                this._controller.updatePosition(frame, this._buildPosition());
+                objWasResized = false;
+            }
+            this._showShapeText();
+            this.notify('resize');
+        });
+    }
+
+    tearDownResizeEvents() {
+        this._uis.shape.selectize(false, { deepSelect: true }).resize(false);
+        if (this._flags.resizing) {
+            this._flags.resizing = false;
+            this.notify('resize');
+        }
+        this._uis.shape.off('resizestart').off('resizing').off('resizedone');
     }
 
 
@@ -3558,6 +3589,62 @@ class RaysView extends PolyShapeView {
         this._removeVanishingPoint();
         PolyShapeView.prototype._makeNotEditable.call(this);
     }
+
+    setupResizeEvents(events) {
+        this._lines.forEach(lineElement => {
+            let objWasResized = false;
+            let linePhi;
+            lineElement.selectize({
+                classRect: 'shapeSelect',
+                rotationPoint: false,
+                pointSize: POINT_RADIUS * 2 / window.cvat.player.geometry.scale,
+                deepSelect: true,
+            }).resize({
+                snapToGrid: 0.1,
+            }).on('resizestart', () => {
+                const { getLineByTwoPoints, getAngle } = window.graphicPrimitives;
+                const [a, b] = lineElement.array().value
+                    .map(([x, y]) => ({ x, y }))
+                    .map(p => window.cvat.translate.box.canvasToActual(p));
+                linePhi = getAngle(getLineByTwoPoints(a, b));
+                objWasResized = false;
+                this._flags.resizing = true;
+                events.resize = Logger.addContinuedEvent(Logger.EventType.resizeObject);
+                blurAllElements();
+                this._hideShapeText();
+                this.notify('resize');
+            }).on('resizing', (event) => {
+                const { clientX, clientY } = event.detail.event;
+                let mousePos = window.cvat.translate.point.clientToCanvas(this._scenes.svg.node, clientX, clientY);
+                mousePos = window.cvat.translate.box.canvasToActual(mousePos);
+                this._controller.updateLineCoordinates(lineElement, linePhi, mousePos);
+                objWasResized = true;
+            }).on('resizedone', () => {
+                events.resize.close();
+                events.resize = null;
+                this._flags.resizing = false;
+                if (objWasResized) {
+                    const frame = window.cvat.player.frames.current;
+                    this._controller.updatePosition(frame, this._buildPosition());
+                    objWasResized = false;
+                }
+                this._showShapeText();
+                this.notify('resize');
+            });
+        });
+    }
+
+    tearDownResizeEvents() {
+        this._lines.forEach(lineElement => {
+            lineElement.selectize(false, {deepSelect: true}).resize(false);
+            lineElement.off('resizestart').off('resizing').off('resizedone');
+        });
+        if (this._flags.resizing) {
+            this._flags.resizing = false;
+            this.notify('resize');
+        }
+    }
+
 
     _splitIntoLines(points) {
         const pointsArray = PolyShapeModel.convertStringToNumberArray(points);
