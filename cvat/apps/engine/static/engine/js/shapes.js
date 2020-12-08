@@ -3508,6 +3508,10 @@ class RaysView extends PolyShapeView {
         this._uis.shape = this._scenes.svg.group()
             .fill(this._appearance.fill || this._appearance.colors.shape)
             .stroke(this._appearance.stroke || this._appearance.colors.shape)
+            .attr({
+                'stroke-width': STROKE_WIDTH / window.cvat.player.geometry.scale,
+                'z_order': position.z_order,
+            })
             .on('click', () => {
                 this._positionateMenus();
                 this._controller.click();
@@ -3521,8 +3525,8 @@ class RaysView extends PolyShapeView {
             const line = this._uis.shape.polyline(points);
             this._lines.push(line);
             line.fill('inherit').stroke('inherit').attr({
-                'stroke-width': STROKE_WIDTH / window.cvat.player.geometry.scale,
-                'z_order': position.z_order,
+                'stroke-width': 'inherit',
+                'z_order': 'inherit',
             }).addClass('shape polyline');
         });
     }
