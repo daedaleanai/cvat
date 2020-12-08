@@ -906,7 +906,7 @@ class ShapeCreatorView {
             this._type = model.defaultType;
             this._mode = model.defaultMode;
 
-            if (!['polygon', 'polyline', 'points'].includes(this._type)) {
+            if (!['polygon', 'polyline', 'points', 'rays'].includes(this._type)) {
                 if (!model.usingShortkey) {
                     this._aimCoord = {
                         x: 0,
