@@ -1295,7 +1295,7 @@ class RaysModel extends PolyShapeModel {
             points = PolyShapeModel.convertStringToNumberArray(points);
         }
         const segments = [];
-        for (let i = 0; i < points.length; i += 2) {
+        for (let i = 0; i < points.length - 1; i += 2) {
             segments.push([points[i], points[i+1]]);
         }
         return segments;
@@ -3651,11 +3651,7 @@ class RaysView extends PolyShapeView {
 
 
     _splitIntoLines(points) {
-        const pointsArray = PolyShapeModel.convertStringToNumberArray(points);
-        const lines = [];
-        for (let i = 0; i < pointsArray.length; i += 2) {
-            lines.push([pointsArray[i], pointsArray[i+1]]);
-        }
+        const lines = RaysModel.convertStringToSegments(points);
         return lines.map(PolyShapeModel.convertNumberArrayToString);
     }
 
