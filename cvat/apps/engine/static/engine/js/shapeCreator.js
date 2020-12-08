@@ -995,6 +995,9 @@ class RaysDrawInstance {
     }
 
     attr(key, value) {
+        if (key === 'stroke-width' && this._finishedRays.length >= 3) {
+            this._currentRay.attr({ 'stroke-dasharray': RaysController.getDashArray(this._finishedRays.length) });
+        }
         this._delegate(el => el.attr(key, value));
     }
 
@@ -1013,6 +1016,9 @@ class RaysDrawInstance {
         this._currentRay.attr({
             z_order: Number.MAX_SAFE_INTEGER,
         });
+        if (this._finishedRays.length >= 3) {
+            this._currentRay.attr({ 'stroke-dasharray': RaysController.getDashArray(this._finishedRays.length) });
+        }
 
         this._currentRay.on('drawstart', (e) => {
             this._isRayInProgress = true;

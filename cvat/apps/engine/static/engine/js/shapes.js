@@ -21,6 +21,7 @@
 "use strict";
 
 const STROKE_WIDTH = 2.5;
+const DASH_LENGTH = 8;
 const SELECT_POINT_STROKE_WIDTH = 2.5;
 const POINT_RADIUS = 5;
 const AREA_TRESHOLD = 1;
@@ -1572,6 +1573,16 @@ class PolylineController extends PolyShapeController {
 class RaysController extends PolyShapeController {
     constructor(raysModel) {
         super(raysModel);
+    }
+
+    static getDashArray(index) {
+        const dashes = {
+            0: [5, 0],
+            1: [5, 2, 1, 2],
+            2: [5, 1, 1, 1, 1, 1],
+        };
+        const auxiliary = [1, 1];
+        return (dashes[index] || auxiliary).map(v => v * DASH_LENGTH / window.cvat.player.geometry.scale).join(" ");
     }
 
     updateLineCoordinates(lineElement, linePhi, mousePos) {
@@ -3521,13 +3532,14 @@ class RaysView extends PolyShapeView {
         this._lines = [];
         this._z_order = position.z_order;
         const lines = this._splitIntoLines(position.points);
-        lines.forEach(points => {
+        lines.forEach((points, index) => {
             const line = this._uis.shape.polyline(points);
             this._lines.push(line);
             line.fill('inherit').stroke('inherit').attr({
                 'stroke-width': 'inherit',
                 'z_order': 'inherit',
             }).addClass('shape polyline');
+            line.attr({ 'stroke-dasharray': RaysController.getDashArray(index) });
         });
     }
 
@@ -3708,6 +3720,13 @@ class RaysView extends PolyShapeView {
             this.notify('drag');
         }
         this._uis.shape.off('dragstart').off('dragmove').off('dragend');
+    }
+
+    updateShapeTextPosition() {
+        super.updateShapeTextPosition();
+        this._lines.forEach((line, index) => {
+            line.attr({ 'stroke-dasharray': RaysController.getDashArray(index) });
+        });
     }
 
     _splitIntoLines(points) {
