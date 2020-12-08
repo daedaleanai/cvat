@@ -3586,10 +3586,25 @@ class RaysView extends PolyShapeView {
     _makeEditable() {
         PolyShapeView.prototype._makeEditable.call(this);
         this._drawVanishingPoint();
+        this._lines.forEach((lineElement, index) => {
+            lineElement.on('dblclick', () => {
+                this._controller.model().removePoint(index * 2);
+            });
+            lineElement.remember('_selectHandler').pointSelection.set.members.forEach((point) => {
+                point = $(point.node);
+                point.on('dblclick', () => {
+                    this._controller.model().removePoint(index * 2);
+                    // e.stopPropagation();
+                });
+            })
+        });
     }
 
 
     _makeNotEditable() {
+        this._lines.forEach((lineElement, index) => {
+           lineElement.off('dblclick');
+        });
         this._removeVanishingPoint();
         PolyShapeView.prototype._makeNotEditable.call(this);
     }
