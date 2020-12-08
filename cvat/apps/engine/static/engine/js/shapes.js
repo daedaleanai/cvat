@@ -1674,27 +1674,7 @@ class ShapeView extends Listener {
 
             this._uis.shape.front();
             if (!this._controller.lock) {
-                // Setup drag events
-                this._uis.shape.draggable().on('dragstart', () => {
-                    events.drag = Logger.addContinuedEvent(Logger.EventType.dragObject);
-                    this._flags.dragging = true;
-                    blurAllElements();
-                    this._hideShapeText();
-                    this.notify('drag');
-                }).on('dragend', (e) => {
-                    const p1 = e.detail.handler.startPoints.point;
-                    const p2 = e.detail.p;
-                    events.drag.close();
-                    events.drag = null;
-                    this._flags.dragging = false;
-                    if (Math.sqrt(Math.pow((p1.x - p2.x), 2) + Math.pow((p1.y - p2.y), 2)) > 1) {
-                        const frame = window.cvat.player.frames.current;
-                        this._controller.updatePosition(frame, this._buildPosition());
-                    }
-                    this._showShapeText();
-                    this.notify('drag');
-                });
-
+                this.setupDragEvents(events);
                 this.setupResizeEvents(events);
 
                 let centers = ['t', 'r', 'b', 'l'];
@@ -1793,18 +1773,9 @@ class ShapeView extends Listener {
 
     _makeNotEditable() {
         if (this._uis.shape && this._flags.editable) {
-            this._uis.shape.draggable(false);
+            this.tearDownDragEvents();
             this.tearDownResizeEvents();
-            if (this._flags.dragging) {
-                this._flags.dragging = false;
-                this.notify('drag');
-            }
-
-            this._uis.shape.off('dragstart')
-                .off('dragend')
-                .off('contextmenu.contextMenu')
-                .off('mousedown.contextMenu');
-
+            this._uis.shape.off('contextmenu.contextMenu').off('mousedown.contextMenu');
             this._flags.editable = false;
         }
 
@@ -1852,6 +1823,36 @@ class ShapeView extends Listener {
         this._uis.shape.off('resizestart').off('resizing').off('resizedone');
     }
 
+    setupDragEvents(events) {
+        this._uis.shape.draggable().on('dragstart', () => {
+            events.drag = Logger.addContinuedEvent(Logger.EventType.dragObject);
+            this._flags.dragging = true;
+            blurAllElements();
+            this._hideShapeText();
+            this.notify('drag');
+        }).on('dragend', (e) => {
+            const p1 = e.detail.handler.startPoints.point;
+            const p2 = e.detail.p;
+            events.drag.close();
+            events.drag = null;
+            this._flags.dragging = false;
+            if (Math.sqrt(Math.pow((p1.x - p2.x), 2) + Math.pow((p1.y - p2.y), 2)) > 1) {
+                const frame = window.cvat.player.frames.current;
+                this._controller.updatePosition(frame, this._buildPosition());
+            }
+            this._showShapeText();
+            this.notify('drag');
+        });
+    }
+
+    tearDownDragEvents() {
+        this._uis.shape.draggable(false);
+        if (this._flags.dragging) {
+            this._flags.dragging = false;
+            this.notify('drag');
+        }
+        this._uis.shape.off('dragstart').off('dragend');
+    }
 
     _select() {
         if (this._uis.shape && this._uis.shape.node.parentElement) {
