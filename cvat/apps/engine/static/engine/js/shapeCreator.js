@@ -971,6 +971,11 @@ class RaysDrawInstance {
         this._finishedRays = [];
         this._currentRay = null;
         this._isRayInProgress = false;
+        this._creatorView._frameContent.on('mousedown.shapeCreator', (e) => {
+            if (e.which === 3) {
+                this._undo();
+            }
+        });
         this._beginRay();
     }
 
@@ -978,6 +983,7 @@ class RaysDrawInstance {
         if (type === 'done') {
             this._finish();
         } else if (type === 'cancel') {
+            this._creatorView._frameContent.off('mousedown.shapeCreator');
             this._delegate(el => el.draw('cancel'));
         } else {
             throw new Error(`Event ${type} is not supported`);
@@ -1020,12 +1026,6 @@ class RaysDrawInstance {
 
         this._currentRay.on('drawstart', this._creatorView._rescaleDrawPoints.bind(this._creatorView));
         this._currentRay.on('drawpoint', this._creatorView._rescaleDrawPoints.bind(this._creatorView));
-
-        this._currentRay.on('drawstop', () => {
-            this._creatorView._frameContent.off('mousedown.shapeCreator');
-            this._creatorView._frameContent.off('mousemove.shapeCreator');
-            $('body').off('keydown.shapeCreator');
-        });
     }
 
     _finishRay() {
@@ -1057,5 +1057,25 @@ class RaysDrawInstance {
             this._creatorView._controller.finish({ points, vanishingPoint }, this._type);
         }
         this._creatorView._controller.switchCreateMode(true);
+    }
+
+    _undo() {
+        let startPoint = null;
+        this._currentRay.draw('cancel');
+        if (this._isRayInProgress) {
+            this._isRayInProgress = false;
+        } else {
+            const lastRay = this._finishedRays.pop();
+            if (lastRay) {
+                const point = lastRay.node.points[0];
+                lastRay.remove();
+                const canvas = this._creatorView._frameContent.node;
+                startPoint = window.cvat.translate.point.canvasToClient(canvas, point.x, point.y);
+            }
+        }
+        this._beginRay();
+        if (startPoint) {
+            this._currentRay.draw('point', {clientX: startPoint.x, clientY: startPoint.y});
+        }
     }
 }
