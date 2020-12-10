@@ -331,6 +331,7 @@ def _create_thread(tid, data, options):
             assert len(db_images) == 0
             db_images = list(models.Image.objects.filter(task=db_task).order_by('frame'))
             db_task.size = len(db_images)
+            db_task.mode = 'interpolation'
         else:
             models.Image.objects.bulk_create(db_images)
 
