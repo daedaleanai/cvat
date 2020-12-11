@@ -1273,19 +1273,15 @@ class RaysModel extends PolyShapeModel {
         this._vanishingPoint = data.vanishingPoint;
     }
 
+    static ANGLE_THRESHOLD = 0.035;
+
     get vanishingPoint() {
         // vanishing point is not initialized when rays are loaded from db
         if (typeof this._vanishingPoint === 'undefined') {
             const { points } = this._positions[this._frame];
             let segments = RaysModel.convertStringToSegments(points);
-            const {frameHeight, frameWidth} = window.cvat.player.geometry;
-            let infinityDistance = Math.min(frameWidth, frameHeight) * 10;
-            // window.cvat.player.geometry might not be initialized when attribute is accessed
-            if (typeof infinityDistance === 'undefined') {
-                infinityDistance = 100000;
-            }
             let vanishingPoint;
-            [segments, vanishingPoint] = window.graphicPrimitives.findVanishingPoint(segments, infinityDistance);
+            [segments, vanishingPoint] = window.graphicPrimitives.findVanishingPoint(segments, RaysModel.ANGLE_THRESHOLD);
             this._vanishingPoint = vanishingPoint;
         }
         return this._vanishingPoint;

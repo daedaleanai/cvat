@@ -1056,9 +1056,7 @@ class RaysDrawInstance {
         segments = segments.filter(([a, b]) => !arePointsEqual(a, b));
         let vanishingPoint;
         if (segments.length > 1) {
-            const { frameHeight, frameWidth } = window.cvat.player.geometry;
-            const infinityDistance = Math.min(frameWidth, frameHeight) * 10;
-            [segments, vanishingPoint] = findVanishingPoint(segments, infinityDistance);
+            [segments, vanishingPoint] = findVanishingPoint(segments, RaysModel.ANGLE_THRESHOLD);
             const points = RaysModel.convertSegmentsToString(segments);
             this._creatorView._controller.finish({ points, vanishingPoint }, this._type);
         }
