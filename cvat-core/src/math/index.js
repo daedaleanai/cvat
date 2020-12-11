@@ -49,6 +49,17 @@ function fromPolarCoordinates(point, rotationPoint = null) {
     return { x, y };
 }
 
+function getOppositeAngle(phi) {
+    const d = Math.PI * 2;
+    return (d + phi) % d - Math.PI;
+}
+
+function getAngleBetween(alpha, beta) {
+    const d = Math.PI * 2;
+    const diff = Math.abs(alpha - beta) % d;
+    return diff < Math.PI ? diff : d - diff;
+}
+
 function getAngle(line) {
     return Math.atan2(-line.a, line.b);
 }
@@ -166,6 +177,8 @@ module.exports = {
   findVanishingPoint,
   toPolarCoordinates,
   fromPolarCoordinates,
+  getOppositeAngle,
+  getAngleBetween,
   getAngle,
   rotate,
   pointsDistance

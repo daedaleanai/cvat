@@ -1586,17 +1586,29 @@ class RaysController extends PolyShapeController {
     }
 
     updateLineCoordinates(lineElement, linePhi, mousePos) {
-        const { toPolarCoordinates, fromPolarCoordinates, rotate } = window.graphicPrimitives;
+        const {
+            toPolarCoordinates,
+            fromPolarCoordinates,
+            getOppositeAngle,
+            getAngleBetween,
+            rotate,
+        } = window.graphicPrimitives;
         const rotationPoint = this._model.vanishingPoint;
         const points = lineElement.array().value
             .map(([x, y]) => ({x, y}))
             .map(p => window.cvat.translate.box.canvasToActual(p));
         let newPoints;
+
         if (rotationPoint) {
-            const { phi } = toPolarCoordinates(mousePos, rotationPoint);
+            const { phi: fixedPhi } = toPolarCoordinates(mousePos, rotationPoint);
+            const revPhi = getOppositeAngle(fixedPhi);
+            function snapAngle({r, phi}) {
+                const newPhi = getAngleBetween(phi, fixedPhi) < getAngleBetween(phi, revPhi) ? fixedPhi : revPhi;
+                return {r, phi: newPhi};
+            }
             newPoints = points
                 .map(p => toPolarCoordinates(p, rotationPoint))
-                .map(coords => ({...coords, phi}))
+                .map(snapAngle)
                 .map(coords => fromPolarCoordinates(coords, rotationPoint));
         } else {
             const { y } = rotate(mousePos, linePhi);
