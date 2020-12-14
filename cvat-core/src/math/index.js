@@ -1,13 +1,23 @@
 const { Matrix, solve: leastSquaresMethod } = require("ml-matrix");
 
-function findVanishingPoint(lineSegments, infinityDistance) {
+function findVanishingPoint(lineSegments, thresholdAngle) {
   // find the vanishing point and update line segments to intersect
-  // exactly at the vanishing point. If vanishing point cannot be found
-  // (parallel lines), segments are updated to be exactly parallel
+  // exactly at the vanishing point.
+  // If the angle between any two line segments is greater than thresholdAngle,
+  // the lines are considered to intersect at a finite point,
+  // otherwise the lines are considered to intersect at an infinite point (to be parallel).
   const segmentCenters = lineSegments.map((s) => getMidPoint(s[0], s[1]));
   const lines = lineSegments.map((s) => getLineByTwoPoints(s[0], s[1]));
   let vanishingPoint = approximateLinesIntersection(lines);
-  if (vanishingPoint && !isFinite(vanishingPoint, infinityDistance)) {
+  if (vanishingPoint) {
+    lineSegments = lineSegments.map(([a, b]) => {
+      if (pointsDistance(b, vanishingPoint) < pointsDistance(a, vanishingPoint)) {
+        return [a, b];
+      }
+      return [b, a];
+    });
+  }
+  if (vanishingPoint && !isFinite(vanishingPoint, segmentCenters, thresholdAngle)) {
     vanishingPoint = null;
   }
   let adjustedLines;
@@ -47,6 +57,17 @@ function fromPolarCoordinates(point, rotationPoint = null) {
         y += rotationPoint.y;
     }
     return { x, y };
+}
+
+function getOppositeAngle(phi) {
+    const d = Math.PI * 2;
+    return (d + phi) % d - Math.PI;
+}
+
+function getAngleBetween(alpha, beta) {
+    const d = Math.PI * 2;
+    const diff = Math.abs(alpha - beta) % d;
+    return diff < Math.PI ? diff : d - diff;
 }
 
 function getAngle(line) {
@@ -105,10 +126,17 @@ function approximateAngleFactor(lines) {
   return { a, b };
 }
 
-function isFinite(point, infinityDistance) {
-  const { x, y } = point;
-  if (!infinityDistance) return true;
-  return Math.max(Math.abs(x), Math.abs(y)) < infinityDistance;
+function isFinite(vanishingPoint, points, thresholdAngle) {
+  if (!thresholdAngle) return true;
+  const angles = points.map(p => toPolarCoordinates(p, vanishingPoint).phi);
+  let maxAngle = 0;
+  for (let i = 0; i < angles.length - 1; i++) {
+    for (let j = i + 1; j < angles.length; j++) {
+      const a = getAngleBetween(angles[i], angles[j]);
+      maxAngle = Math.max(maxAngle, a);
+    }
+  }
+  return maxAngle > thresholdAngle;
 }
 
 function getMidPoint(first, second) {
@@ -166,6 +194,8 @@ module.exports = {
   findVanishingPoint,
   toPolarCoordinates,
   fromPolarCoordinates,
+  getOppositeAngle,
+  getAngleBetween,
   getAngle,
   rotate,
   pointsDistance

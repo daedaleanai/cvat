@@ -4,6 +4,8 @@ const {
     getLineByTwoPoints,
     fromPolarCoordinates,
     toPolarCoordinates,
+    getAngleBetween,
+    getOppositeAngle,
     rotate,
     getAngle,
     pointsDistance
@@ -15,6 +17,8 @@ module.exports = {
     getLineByTwoPoints,
     fromPolarCoordinates,
     toPolarCoordinates,
+    getAngleBetween,
+    getOppositeAngle,
     rotate,
     getAngle,
     pointsDistance

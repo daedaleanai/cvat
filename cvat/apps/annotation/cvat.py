@@ -448,7 +448,7 @@ def load(file_object, annotations):
     context = iter(context)
     ev, _ = next(context)
 
-    supported_shapes = ('box', 'polygon', 'polyline', 'points', 'cuboid')
+    supported_shapes = ('box', 'polygon', 'polyline', 'points', 'cuboid', 'rays')
 
     track = None
     shape = None

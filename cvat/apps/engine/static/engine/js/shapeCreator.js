@@ -906,7 +906,7 @@ class ShapeCreatorView {
             this._type = model.defaultType;
             this._mode = model.defaultMode;
 
-            if (!['polygon', 'polyline', 'points'].includes(this._type)) {
+            if (!['polygon', 'polyline', 'points', 'rays'].includes(this._type)) {
                 if (!model.usingShortkey) {
                     this._aimCoord = {
                         x: 0,
@@ -971,6 +971,11 @@ class RaysDrawInstance {
         this._finishedRays = [];
         this._currentRay = null;
         this._isRayInProgress = false;
+        this._creatorView._frameContent.on('mousedown.shapeCreator', (e) => {
+            if (e.which === 3) {
+                this._undo();
+            }
+        });
         this._beginRay();
     }
 
@@ -978,6 +983,7 @@ class RaysDrawInstance {
         if (type === 'done') {
             this._finish();
         } else if (type === 'cancel') {
+            this._creatorView._frameContent.off('mousedown.shapeCreator');
             this._delegate(el => el.draw('cancel'));
         } else {
             throw new Error(`Event ${type} is not supported`);
@@ -989,6 +995,9 @@ class RaysDrawInstance {
     }
 
     attr(key, value) {
+        if (key === 'stroke-width' && this._finishedRays.length >= 3) {
+            this._currentRay.attr({ 'stroke-dasharray': RaysController.getDashArray(this._finishedRays.length) });
+        }
         this._delegate(el => el.attr(key, value));
     }
 
@@ -1007,6 +1016,9 @@ class RaysDrawInstance {
         this._currentRay.attr({
             z_order: Number.MAX_SAFE_INTEGER,
         });
+        if (this._finishedRays.length >= 3) {
+            this._currentRay.attr({ 'stroke-dasharray': RaysController.getDashArray(this._finishedRays.length) });
+        }
 
         this._currentRay.on('drawstart', (e) => {
             this._isRayInProgress = true;
@@ -1020,12 +1032,6 @@ class RaysDrawInstance {
 
         this._currentRay.on('drawstart', this._creatorView._rescaleDrawPoints.bind(this._creatorView));
         this._currentRay.on('drawpoint', this._creatorView._rescaleDrawPoints.bind(this._creatorView));
-
-        this._currentRay.on('drawstop', () => {
-            this._creatorView._frameContent.off('mousedown.shapeCreator');
-            this._creatorView._frameContent.off('mousemove.shapeCreator');
-            $('body').off('keydown.shapeCreator');
-        });
     }
 
     _finishRay() {
@@ -1050,12 +1056,30 @@ class RaysDrawInstance {
         segments = segments.filter(([a, b]) => !arePointsEqual(a, b));
         let vanishingPoint;
         if (segments.length > 1) {
-            const { frameHeight, frameWidth } = window.cvat.player.geometry;
-            const infinityDistance = Math.min(frameWidth, frameHeight) * 10;
-            [segments, vanishingPoint] = findVanishingPoint(segments, infinityDistance);
+            [segments, vanishingPoint] = findVanishingPoint(segments, RaysModel.ANGLE_THRESHOLD);
             const points = RaysModel.convertSegmentsToString(segments);
             this._creatorView._controller.finish({ points, vanishingPoint }, this._type);
         }
         this._creatorView._controller.switchCreateMode(true);
+    }
+
+    _undo() {
+        let startPoint = null;
+        this._currentRay.draw('cancel');
+        if (this._isRayInProgress) {
+            this._isRayInProgress = false;
+        } else {
+            const lastRay = this._finishedRays.pop();
+            if (lastRay) {
+                const point = lastRay.node.points[0];
+                lastRay.remove();
+                const canvas = this._creatorView._frameContent.node;
+                startPoint = window.cvat.translate.point.canvasToClient(canvas, point.x, point.y);
+            }
+        }
+        this._beginRay();
+        if (startPoint) {
+            this._currentRay.draw('point', {clientX: startPoint.x, clientY: startPoint.y});
+        }
     }
 }

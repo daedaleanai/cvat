@@ -21,6 +21,7 @@
 "use strict";
 
 const STROKE_WIDTH = 2.5;
+const DASH_LENGTH = 8;
 const SELECT_POINT_STROKE_WIDTH = 2.5;
 const POINT_RADIUS = 5;
 const AREA_TRESHOLD = 1;
@@ -1272,19 +1273,15 @@ class RaysModel extends PolyShapeModel {
         this._vanishingPoint = data.vanishingPoint;
     }
 
+    static ANGLE_THRESHOLD = 0.035;
+
     get vanishingPoint() {
         // vanishing point is not initialized when rays are loaded from db
         if (typeof this._vanishingPoint === 'undefined') {
             const { points } = this._positions[this._frame];
             let segments = RaysModel.convertStringToSegments(points);
-            const {frameHeight, frameWidth} = window.cvat.player.geometry;
-            let infinityDistance = Math.min(frameWidth, frameHeight) * 10;
-            // window.cvat.player.geometry might not be initialized when attribute is accessed
-            if (typeof infinityDistance === 'undefined') {
-                infinityDistance = 100000;
-            }
             let vanishingPoint;
-            [segments, vanishingPoint] = window.graphicPrimitives.findVanishingPoint(segments, infinityDistance);
+            [segments, vanishingPoint] = window.graphicPrimitives.findVanishingPoint(segments, RaysModel.ANGLE_THRESHOLD);
             this._vanishingPoint = vanishingPoint;
         }
         return this._vanishingPoint;
@@ -1295,7 +1292,7 @@ class RaysModel extends PolyShapeModel {
             points = PolyShapeModel.convertStringToNumberArray(points);
         }
         const segments = [];
-        for (let i = 0; i < points.length; i += 2) {
+        for (let i = 0; i < points.length - 1; i += 2) {
             segments.push([points[i], points[i+1]]);
         }
         return segments;
@@ -1574,18 +1571,40 @@ class RaysController extends PolyShapeController {
         super(raysModel);
     }
 
+    static getDashArray(index) {
+        const dashes = {
+            0: [5, 0],
+            1: [5, 2, 1, 2],
+            2: [5, 1, 1, 1, 1, 1],
+        };
+        const auxiliary = [1, 1];
+        return (dashes[index] || auxiliary).map(v => v * DASH_LENGTH / window.cvat.player.geometry.scale).join(" ");
+    }
+
     updateLineCoordinates(lineElement, linePhi, mousePos) {
-        const { toPolarCoordinates, fromPolarCoordinates, rotate } = window.graphicPrimitives;
+        const {
+            toPolarCoordinates,
+            fromPolarCoordinates,
+            getOppositeAngle,
+            getAngleBetween,
+            rotate,
+        } = window.graphicPrimitives;
         const rotationPoint = this._model.vanishingPoint;
         const points = lineElement.array().value
             .map(([x, y]) => ({x, y}))
             .map(p => window.cvat.translate.box.canvasToActual(p));
         let newPoints;
+
         if (rotationPoint) {
-            const { phi } = toPolarCoordinates(mousePos, rotationPoint);
+            const { phi: fixedPhi } = toPolarCoordinates(mousePos, rotationPoint);
+            const revPhi = getOppositeAngle(fixedPhi);
+            function snapAngle({r, phi}) {
+                const newPhi = getAngleBetween(phi, fixedPhi) < getAngleBetween(phi, revPhi) ? fixedPhi : revPhi;
+                return {r, phi: newPhi};
+            }
             newPoints = points
                 .map(p => toPolarCoordinates(p, rotationPoint))
-                .map(coords => ({...coords, phi}))
+                .map(snapAngle)
                 .map(coords => fromPolarCoordinates(coords, rotationPoint));
         } else {
             const { y } = rotate(mousePos, linePhi);
@@ -1674,27 +1693,7 @@ class ShapeView extends Listener {
 
             this._uis.shape.front();
             if (!this._controller.lock) {
-                // Setup drag events
-                this._uis.shape.draggable().on('dragstart', () => {
-                    events.drag = Logger.addContinuedEvent(Logger.EventType.dragObject);
-                    this._flags.dragging = true;
-                    blurAllElements();
-                    this._hideShapeText();
-                    this.notify('drag');
-                }).on('dragend', (e) => {
-                    const p1 = e.detail.handler.startPoints.point;
-                    const p2 = e.detail.p;
-                    events.drag.close();
-                    events.drag = null;
-                    this._flags.dragging = false;
-                    if (Math.sqrt(Math.pow((p1.x - p2.x), 2) + Math.pow((p1.y - p2.y), 2)) > 1) {
-                        const frame = window.cvat.player.frames.current;
-                        this._controller.updatePosition(frame, this._buildPosition());
-                    }
-                    this._showShapeText();
-                    this.notify('drag');
-                });
-
+                this.setupDragEvents(events);
                 this.setupResizeEvents(events);
 
                 let centers = ['t', 'r', 'b', 'l'];
@@ -1793,18 +1792,9 @@ class ShapeView extends Listener {
 
     _makeNotEditable() {
         if (this._uis.shape && this._flags.editable) {
-            this._uis.shape.draggable(false);
+            this.tearDownDragEvents();
             this.tearDownResizeEvents();
-            if (this._flags.dragging) {
-                this._flags.dragging = false;
-                this.notify('drag');
-            }
-
-            this._uis.shape.off('dragstart')
-                .off('dragend')
-                .off('contextmenu.contextMenu')
-                .off('mousedown.contextMenu');
-
+            this._uis.shape.off('contextmenu.contextMenu').off('mousedown.contextMenu');
             this._flags.editable = false;
         }
 
@@ -1852,6 +1842,36 @@ class ShapeView extends Listener {
         this._uis.shape.off('resizestart').off('resizing').off('resizedone');
     }
 
+    setupDragEvents(events) {
+        this._uis.shape.draggable().on('dragstart', () => {
+            events.drag = Logger.addContinuedEvent(Logger.EventType.dragObject);
+            this._flags.dragging = true;
+            blurAllElements();
+            this._hideShapeText();
+            this.notify('drag');
+        }).on('dragend', (e) => {
+            const p1 = e.detail.handler.startPoints.point;
+            const p2 = e.detail.p;
+            events.drag.close();
+            events.drag = null;
+            this._flags.dragging = false;
+            if (Math.sqrt(Math.pow((p1.x - p2.x), 2) + Math.pow((p1.y - p2.y), 2)) > 1) {
+                const frame = window.cvat.player.frames.current;
+                this._controller.updatePosition(frame, this._buildPosition());
+            }
+            this._showShapeText();
+            this.notify('drag');
+        });
+    }
+
+    tearDownDragEvents() {
+        this._uis.shape.draggable(false);
+        if (this._flags.dragging) {
+            this._flags.dragging = false;
+            this.notify('drag');
+        }
+        this._uis.shape.off('dragstart').off('dragend');
+    }
 
     _select() {
         if (this._uis.shape && this._uis.shape.node.parentElement) {
@@ -3460,7 +3480,6 @@ class PointsView extends PolyShapeView {
 class RaysView extends PolyShapeView {
     constructor(pointsModel, pointsController, svgScene, menusScene, textsScene) {
         super(pointsModel, pointsController, svgScene, menusScene, textsScene);
-        this._draggable = false;
         this._uis.vanishingPoint = null;
         this._z_order = null;
         this._lines = [];
@@ -3508,6 +3527,10 @@ class RaysView extends PolyShapeView {
         this._uis.shape = this._scenes.svg.group()
             .fill(this._appearance.fill || this._appearance.colors.shape)
             .stroke(this._appearance.stroke || this._appearance.colors.shape)
+            .attr({
+                'stroke-width': STROKE_WIDTH / window.cvat.player.geometry.scale,
+                'z_order': position.z_order,
+            })
             .on('click', () => {
                 this._positionateMenus();
                 this._controller.click();
@@ -3517,13 +3540,14 @@ class RaysView extends PolyShapeView {
         this._lines = [];
         this._z_order = position.z_order;
         const lines = this._splitIntoLines(position.points);
-        lines.forEach(points => {
+        lines.forEach((points, index) => {
             const line = this._uis.shape.polyline(points);
             this._lines.push(line);
             line.fill('inherit').stroke('inherit').attr({
-                'stroke-width': STROKE_WIDTH / window.cvat.player.geometry.scale,
-                'z_order': position.z_order,
+                'stroke-width': 'inherit',
+                'z_order': 'inherit',
             }).addClass('shape polyline');
+            line.attr({ 'stroke-dasharray': RaysController.getDashArray(index) });
         });
     }
 
@@ -3539,7 +3563,7 @@ class RaysView extends PolyShapeView {
     }
 
     _drawVanishingPoint() {
-        if (this._isVanishingPointVisible()) {
+        if (!this._uis.vanishingPoint && this._isVanishingPointVisible()) {
             const radius = POINT_RADIUS * 2 / window.cvat.player.geometry.scale;
             const scaledStroke = STROKE_WIDTH / window.cvat.player.geometry.scale;
             const point = window.cvat.translate.points.actualToCanvas([this._controller._model.vanishingPoint])[0];
@@ -3582,10 +3606,24 @@ class RaysView extends PolyShapeView {
     _makeEditable() {
         PolyShapeView.prototype._makeEditable.call(this);
         this._drawVanishingPoint();
+        this._lines.forEach((lineElement, index) => {
+            lineElement.on('dblclick', () => {
+                this._controller.model().removePoint(index * 2);
+            });
+            lineElement.remember('_selectHandler').pointSelection.set.members.forEach((point) => {
+                point = $(point.node);
+                point.on('dblclick', () => {
+                    this._controller.model().removePoint(index * 2);
+                });
+            })
+        });
     }
 
 
     _makeNotEditable() {
+        this._lines.forEach((lineElement, index) => {
+           lineElement.off('dblclick');
+        });
         this._removeVanishingPoint();
         PolyShapeView.prototype._makeNotEditable.call(this);
     }
@@ -3645,16 +3683,63 @@ class RaysView extends PolyShapeView {
         }
     }
 
-
-    _splitIntoLines(points) {
-        const pointsArray = PolyShapeModel.convertStringToNumberArray(points);
-        const lines = [];
-        for (let i = 0; i < pointsArray.length; i += 2) {
-            lines.push([pointsArray[i], pointsArray[i+1]]);
-        }
-        return lines.map(PolyShapeModel.convertNumberArrayToString);
+    setupDragEvents(events) {
+        let lastPoint;
+        this._uis.shape.draggable().on('dragstart', (e) => {
+            lastPoint = e.detail.p;
+            events.drag = Logger.addContinuedEvent(Logger.EventType.dragObject);
+            this._flags.dragging = true;
+            this._removeVanishingPoint();
+            blurAllElements();
+            this._hideShapeText();
+            this.notify('drag');
+        }).on('dragmove', (e) => {
+            e.preventDefault();
+            const currentPoint = e.detail.p;
+            const dx = currentPoint.x - lastPoint.x;
+            const dy = currentPoint.y - lastPoint.y;
+            this._lines.forEach((lineElement) => {
+                const newPoints = lineElement.array().value.map(([x, y]) => [x + dx, y + dy]);
+                lineElement.plot(newPoints);
+            });
+            lastPoint = currentPoint;
+        }).on('dragend', (e) => {
+            const p1 = e.detail.handler.startPoints.point;
+            const p2 = e.detail.p;
+            events.drag.close();
+            events.drag = null;
+            this._flags.dragging = false;
+            if (window.graphicPrimitives.pointsDistance(p1, p2) > 1) {
+                const frame = window.cvat.player.frames.current;
+                this._controller._model._vanishingPoint = undefined;
+                this._controller.updatePosition(frame, this._buildPosition());
+            }
+            this._showShapeText();
+            this._drawVanishingPoint();
+            this.notify('drag');
+        });
     }
 
+    tearDownDragEvents() {
+        this._uis.shape.draggable(false);
+        if (this._flags.dragging) {
+            this._flags.dragging = false;
+            this.notify('drag');
+        }
+        this._uis.shape.off('dragstart').off('dragmove').off('dragend');
+    }
+
+    updateShapeTextPosition() {
+        super.updateShapeTextPosition();
+        this._lines.forEach((line, index) => {
+            line.attr({ 'stroke-dasharray': RaysController.getDashArray(index) });
+        });
+    }
+
+    _splitIntoLines(points) {
+        const lines = RaysModel.convertStringToSegments(points);
+        return lines.map(PolyShapeModel.convertNumberArrayToString);
+    }
 
     _drawShapeUI(position) {
         let points = window.cvat.translate.points.actualToCanvas(position.points);
