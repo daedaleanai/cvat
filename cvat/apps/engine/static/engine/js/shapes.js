@@ -3614,7 +3614,6 @@ class RaysView extends PolyShapeView {
                 point = $(point.node);
                 point.on('dblclick', () => {
                     this._controller.model().removePoint(index * 2);
-                    // e.stopPropagation();
                 });
             })
         });
