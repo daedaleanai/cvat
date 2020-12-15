@@ -1,4 +1,4 @@
-from cvat.apps.engine.ddln.geometry import Line, get_angle_between
+from cvat.apps.engine.ddln.geometry import Line, get_angle_between, Point
 from cvat.apps.engine.utils import grouper
 from ..models import Runway
 from ...utils import build_attrs_dict
@@ -6,6 +6,44 @@ from ...utils import build_attrs_dict
 
 class RunwayParseError(ValueError):
     pass
+
+
+def iterate_runways(reader, reporter):
+    if not reader._frame_annotation:
+        return
+
+    lons = {}
+    lats = {}
+    for shape in reader._frame_annotation.labeled_shapes:
+        if shape.type != "rays":
+            continue
+
+        label = shape.label
+        attrs = build_attrs_dict(shape)
+        runway_id = attrs['Runway_ID']
+        if label == 'Vertical line':
+            if runway_id in lons:
+                reporter.report_duplicated_rays(runway_id, is_lon=True)
+            lons[runway_id] = (shape, attrs)
+        elif label == 'Horizontal line':
+            if runway_id in lats:
+                reporter.report_duplicated_rays(runway_id, is_lon=False)
+            lats[runway_id] = (shape, attrs)
+        else:
+            reporter.report_unknown_label(label)
+
+    for runway_id in (lats.keys() - lons.keys()):
+        reporter.report_missing_rays(runway_id, is_lon=True)
+
+    for runway_id, lon in lons.items():
+        if runway_id not in lats:
+            reporter.report_missing_rays(runway_id, is_lon=False)
+            continue
+        lat = lats[runway_id]
+        try:
+            yield _parse_rays(lon, lat, reporter)
+        except RunwayParseError as e:
+            reporter._report(e.args[0])
 
 
 def write_runway(runway: Runway, writer):
@@ -36,6 +74,36 @@ def write_runway(runway: Runway, writer):
     }
     writer._annotations.add_shape(writer._annotations.LabeledShape(**lon_shape))
     writer._annotations.add_shape(writer._annotations.LabeledShape(**lat_shape))
+
+
+def _parse_rays(lon, lat, reporter):
+    lon_shape, lon_attrs = lon
+    lat_shape, lat_attrs = lat
+    runway_id = lon_attrs['Runway_ID']
+    left_visible = bool(int(lon_attrs['First_line(1)']))
+    right_visible = bool(int(lon_attrs['Second_line(2)']))
+    center_visible = bool(int(lon_attrs['Third_line(3)']))
+    start_visible = bool(int(lat_attrs['First_line(1)']))
+    designator_visible = bool(int(lat_attrs['Second_line(2)']))
+    end_visible = bool(int(lat_attrs['Third_line(3)']))
+
+    left, right, center = _parse_lines(lon_shape)
+    start, designator, end = _parse_lines(lat_shape)
+
+    runway = Runway(runway_id, left, right, center, start, end, designator)
+    runway.calculate_vanishing_points(reporter)
+    runway.fix_order(reporter)
+    runway.apply_visibility(left_visible, right_visible, center_visible, start_visible, end_visible, designator_visible)
+    return runway
+
+
+def _parse_lines(shape):
+    points = (Point(x, y) for x, y in grouper(shape.points, 2))
+    lines = [Line.by_two_points(a, b) for a, b in grouper(points, 2)]
+    if len(lines) < 3:
+        raise RunwayParseError("Not enough lines (should be at least 3)")
+    first, second, third, *rest = lines
+    return first, second, third
 
 
 def _get_points_list(runway):
