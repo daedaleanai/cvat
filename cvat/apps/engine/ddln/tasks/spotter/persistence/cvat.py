@@ -5,8 +5,8 @@ from ...utils import build_attrs_dict
 def iterate_bboxes(reader):
     if not reader._frame_annotation:
         return
-    height = float(reader._frame_annotation.height)
-    width = float(reader._frame_annotation.width)
+    height = float(reader.image_height)
+    width = float(reader.image_width)
 
     for shape in reader._frame_annotation.labeled_shapes:
         if shape.type != "rectangle":
@@ -34,8 +34,8 @@ def iterate_bboxes(reader):
 
 
 def write_bbox(bbox: LabeledBoundingBox, writer):
-    width = writer._annotations._frame_info[writer._frame_id]["width"]
-    height = writer._annotations._frame_info[writer._frame_id]["height"]
+    width = writer.image_width
+    height = writer.image_height
 
     xtl = float(bbox.left) * width
     ytl = float(bbox.top) * height
