@@ -14,6 +14,7 @@ from ast import literal_eval
 from urllib import error as urlerror
 from urllib import parse as urlparse
 from urllib import request as urlrequest
+from shutil import copytree, copy2
 
 from cvat.apps.engine.media_extractors import get_mime, MEDIA_TYPES
 
@@ -21,7 +22,6 @@ import django_rq
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import transaction
-from distutils.dir_util import copy_tree
 
 from . import models
 from .ddln.inventory_client import record_task_creation
@@ -30,6 +30,11 @@ from .ddln.tasks import create_task_handler, guess_task_type
 from .ddln.utils import parse_frame_name
 from .log import slogger
 from .utils import load_instances
+
+def copy3(src, dest):
+    if not os.access(src, os.R_OK):
+        return
+    copy2(src, dest)
 
 ############################# Low Level server API
 
@@ -100,7 +105,7 @@ def _copy_data_from_share(server_files, upload_dir):
         source_path = os.path.join(settings.SHARE_ROOT, os.path.normpath(path))
         target_path = os.path.join(upload_dir, path)
         if os.path.isdir(source_path):
-            copy_tree(source_path, target_path)
+            copytree(source_path, target_path, copy_function=copy3)
         else:
             target_dir = os.path.dirname(target_path)
             if not os.path.exists(target_dir):
