@@ -37,7 +37,8 @@ class Runway:
         lon_lines = [self.left_line, self.center_line, self.right_line]
         self.lon_vanishing_point = self._calculate_vanishing_point(lon_lines, reporter, is_lon=True)
         lat_lines = [self.start_line, self.designator_line, self.end_line]
-        self.lat_vanishing_point = self._calculate_vanishing_point(lat_lines, reporter, is_lon=False)
+        if all(line is not None for line in lat_lines):
+            self.lat_vanishing_point = self._calculate_vanishing_point(lat_lines, reporter, is_lon=False)
 
     def fix_order(self, reporter):
         if self.lon_vanishing_point:
@@ -94,6 +95,8 @@ class Runway:
 
     def _check_lat_order(self, reporter):
         original = [self.end_line, self.designator_line, self.start_line]
+        if any(line is None for line in original):
+            return
         distant_point = self.lon_vanishing_point
         if not distant_point:
             # if longitudinal lines are parallel, just assume they are directed away from the camera

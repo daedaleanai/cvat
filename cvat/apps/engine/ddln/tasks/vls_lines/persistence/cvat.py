@@ -38,8 +38,7 @@ def iterate_runways(reader, reporter):
     for runway_id, lon in lons.items():
         if runway_id not in lats:
             reporter.report_missing_rays(runway_id, is_lon=False)
-            continue
-        lat = lats[runway_id]
+        lat = lats.get(runway_id)
         try:
             yield _parse_rays(lon, lat, reporter)
         except RunwayParseError as e:
@@ -78,17 +77,20 @@ def write_runway(runway: Runway, writer):
 
 def _parse_rays(lon, lat, reporter):
     lon_shape, lon_attrs = lon
-    lat_shape, lat_attrs = lat
     runway_id = lon_attrs['Runway_ID']
     left_visible = bool(int(lon_attrs['First_line(1)']))
     right_visible = bool(int(lon_attrs['Second_line(2)']))
     center_visible = bool(int(lon_attrs['Third_line(3)']))
-    start_visible = bool(int(lat_attrs['First_line(1)']))
-    designator_visible = bool(int(lat_attrs['Second_line(2)']))
-    end_visible = bool(int(lat_attrs['Third_line(3)']))
-
     left, right, center = _parse_lines(lon_shape)
-    start, designator, end = _parse_lines(lat_shape)
+    if lat:
+        lat_shape, lat_attrs = lat
+        start_visible = bool(int(lat_attrs['First_line(1)']))
+        designator_visible = bool(int(lat_attrs['Second_line(2)']))
+        end_visible = bool(int(lat_attrs['Third_line(3)']))
+        start, designator, end = _parse_lines(lat_shape)
+    else:
+        start_visible = end_visible = designator_visible = False
+        start = designator = end = None
 
     runway = Runway(runway_id, left, right, center, start, end, designator)
     runway.calculate_vanishing_points(reporter)
