@@ -1302,6 +1302,36 @@ class RaysModel extends PolyShapeModel {
         return PolyShapeModel.convertNumberArrayToString(segments.flat(1));
     }
 
+    updatePosition(frame, position, silent) {
+        const { getLineByTwoPoints, getAngle, pointsDistance } = window.graphicPrimitives;
+        let segments = RaysModel.convertStringToSegments(position.points);
+        const c = this.vanishingPoint;
+        if (c) {
+            segments = segments.map(([a, b]) => pointsDistance(b, c) < pointsDistance(a, c) ? [a, b] : [b, a]);
+        } else {
+            const angles = segments.map(s => getAngle(getLineByTwoPoints(s[0], s[1])));
+            const first = angles[0];
+            let equalCount = 0;
+            angles.forEach((angle) => {
+                if (Math.abs(angle - first) < 0.001) {
+                    equalCount++;
+                }
+            });
+            const shouldBeEqual = equalCount > angles.length - equalCount;
+            segments = segments.map(([a, b], i) => {
+                if ((Math.abs(angles[i] - first) < 0.001) === shouldBeEqual) {
+                    return [a, b];
+                } else {
+                    return [b, a];
+                }
+            });
+        }
+        position.points = RaysModel.convertSegmentsToString(segments);
+
+        super.updatePosition(frame, position, silent);
+    }
+
+
     removePoint(idx) {
         const segmentIndex = Math.floor(idx/2);
         let frame = window.cvat.player.frames.current;
