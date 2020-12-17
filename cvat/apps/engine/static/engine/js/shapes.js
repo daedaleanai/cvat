@@ -1673,6 +1673,17 @@ class RaysController extends PolyShapeController {
 
     }
 
+    moveVanishingPoint(lines, dx, dy) {
+        const { vanishingPoint } = this._model;
+        const newVanishingPoint = { x: vanishingPoint.x + dx, y: vanishingPoint.y + dy };
+        lines.forEach((element) => {
+            const points = this.extractPoints(element);
+            const newPoints = this.rotate(points, points[0], newVanishingPoint);
+            this.setPoints(element, newPoints);
+        });
+        this._model._vanishingPoint = newVanishingPoint;
+    }
+
     rotate(points, rotationPoint, targetPoint) {
         const {
             toPolarCoordinates,
@@ -3658,6 +3669,7 @@ class RaysView extends PolyShapeView {
                 .fill(this._appearance.fill || this._appearance.colors.shape)
                 .stroke('black')
                 .attr('stroke-width', scaledStroke)
+                .style('cursor', 'pointer')
                 .addClass('tempMarker');
             this._uis.vanishingPoint.node.setAttribute('z_order', this._z_order - 1);
         }
@@ -3689,8 +3701,8 @@ class RaysView extends PolyShapeView {
 
 
     _makeEditable() {
-        PolyShapeView.prototype._makeEditable.call(this);
         this._drawVanishingPoint();
+        PolyShapeView.prototype._makeEditable.call(this);
         this._lines.forEach((lineElement, index) => {
             lineElement.on('dblclick', () => {
                 this._controller.model().removePoint(index * 2);
@@ -3709,8 +3721,8 @@ class RaysView extends PolyShapeView {
         this._lines.forEach((lineElement, index) => {
            lineElement.off('dblclick');
         });
-        this._removeVanishingPoint();
         PolyShapeView.prototype._makeNotEditable.call(this);
+        this._removeVanishingPoint();
     }
 
     _getMousePosition(mouseEvent) {
@@ -3789,6 +3801,48 @@ class RaysView extends PolyShapeView {
         }
     }
 
+    setupVanishingPointDrag(events) {
+        if (!this._uis.vanishingPoint) {
+            return;
+        }
+        let objWasResized = false;
+        let lastPoint;
+        this._uis.vanishingPoint.draggable().on('dragstart', (e) => {
+            lastPoint = e.detail.p;
+            objWasResized = false;
+            this._flags.resizing = true;
+            events.resize = Logger.addContinuedEvent(Logger.EventType.resizeObject);
+            blurAllElements();
+            this._hideShapeText();
+            this.notify('resize');
+        }).on('dragmove', (e) => {
+            objWasResized = true;
+            const currentPoint = e.detail.p;
+            const dx = currentPoint.x - lastPoint.x;
+            const dy = currentPoint.y - lastPoint.y;
+            this._controller.moveVanishingPoint(this._lines, dx, dy);
+            lastPoint = currentPoint;
+        }).on('dragend', (e) => {
+            events.resize.close();
+            events.resize = null;
+            this._flags.resizing = false;
+            if (objWasResized) {
+                const frame = window.cvat.player.frames.current;
+                this._controller.updatePosition(frame, this._buildPosition());
+            }
+            this._showShapeText();
+            this.notify('resize');
+        });
+    }
+
+    tearDownVanishingPointDrag() {
+        if (!this._uis.vanishingPoint) {
+            return;
+        }
+        this._uis.vanishingPoint.off('dragstart').off('dragmove').off('dragend');
+        this._uis.vanishingPoint.draggable(false);
+    }
+
     setupDragEvents(events) {
         let lastPoint;
         this._uis.shape.draggable().on('dragstart', (e) => {
@@ -3829,9 +3883,11 @@ class RaysView extends PolyShapeView {
             this._showShapeText();
             this.notify('drag');
         });
+        this.setupVanishingPointDrag(events);
     }
 
     tearDownDragEvents() {
+        this.tearDownVanishingPointDrag();
         this._uis.shape.draggable(false);
         if (this._flags.dragging) {
             this._flags.dragging = false;
