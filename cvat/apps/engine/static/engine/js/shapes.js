@@ -1273,18 +1273,27 @@ class RaysModel extends PolyShapeModel {
         this._vanishingPoint = data.vanishingPoint;
     }
 
-    static ANGLE_THRESHOLD = 0.035;
-
     get vanishingPoint() {
         // vanishing point is not initialized when rays are loaded from db
         if (typeof this._vanishingPoint === 'undefined') {
             const { points } = this._positions[this._frame];
             let segments = RaysModel.convertStringToSegments(points);
             let vanishingPoint;
-            [segments, vanishingPoint] = window.graphicPrimitives.findVanishingPoint(segments, RaysModel.ANGLE_THRESHOLD);
+            [segments, vanishingPoint] = window.graphicPrimitives.findVanishingPoint(segments, RaysModel.getAngleThreshold());
             this._vanishingPoint = vanishingPoint;
+            // if angle threshold is increased, there might be a case when rays are shown as parallel on the front-end
+            // while they are stored as crossed lines on the back-end
+            // use this variable as an escape hack to update values on the back-end
+            if (window.__UPDATE_RAYS__) {
+                this._positions[this._frame] = RaysModel.convertSegmentsToString(segments);
+            }
         }
         return this._vanishingPoint;
+    }
+
+    static getAngleThreshold() {
+        const angle = window.__PARALLEL_RAYS_ANGLE_THRESHOLD__ || 5;
+        return angle * Math.PI / 180;
     }
 
     static convertStringToSegments(points) {

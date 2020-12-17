@@ -1051,7 +1051,7 @@ class RaysDrawInstance {
         segments = segments.filter(([a, b]) => !arePointsEqual(a, b));
         let vanishingPoint;
         if (segments.length > 1) {
-            [segments, vanishingPoint] = findVanishingPoint(segments, RaysModel.ANGLE_THRESHOLD);
+            [segments, vanishingPoint] = findVanishingPoint(segments, RaysModel.getAngleThreshold());
             const points = RaysModel.convertSegmentsToString(segments);
             this._creatorView._controller.finish({ points, vanishingPoint }, this._type);
         }
