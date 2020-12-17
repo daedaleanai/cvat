@@ -1344,6 +1344,11 @@ class RaysModel extends PolyShapeModel {
         }
     }
 
+    _clamp(value, min, max) {
+        // Do not clamp points as after clamping lines are no more parallel
+        return value;
+    }
+
     _verifyArea(box) {
         return ((box.xbr - box.xtl) >= AREA_TRESHOLD || (box.ybr - box.ytl) >= AREA_TRESHOLD);
     }

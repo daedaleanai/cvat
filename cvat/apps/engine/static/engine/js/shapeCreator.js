@@ -1047,11 +1047,6 @@ class RaysDrawInstance {
         const { arePointsEqual, findVanishingPoint } = window.graphicPrimitives;
         let actualPoints = this._finishedRays.map(e => e.attr('points')).join(" ");
         actualPoints = window.cvat.translate.points.canvasToActual(actualPoints);
-        actualPoints = PolyShapeModel.convertStringToNumberArray(actualPoints);
-        for (const point of actualPoints) {
-            point.x = window.cvat.frameClipper.clampX(point.x);
-            point.y = window.cvat.frameClipper.clampY(point.y);
-        }
         let segments = RaysModel.convertStringToSegments(actualPoints);
         segments = segments.filter(([a, b]) => !arePointsEqual(a, b));
         let vanishingPoint;
