@@ -1,4 +1,3 @@
-import itertools
 import math
 from itertools import combinations
 from typing import Optional
@@ -73,8 +72,8 @@ class Runway:
         original = [self.left_line, self.center_line, self.right_line]
         max_angle = 0
         edges = None
-        for a, b in itertools.combinations(original, 2):
-            angle = get_angle_between(a.get_angle(), b.get_angle())
+        for a, b in combinations(original, 2):
+            angle = get_lines_angle(a, b)
             if angle > max_angle:
                 max_angle = angle
                 edges = [a, b]
