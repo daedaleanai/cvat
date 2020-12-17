@@ -3795,7 +3795,6 @@ class RaysView extends PolyShapeView {
             lastPoint = e.detail.p;
             events.drag = Logger.addContinuedEvent(Logger.EventType.dragObject);
             this._flags.dragging = true;
-            this._removeVanishingPoint();
             blurAllElements();
             this._hideShapeText();
             this.notify('drag');
@@ -3808,6 +3807,14 @@ class RaysView extends PolyShapeView {
                 const newPoints = lineElement.array().value.map(([x, y]) => [x + dx, y + dy]);
                 lineElement.plot(newPoints);
             });
+            const vanishingPoint = this._controller._model.vanishingPoint;
+            if (vanishingPoint) {
+                this._removeVanishingPoint();
+                vanishingPoint.x += dx;
+                vanishingPoint.y += dy;
+                this._drawVanishingPoint();
+
+            }
             lastPoint = currentPoint;
         }).on('dragend', (e) => {
             const p1 = e.detail.handler.startPoints.point;
@@ -3817,11 +3824,9 @@ class RaysView extends PolyShapeView {
             this._flags.dragging = false;
             if (window.graphicPrimitives.pointsDistance(p1, p2) > 1) {
                 const frame = window.cvat.player.frames.current;
-                this._controller._model._vanishingPoint = undefined;
                 this._controller.updatePosition(frame, this._buildPosition());
             }
             this._showShapeText();
-            this._drawVanishingPoint();
             this.notify('drag');
         });
     }
