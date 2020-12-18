@@ -44,3 +44,9 @@ class VlsLinesValidationReporter(BaseValidationReporter):
 
     def report_lon_disorder(self):
         self._report("Longitudinal rays are mixed up")
+
+    def report_wrong_values_amount(self, expected, actual):
+        self._report("Wrong values amount. Expected: {}, actual: {}".format(expected, actual))
+
+    def report_not_crossing(self, error):
+        self._report("Lines seem not to cross at the same point. Error: {}".format(error))

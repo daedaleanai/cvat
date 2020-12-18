@@ -4,7 +4,8 @@ from typing import Optional
 
 from cvat.apps.engine.ddln.geometry import Line, Point, get_angle_between, get_counterclockwise_angle
 
-ANGLE_THRESHOLD = 0.05
+ANGLE_THRESHOLD = 5 * math.pi / 180
+ERROR_THRESHOLD = 30
 
 
 class Runway:
@@ -117,8 +118,9 @@ class Runway:
             return None
 
         average_point = get_average_point(points)
-        # might be worth to double-check that lines are parallel
-        # max_error = max(p.distance_to(average_point) for p in points)
+        max_error = max(p.distance_to(average_point) for p in points)
+        if max_error > ERROR_THRESHOLD:
+            reporter.report_not_crossing(max_error)
         return average_point
 
 
@@ -131,9 +133,8 @@ def get_average_point(points):
     if not points:
         return None
     n = len(points)
-    iterator = iter(points)
-    average_point = next(iterator)
-    for point in iterator:
-        average_point += point
-    average_point = Point(average_point.x / n, average_point.y / n)
+    sum = Point(0, 0)
+    for p in points:
+        sum += p
+    average_point = Point(sum.x / n, sum.y / n)
     return average_point

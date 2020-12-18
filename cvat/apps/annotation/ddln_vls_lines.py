@@ -36,7 +36,7 @@ def dump(file_object, annotations):
 
         # image dimensions are needed to find center point,
         # they can be arbitrary here since they are used only for validation
-        sequences = handler.load_sequences(CsvDirectoryImporter(temp_dir), 4096, 3000)
+        sequences = handler.load_sequences(CsvDirectoryImporter(temp_dir), 1, 1)
         reporter = handler.validate(sequences)
         validation_file = os.path.join(temp_dir, 'validation.txt')
         reporter.write_text_report(open(validation_file, 'wt'), reporter.severity.WARNING)

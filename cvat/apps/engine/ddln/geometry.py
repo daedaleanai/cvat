@@ -25,7 +25,7 @@ class Point:
         self.y = y
 
     def __repr__(self):
-        return "Point(x={}, y={})".format(self.x, self.y)
+        return "Point({}, {})".format(self.x, self.y)
 
     def __sub__(self, other):
         assert isinstance(other, Point)
@@ -50,7 +50,7 @@ class Point:
             # alternative implementation:
             #     projection = self.project_onto(other)
             #     return self.distance_to(projection)
-        raise TypeError("cannot calculate distance from Point to {}".format(type(other)))
+        raise TypeError("cannot calculate distance from Point to {}".format(other))
 
     def get_mid_point(self, other):
         assert isinstance(other, Point)

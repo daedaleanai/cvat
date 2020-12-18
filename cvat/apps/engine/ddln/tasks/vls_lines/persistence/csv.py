@@ -7,7 +7,9 @@ from ..models import Runway
 def iterate_runways(reader, reporter):
     for row in reader._reader:
         runway_id, *lines_data = row
-        assert len(lines_data) == 12  # 6 lines, each line is represented by 2 values
+        if len(lines_data) != 12:  # 6 lines, each line is represented by 2 values
+            reporter.report_wrong_values_amount(12, len(lines_data))
+            continue
         left = from_row(lines_data[0:2], reader.image_width, reader.image_height)
         right = from_row(lines_data[2:4], reader.image_width, reader.image_height)
         center = from_row(lines_data[4:6], reader.image_width, reader.image_height)
@@ -69,5 +71,5 @@ def as_row(line, width, height):
     angle = angle % (2 * math.pi)
     angle = angle * 180 / math.pi
     angle = format(angle, ".2f")
-    distance = format(distance, ".3f")
+    distance = format(distance, ".6f")
     return angle, distance
