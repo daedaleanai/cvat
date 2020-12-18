@@ -1273,18 +1273,27 @@ class RaysModel extends PolyShapeModel {
         this._vanishingPoint = data.vanishingPoint;
     }
 
-    static ANGLE_THRESHOLD = 0.035;
-
     get vanishingPoint() {
         // vanishing point is not initialized when rays are loaded from db
         if (typeof this._vanishingPoint === 'undefined') {
             const { points } = this._positions[this._frame];
             let segments = RaysModel.convertStringToSegments(points);
             let vanishingPoint;
-            [segments, vanishingPoint] = window.graphicPrimitives.findVanishingPoint(segments, RaysModel.ANGLE_THRESHOLD);
+            [segments, vanishingPoint] = window.graphicPrimitives.findVanishingPoint(segments, RaysModel.getAngleThreshold());
             this._vanishingPoint = vanishingPoint;
+            // if angle threshold is increased, there might be a case when rays are shown as parallel on the front-end
+            // while they are stored as crossed lines on the back-end
+            // use this variable as an escape hack to update values on the back-end
+            if (window.__UPDATE_RAYS__) {
+                this._positions[this._frame] = RaysModel.convertSegmentsToString(segments);
+            }
         }
         return this._vanishingPoint;
+    }
+
+    static getAngleThreshold() {
+        const angle = window.__PARALLEL_RAYS_ANGLE_THRESHOLD__ || 5;
+        return angle * Math.PI / 180;
     }
 
     static convertStringToSegments(points) {
@@ -1302,6 +1311,36 @@ class RaysModel extends PolyShapeModel {
         return PolyShapeModel.convertNumberArrayToString(segments.flat(1));
     }
 
+    updatePosition(frame, position, silent) {
+        const { getLineByTwoPoints, getAngle, pointsDistance } = window.graphicPrimitives;
+        let segments = RaysModel.convertStringToSegments(position.points);
+        const c = this.vanishingPoint;
+        if (c) {
+            segments = segments.map(([a, b]) => pointsDistance(b, c) < pointsDistance(a, c) ? [a, b] : [b, a]);
+        } else {
+            const angles = segments.map(s => getAngle(getLineByTwoPoints(s[0], s[1])));
+            const first = angles[0];
+            let equalCount = 0;
+            angles.forEach((angle) => {
+                if (Math.abs(angle - first) < 0.001) {
+                    equalCount++;
+                }
+            });
+            const shouldBeEqual = equalCount > angles.length - equalCount;
+            segments = segments.map(([a, b], i) => {
+                if ((Math.abs(angles[i] - first) < 0.001) === shouldBeEqual) {
+                    return [a, b];
+                } else {
+                    return [b, a];
+                }
+            });
+        }
+        position.points = RaysModel.convertSegmentsToString(segments);
+
+        super.updatePosition(frame, position, silent);
+    }
+
+
     removePoint(idx) {
         const segmentIndex = Math.floor(idx/2);
         let frame = window.cvat.player.frames.current;
@@ -1312,6 +1351,11 @@ class RaysModel extends PolyShapeModel {
             position.points = RaysModel.convertSegmentsToString(segments);
             this.updatePosition(frame, position);
         }
+    }
+
+    _clamp(value, min, max) {
+        // Do not clamp points as after clamping lines are no more parallel
+        return value;
     }
 
     _verifyArea(box) {
@@ -1581,31 +1625,52 @@ class RaysController extends PolyShapeController {
         return (dashes[index] || auxiliary).map(v => v * DASH_LENGTH / window.cvat.player.geometry.scale).join(" ");
     }
 
-    updateLineCoordinates(lineElement, linePhi, mousePos) {
+
+
+    complexUpdateLineCoordinates(lineElement, isBigRotation, lineElements) {
         const {
             toPolarCoordinates,
             fromPolarCoordinates,
-            getOppositeAngle,
-            getAngleBetween,
-            rotate,
         } = window.graphicPrimitives;
-        const rotationPoint = this._model.vanishingPoint;
-        const points = lineElement.array().value
-            .map(([x, y]) => ({x, y}))
-            .map(p => window.cvat.translate.box.canvasToActual(p));
-        let newPoints;
+        const vanishingPoint = this._model.vanishingPoint;
+        const [a, b] = this.extractPoints(lineElement);
+        const rotationPoint = isBigRotation ? a : b;
+        const mousePos = isBigRotation ? b : a;
+        if (vanishingPoint) {
+            const [newVanishingPoint] = this.rotate([vanishingPoint], rotationPoint, mousePos);
+            lineElements.forEach((element) => {
+                if (element === lineElement) {
+                    return;
+                }
+                const points = this.extractPoints(element);
+                const newPoints = this.rotate(points, points[0], newVanishingPoint);
+                this.setPoints(element, newPoints);
+            });
+            this._model._vanishingPoint = newVanishingPoint;
+        } else {
+            const { phi } = toPolarCoordinates(mousePos, rotationPoint);
+            lineElements.forEach((element) => {
+                if (element === lineElement) {
+                    return;
+                }
+                const points = this.extractPoints(element);
+                const rotPoint = isBigRotation ? points[0] : points[1];
+                const newPoints = points
+                    .map(p => toPolarCoordinates(p, rotPoint))
+                    .map(coords => ({...coords, phi }))
+                    .map(p => fromPolarCoordinates(p, rotPoint));
+                this.setPoints(element, newPoints);
+            });
+        }
+    }
 
+    updateLineCoordinates(lineElement, linePhi, mousePos) {
+        const { rotate } = window.graphicPrimitives;
+        const rotationPoint = this._model.vanishingPoint;
+        const points = this.extractPoints(lineElement);
+        let newPoints;
         if (rotationPoint) {
-            const { phi: fixedPhi } = toPolarCoordinates(mousePos, rotationPoint);
-            const revPhi = getOppositeAngle(fixedPhi);
-            function snapAngle({r, phi}) {
-                const newPhi = getAngleBetween(phi, fixedPhi) < getAngleBetween(phi, revPhi) ? fixedPhi : revPhi;
-                return {r, phi: newPhi};
-            }
-            newPoints = points
-                .map(p => toPolarCoordinates(p, rotationPoint))
-                .map(snapAngle)
-                .map(coords => fromPolarCoordinates(coords, rotationPoint));
+            newPoints = this.rotate(points, rotationPoint, mousePos);
         } else {
             const { y } = rotate(mousePos, linePhi);
             newPoints = points
@@ -1613,14 +1678,54 @@ class RaysController extends PolyShapeController {
                 .map(coords => ({...coords, y}))
                 .map(p => rotate(p, -linePhi));
         }
-        lineElement.plot(
-            newPoints
-                .map(p => window.cvat.translate.box.actualToCanvas(p))
-                .map(p => [p.x, p.y])
-        );
+        this.setPoints(lineElement, newPoints);
 
     }
 
+    moveVanishingPoint(lines, dx, dy) {
+        const { vanishingPoint } = this._model;
+        const newVanishingPoint = { x: vanishingPoint.x + dx, y: vanishingPoint.y + dy };
+        lines.forEach((element) => {
+            const points = this.extractPoints(element);
+            const newPoints = this.rotate(points, points[0], newVanishingPoint);
+            this.setPoints(element, newPoints);
+        });
+        this._model._vanishingPoint = newVanishingPoint;
+    }
+
+    rotate(points, rotationPoint, targetPoint) {
+        const {
+            toPolarCoordinates,
+            fromPolarCoordinates,
+            getOppositeAngle,
+            getAngleBetween,
+        } = window.graphicPrimitives;
+        const {phi: fixedPhi} = toPolarCoordinates(targetPoint, rotationPoint);
+        const revPhi = getOppositeAngle(fixedPhi);
+
+        function snapAngle({r, phi}) {
+            const newPhi = getAngleBetween(phi, fixedPhi) < getAngleBetween(phi, revPhi) ? fixedPhi : revPhi;
+            return {r, phi: newPhi};
+        }
+
+        return points
+            .map(p => toPolarCoordinates(p, rotationPoint))
+            .map(snapAngle)
+            .map(coords => fromPolarCoordinates(coords, rotationPoint));
+    }
+
+    extractPoints(lineElement) {
+        return lineElement.array().value
+            .map(([x, y]) => ({x, y}))
+            .map(p => window.cvat.translate.box.canvasToActual(p));
+    }
+
+    setPoints(lineElement, points) {
+        const newPoints = points
+            .map(p => window.cvat.translate.box.actualToCanvas(p))
+            .map(p => [p.x, p.y]);
+        lineElement.plot(newPoints);
+    }
 }
 
 
@@ -3574,7 +3679,7 @@ class RaysView extends PolyShapeView {
                 .stroke('black')
                 .attr('stroke-width', scaledStroke)
                 .addClass('tempMarker');
-            this._uis.vanishingPoint.node.setAttribute('z_order', this._z_order - 1);
+            this._uis.vanishingPoint.node.setAttribute('z_order', this._z_order + 1);
         }
     }
 
@@ -3605,7 +3710,6 @@ class RaysView extends PolyShapeView {
 
     _makeEditable() {
         PolyShapeView.prototype._makeEditable.call(this);
-        this._drawVanishingPoint();
         this._lines.forEach((lineElement, index) => {
             lineElement.on('dblclick', () => {
                 this._controller.model().removePoint(index * 2);
@@ -3617,21 +3721,35 @@ class RaysView extends PolyShapeView {
                 });
             })
         });
+        if (this._uis.vanishingPoint) {
+            this._uis.vanishingPoint.style('cursor', 'pointer');
+            this._uis.vanishingPoint.front();
+        }
     }
 
 
     _makeNotEditable() {
+        if (this._uis.vanishingPoint) {
+            this._uis.vanishingPoint.style('cursor', 'default');
+        }
         this._lines.forEach((lineElement, index) => {
            lineElement.off('dblclick');
         });
-        this._removeVanishingPoint();
         PolyShapeView.prototype._makeNotEditable.call(this);
+    }
+
+    _getMousePosition(mouseEvent) {
+        const {clientX, clientY} = mouseEvent;
+        let mousePos = window.cvat.translate.point.clientToCanvas(this._scenes.svg.node, clientX, clientY);
+        return window.cvat.translate.box.canvasToActual(mousePos);
     }
 
     setupResizeEvents(events) {
         this._lines.forEach(lineElement => {
             let objWasResized = false;
             let linePhi;
+            let isUpdateComplex = false;
+            let isBigRotation;
             lineElement.selectize({
                 classRect: 'shapeSelect',
                 rotationPoint: false,
@@ -3639,11 +3757,20 @@ class RaysView extends PolyShapeView {
                 deepSelect: true,
             }).resize({
                 snapToGrid: 0.1,
-            }).on('resizestart', () => {
-                const { getLineByTwoPoints, getAngle } = window.graphicPrimitives;
+            }).on('resizestart', (event) => {
+                const { getLineByTwoPoints, getAngle, pointsDistance } = window.graphicPrimitives;
+                const mouseEvent = event.detail.event.detail.event;
+                isUpdateComplex = mouseEvent.shiftKey;
+                const mousePos = this._getMousePosition(mouseEvent);
                 const [a, b] = lineElement.array().value
                     .map(([x, y]) => ({ x, y }))
                     .map(p => window.cvat.translate.box.canvasToActual(p));
+                if (isUpdateComplex) {
+                    // point b is closer to vanishing point than point a
+                    // if point b is clicked, then rotate over point a
+                    // which means the rotation is "big"
+                    isBigRotation = pointsDistance(b, mousePos) < pointsDistance(a, mousePos);
+                }
                 linePhi = getAngle(getLineByTwoPoints(a, b));
                 objWasResized = false;
                 this._flags.resizing = true;
@@ -3652,10 +3779,14 @@ class RaysView extends PolyShapeView {
                 this._hideShapeText();
                 this.notify('resize');
             }).on('resizing', (event) => {
-                const { clientX, clientY } = event.detail.event;
-                let mousePos = window.cvat.translate.point.clientToCanvas(this._scenes.svg.node, clientX, clientY);
-                mousePos = window.cvat.translate.box.canvasToActual(mousePos);
-                this._controller.updateLineCoordinates(lineElement, linePhi, mousePos);
+                const mousePos = this._getMousePosition(event.detail.event);
+                if (isUpdateComplex) {
+                    this._controller.complexUpdateLineCoordinates(lineElement, isBigRotation, this._lines);
+                    this._removeVanishingPoint();
+                    this._drawVanishingPoint();
+                } else {
+                    this._controller.updateLineCoordinates(lineElement, linePhi, mousePos);
+                }
                 objWasResized = true;
             }).on('resizedone', () => {
                 events.resize.close();
@@ -3683,13 +3814,54 @@ class RaysView extends PolyShapeView {
         }
     }
 
+    setupVanishingPointDrag(events) {
+        if (!this._uis.vanishingPoint) {
+            return;
+        }
+        let objWasResized = false;
+        let lastPoint;
+        this._uis.vanishingPoint.draggable().on('dragstart', (e) => {
+            lastPoint = e.detail.p;
+            objWasResized = false;
+            this._flags.resizing = true;
+            events.resize = Logger.addContinuedEvent(Logger.EventType.resizeObject);
+            blurAllElements();
+            this._hideShapeText();
+            this.notify('resize');
+        }).on('dragmove', (e) => {
+            objWasResized = true;
+            const currentPoint = e.detail.p;
+            const dx = currentPoint.x - lastPoint.x;
+            const dy = currentPoint.y - lastPoint.y;
+            this._controller.moveVanishingPoint(this._lines, dx, dy);
+            lastPoint = currentPoint;
+        }).on('dragend', (e) => {
+            events.resize.close();
+            events.resize = null;
+            this._flags.resizing = false;
+            if (objWasResized) {
+                const frame = window.cvat.player.frames.current;
+                this._controller.updatePosition(frame, this._buildPosition());
+            }
+            this._showShapeText();
+            this.notify('resize');
+        });
+    }
+
+    tearDownVanishingPointDrag() {
+        if (!this._uis.vanishingPoint) {
+            return;
+        }
+        this._uis.vanishingPoint.off('dragstart').off('dragmove').off('dragend');
+        this._uis.vanishingPoint.draggable(false);
+    }
+
     setupDragEvents(events) {
         let lastPoint;
         this._uis.shape.draggable().on('dragstart', (e) => {
             lastPoint = e.detail.p;
             events.drag = Logger.addContinuedEvent(Logger.EventType.dragObject);
             this._flags.dragging = true;
-            this._removeVanishingPoint();
             blurAllElements();
             this._hideShapeText();
             this.notify('drag');
@@ -3702,6 +3874,14 @@ class RaysView extends PolyShapeView {
                 const newPoints = lineElement.array().value.map(([x, y]) => [x + dx, y + dy]);
                 lineElement.plot(newPoints);
             });
+            const vanishingPoint = this._controller._model.vanishingPoint;
+            if (vanishingPoint) {
+                this._removeVanishingPoint();
+                vanishingPoint.x += dx;
+                vanishingPoint.y += dy;
+                this._drawVanishingPoint();
+
+            }
             lastPoint = currentPoint;
         }).on('dragend', (e) => {
             const p1 = e.detail.handler.startPoints.point;
@@ -3711,16 +3891,16 @@ class RaysView extends PolyShapeView {
             this._flags.dragging = false;
             if (window.graphicPrimitives.pointsDistance(p1, p2) > 1) {
                 const frame = window.cvat.player.frames.current;
-                this._controller._model._vanishingPoint = undefined;
                 this._controller.updatePosition(frame, this._buildPosition());
             }
             this._showShapeText();
-            this._drawVanishingPoint();
             this.notify('drag');
         });
+        this.setupVanishingPointDrag(events);
     }
 
     tearDownDragEvents() {
+        this.tearDownVanishingPointDrag();
         this._uis.shape.draggable(false);
         if (this._flags.dragging) {
             this._flags.dragging = false;
@@ -3744,11 +3924,13 @@ class RaysView extends PolyShapeView {
     _drawShapeUI(position) {
         let points = window.cvat.translate.points.actualToCanvas(position.points);
         this._drawLines(Object.assign({}, position, {points: points}));
+        this._drawVanishingPoint();
         ShapeView.prototype._drawShapeUI.call(this);
     }
 
     _removeShapeUI() {
         ShapeView.prototype._removeShapeUI.call(this);
+        this._removeVanishingPoint();
         this._removeLines();
     }
 
