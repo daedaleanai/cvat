@@ -12,9 +12,13 @@ class TaskHandler(abc.ABC):
     def __init__(self):
         self.reporter = self.reporter_class()
 
-    def load_sequences(self, importer):
+    def load_sequences(self, importer, image_width=None, image_height=None):
         frames_by_sequence_name = defaultdict(list)
         for frame_reader in importer.iterate_frames():
+            if image_width:
+                frame_reader.image_width = image_width
+            if image_height:
+                frame_reader.image_height = image_height
             frame_index = getattr(frame_reader, "index", None)
             self.begin_frame(frame_reader.sequence_name, frame_reader.name, frame_index)
             frame = Frame(frame_reader.name, list(self.iterate_objects(frame_reader)))

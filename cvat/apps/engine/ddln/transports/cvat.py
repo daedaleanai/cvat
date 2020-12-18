@@ -38,6 +38,15 @@ class CVATFrameWriter:
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
 
+    @property
+    def image_width(self):
+        return self._annotations._frame_info[self._frame_id]["width"]
+
+    @property
+    def image_height(self):
+        return self._annotations._frame_info[self._frame_id]["height"]
+
+
 
 class CVATImporter:
     def __init__(self, annotations):
@@ -80,3 +89,11 @@ class CVATFrameReader:
         self.name = frame_name
         self.sequence_name = sequence_name
         self.index = index
+
+    @property
+    def image_width(self):
+        return self._frame_annotation.width
+
+    @property
+    def image_height(self):
+        return self._frame_annotation.height

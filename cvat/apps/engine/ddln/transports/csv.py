@@ -48,6 +48,8 @@ class FrameZipWriter:
         self._archive = archive
         self._file = io.StringIO(newline="")
         self._writer = csv.writer(self._file, lineterminator="\n")
+        self.image_width = None
+        self.image_height = None
 
     def __enter__(self):
         return self
@@ -61,6 +63,8 @@ class FrameFileWriter:
         self._path = Path(file_path)
         self._file = io.StringIO(newline="")
         self._writer = csv.writer(self._file, lineterminator="\n")
+        self.image_width = None
+        self.image_height = None
 
     def __enter__(self):
         return self
@@ -103,6 +107,8 @@ class FrameReader:
         self.sequence_name = sequence_name
         self._file = io.TextIOWrapper(file, newline="")
         self._reader = csv.reader(self._file, lineterminator="\n")
+        self.image_width = None
+        self.image_height = None
 
 
 _filename_regex = re.compile(r"(.*)/(.*)_y.csv")

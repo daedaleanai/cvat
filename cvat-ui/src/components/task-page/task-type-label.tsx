@@ -3,7 +3,7 @@ import React from 'react';
 import { Select } from 'antd';
 import Text from 'antd/lib/typography/Text';
 
-const TASK_TYPES = ['vls', 'spotter'];
+const TASK_TYPES = ['vls', 'spotter', 'vls-lines'];
 
 export default class TaskTypeLabel extends React.Component {
     constructor(props) {
@@ -17,7 +17,7 @@ export default class TaskTypeLabel extends React.Component {
         const { value, onChange } = this.props;
         if (!this.state.isEditing) {
             return (
-                <Text className='cvat-text-color' onDoubleClick={this.startEdit}>{value}</Text>
+                <Text className='cvat-text-color' onDoubleClick={this.startEdit}>{value || '-'}</Text>
             );
         }
         const handleChange = value => {

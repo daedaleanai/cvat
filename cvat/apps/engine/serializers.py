@@ -285,7 +285,7 @@ class JobSelectionSerializer(serializers.Serializer):
 
 class TaskValidateSerializer(JobSelectionSerializer):
     jump_threshold = serializers.FloatField(required=False, min_value=1.0)
-    task_type = serializers.ChoiceField(['vls', 'spotter'], default=None)
+    task_type = serializers.ChoiceField(['vls', 'spotter', 'vls-lines'], default=None)
 
 
 class TaskDumpSerializer(JobSelectionSerializer):
