@@ -3678,7 +3678,6 @@ class RaysView extends PolyShapeView {
                 .fill(this._appearance.fill || this._appearance.colors.shape)
                 .stroke('black')
                 .attr('stroke-width', scaledStroke)
-                .style('cursor', 'pointer')
                 .addClass('tempMarker');
             this._uis.vanishingPoint.node.setAttribute('z_order', this._z_order - 1);
         }
@@ -3710,7 +3709,6 @@ class RaysView extends PolyShapeView {
 
 
     _makeEditable() {
-        this._drawVanishingPoint();
         PolyShapeView.prototype._makeEditable.call(this);
         this._lines.forEach((lineElement, index) => {
             lineElement.on('dblclick', () => {
@@ -3723,15 +3721,20 @@ class RaysView extends PolyShapeView {
                 });
             })
         });
+        if (this._uis.vanishingPoint) {
+            this._uis.vanishingPoint.style('cursor', 'pointer');
+        }
     }
 
 
     _makeNotEditable() {
+        if (this._uis.vanishingPoint) {
+            this._uis.vanishingPoint.style('cursor', 'default');
+        }
         this._lines.forEach((lineElement, index) => {
            lineElement.off('dblclick');
         });
         PolyShapeView.prototype._makeNotEditable.call(this);
-        this._removeVanishingPoint();
     }
 
     _getMousePosition(mouseEvent) {
@@ -3920,11 +3923,13 @@ class RaysView extends PolyShapeView {
     _drawShapeUI(position) {
         let points = window.cvat.translate.points.actualToCanvas(position.points);
         this._drawLines(Object.assign({}, position, {points: points}));
+        this._drawVanishingPoint();
         ShapeView.prototype._drawShapeUI.call(this);
     }
 
     _removeShapeUI() {
         ShapeView.prototype._removeShapeUI.call(this);
+        this._removeVanishingPoint();
         this._removeLines();
     }
 
