@@ -3679,7 +3679,7 @@ class RaysView extends PolyShapeView {
                 .stroke('black')
                 .attr('stroke-width', scaledStroke)
                 .addClass('tempMarker');
-            this._uis.vanishingPoint.node.setAttribute('z_order', this._z_order - 1);
+            this._uis.vanishingPoint.node.setAttribute('z_order', this._z_order + 1);
         }
     }
 
@@ -3723,6 +3723,7 @@ class RaysView extends PolyShapeView {
         });
         if (this._uis.vanishingPoint) {
             this._uis.vanishingPoint.style('cursor', 'pointer');
+            this._uis.vanishingPoint.front();
         }
     }
 
