@@ -41,10 +41,7 @@ class Runway:
             self.lat_vanishing_point = self._calculate_vanishing_point(lat_lines, reporter, is_lon=False)
 
     def fix_order(self, reporter):
-        if self.lon_vanishing_point:
-            self._check_lon_order(reporter)
-        else:
-            self._check_parallel_lon_order(reporter)
+        self._check_lon_order(reporter)
         self._check_lat_order(reporter)
 
     def apply_visibility(
@@ -70,20 +67,16 @@ class Runway:
             self.designator_line = None
 
     def _check_lon_order(self, reporter):
-        original = [self.left_line, self.center_line, self.right_line]
-        max_angle = 0
-        edges = None
-        for a, b in combinations(original, 2):
-            angle = get_lines_angle(a, b)
-            if angle > max_angle:
-                max_angle = angle
-                edges = [a, b]
-        new_center = next(filter(lambda line: line not in edges, original))
-        new_left, new_right = edges
-        if get_counterclockwise_angle(new_right.get_angle(), new_left.get_angle()) >= math.pi:
-            new_left, new_right = new_right, new_left
-        final = [new_left, new_center, new_right]
-        if final != original:
+        # end line is intentionally omitted to avoid false-positives
+        lat_lines = [self.start_line, self.designator_line]
+        left_points = [line.intersect(self.left_line) for line in lat_lines]
+        right_points = [line.intersect(self.right_line) for line in lat_lines]
+        if any(p is None for p in left_points) or any(p is None for p in right_points):
+            reporter.report_lon_disorder()
+            return
+        is_left_right = all(p.signed_distance_to(self.center_line) < 0 for p in left_points)
+        is_right_right = all(p.signed_distance_to(self.center_line) > 0 for p in right_points)
+        if not (is_left_right and is_right_right):
             reporter.report_lon_disorder()
 
     def _check_parallel_lon_order(self, reporter):

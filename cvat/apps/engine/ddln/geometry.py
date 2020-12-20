@@ -40,6 +40,10 @@ class Point:
         y = -self.x * math.sin(phi) + self.y * math.cos(phi)
         return Point(x, y)
 
+    def signed_distance_to(self, other):
+        assert isinstance(other, Line)
+        return other.a * self.x + other.b * self.y + other.c
+
     def distance_to(self, other):
         if isinstance(other, Point):
             return math.sqrt((other.x - self.x) ** 2 + (other.y - self.y) ** 2)
