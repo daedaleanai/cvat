@@ -1336,7 +1336,7 @@ class RaysModel extends PolyShapeModel {
             });
         }
         position.points = RaysModel.convertSegmentsToString(segments);
-
+        this._vanishingPoint = undefined;
         super.updatePosition(frame, position, silent);
     }
 
