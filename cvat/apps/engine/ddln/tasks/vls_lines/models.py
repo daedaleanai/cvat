@@ -69,6 +69,8 @@ class Runway:
     def _check_lon_order(self, reporter):
         # end line is intentionally omitted to avoid false-positives
         lat_lines = [self.start_line, self.designator_line]
+        if any(line is None for line in lat_lines):
+            return
         left_points = [line.intersect(self.left_line) for line in lat_lines]
         right_points = [line.intersect(self.right_line) for line in lat_lines]
         if any(p is None for p in left_points) or any(p is None for p in right_points):
