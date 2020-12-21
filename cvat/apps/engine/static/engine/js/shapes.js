@@ -1294,8 +1294,8 @@ class RaysModel extends PolyShapeModel {
         return this._vanishingPoint;
     }
 
-    static getAngleThreshold() {
-        const angle = window.__PARALLEL_RAYS_ANGLE_THRESHOLD__ || 5;
+    static getAngleThreshold(isStrict=true) {
+        const angle = window.__PARALLEL_RAYS_ANGLE_THRESHOLD__ || (isStrict ? 2 : 5);
         return angle * Math.PI / 180;
     }
 
