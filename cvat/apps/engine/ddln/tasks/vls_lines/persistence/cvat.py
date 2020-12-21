@@ -78,15 +78,15 @@ def write_runway(runway: Runway, writer):
 def _parse_rays(lon, lat, reporter):
     lon_shape, lon_attrs = lon
     runway_id = lon_attrs['Runway_ID']
-    left_visible = bool(int(lon_attrs['First_line(1)']))
-    right_visible = bool(int(lon_attrs['Second_line(2)']))
-    center_visible = bool(int(lon_attrs['Third_line(3)']))
+    left_visible = bool(int(lon_attrs['Left(1)']))
+    right_visible = bool(int(lon_attrs['Right(2)']))
+    center_visible = bool(int(lon_attrs['Central(3)']))
     left, right, center = _parse_lines(lon_shape)
     if lat:
         lat_shape, lat_attrs = lat
-        start_visible = bool(int(lat_attrs['First_line(1)']))
-        designator_visible = bool(int(lat_attrs['Second_line(2)']))
-        end_visible = bool(int(lat_attrs['Third_line(3)']))
+        start_visible = bool(int(lat_attrs['Beginning(1)']))
+        designator_visible = bool(int(lat_attrs['Designator(2)']))
+        end_visible = bool(int(lat_attrs['End(3)']))
         start, designator, end = _parse_lines(lat_shape)
     else:
         start_visible = end_visible = designator_visible = False
@@ -196,14 +196,14 @@ def _guess_lines(vanishing_point, first, second, third):
 def _get_attributes(runway):
     lon_attrs = {
         "Runway_ID": runway.id,
-        "First_line(1)": int(runway.left_line is not None),
-        "Second_line(2)": int(runway.right_line is not None),
-        "Third_line(3)": int(runway.center_line is not None),
+        "Left(1)": int(runway.left_line is not None),
+        "Right(2)": int(runway.right_line is not None),
+        "Central(3)": int(runway.center_line is not None),
     }
     lat_attrs = {
         "Runway_ID": runway.id,
-        "First_line(1)": int(runway.start_line is not None),
-        "Second_line(2)": int(runway.designator_line is not None),
-        "Third_line(3)": int(runway.end_line is not None),
+        "Beginning(1)": int(runway.start_line is not None),
+        "Designator(2)": int(runway.designator_line is not None),
+        "End(3)": int(runway.end_line is not None),
     }
     return lon_attrs, lat_attrs
