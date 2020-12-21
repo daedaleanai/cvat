@@ -1271,6 +1271,9 @@ class RaysModel extends PolyShapeModel {
     constructor(data, type, clientID, color) {
         super(data, type, clientID, color);
         this._vanishingPoint = data.vanishingPoint;
+        if (window.__UPDATE_RAYS__) {
+            console.log(this.vanishingPoint);
+        }
     }
 
     get vanishingPoint() {
@@ -1285,7 +1288,7 @@ class RaysModel extends PolyShapeModel {
             // while they are stored as crossed lines on the back-end
             // use this variable as an escape hack to update values on the back-end
             if (window.__UPDATE_RAYS__) {
-                this._positions[this._frame] = RaysModel.convertSegmentsToString(segments);
+                this._positions[this._frame].points = RaysModel.convertSegmentsToString(segments);
             }
         }
         return this._vanishingPoint;
