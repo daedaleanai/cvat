@@ -142,6 +142,10 @@ class ShapeCreatorModel extends Listener {
         this._defaultMode = mode;
     }
 
+    get defaultLabel() {
+        return window.cvat.labelsInfo.labels()[this._defaultLabel];
+    }
+
     set defaultLabel(labelId) {
         this._defaultLabel = +labelId;
     }
@@ -1051,7 +1055,9 @@ class RaysDrawInstance {
         segments = segments.filter(([a, b]) => !arePointsEqual(a, b));
         let vanishingPoint;
         if (segments.length > 1) {
-            [segments, vanishingPoint] = findVanishingPoint(segments, RaysModel.getAngleThreshold());
+            const label = this._creatorView._controller._model.defaultLabel;
+            const isStrict = label !== 'Horizontal line';
+            [segments, vanishingPoint] = findVanishingPoint(segments, RaysModel.getAngleThreshold(isStrict));
             const points = RaysModel.convertSegmentsToString(segments);
             this._creatorView._controller.finish({ points, vanishingPoint }, this._type);
         }

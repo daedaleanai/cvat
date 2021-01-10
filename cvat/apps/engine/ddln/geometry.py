@@ -40,13 +40,17 @@ class Point:
         y = -self.x * math.sin(phi) + self.y * math.cos(phi)
         return Point(x, y)
 
+    def signed_distance_to(self, other):
+        assert isinstance(other, Line)
+        # also have to divide by sqrt(a**2 + b**2), but due to normalization in
+        # Line constructor it is always equal to 1
+        return other.a * self.x + other.b * self.y + other.c
+
     def distance_to(self, other):
         if isinstance(other, Point):
             return math.sqrt((other.x - self.x) ** 2 + (other.y - self.y) ** 2)
         elif isinstance(other, Line):
-            # also have to divide by sqrt(a**2 + b**2), but due to normalization in
-            # Line constructor it is equal to 1
-            return abs(other.a * self.x + other.b * self.y + other.c)
+            return abs(self.signed_distance_to(other))
             # alternative implementation:
             #     projection = self.project_onto(other)
             #     return self.distance_to(projection)

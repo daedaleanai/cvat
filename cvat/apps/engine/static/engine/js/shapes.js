@@ -1271,6 +1271,9 @@ class RaysModel extends PolyShapeModel {
     constructor(data, type, clientID, color) {
         super(data, type, clientID, color);
         this._vanishingPoint = data.vanishingPoint;
+        if (window.__UPDATE_RAYS__) {
+            console.log(this.vanishingPoint);
+        }
     }
 
     get vanishingPoint() {
@@ -1285,14 +1288,14 @@ class RaysModel extends PolyShapeModel {
             // while they are stored as crossed lines on the back-end
             // use this variable as an escape hack to update values on the back-end
             if (window.__UPDATE_RAYS__) {
-                this._positions[this._frame] = RaysModel.convertSegmentsToString(segments);
+                this._positions[this._frame].points = RaysModel.convertSegmentsToString(segments);
             }
         }
         return this._vanishingPoint;
     }
 
-    static getAngleThreshold() {
-        const angle = window.__PARALLEL_RAYS_ANGLE_THRESHOLD__ || 5;
+    static getAngleThreshold(isStrict=true) {
+        const angle = window.__PARALLEL_RAYS_ANGLE_THRESHOLD__ || (isStrict ? 2 : 5);
         return angle * Math.PI / 180;
     }
 
@@ -1336,7 +1339,7 @@ class RaysModel extends PolyShapeModel {
             });
         }
         position.points = RaysModel.convertSegmentsToString(segments);
-
+        this._vanishingPoint = undefined;
         super.updatePosition(frame, position, silent);
     }
 
