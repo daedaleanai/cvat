@@ -15,9 +15,9 @@ class TaskHandler(abc.ABC):
     def load_sequences(self, importer, image_width=None, image_height=None):
         frames_by_sequence_name = defaultdict(list)
         for frame_reader in importer.iterate_frames():
-            if image_width:
+            if not getattr(frame_reader, "image_width", None) and image_width:
                 frame_reader.image_width = image_width
-            if image_height:
+            if not getattr(frame_reader, "image_height", None) and image_height:
                 frame_reader.image_height = image_height
             frame_index = getattr(frame_reader, "index", None)
             self.begin_frame(frame_reader.sequence_name, frame_reader.name, frame_index)
