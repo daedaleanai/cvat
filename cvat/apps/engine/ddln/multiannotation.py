@@ -224,6 +224,6 @@ def _remove_archive_file(file_path):
 def _dump_version(task, version, target_dir):
     job_selection = dict(version=version, jobs=[])
     handler = SpotterTaskHandler()
-    importer = CVATImporter.for_task(task.id, job_selection)
+    importer, _ = CVATImporter.for_task(task.id, job_selection)
     exporter = CsvDirectoryExporter(target_dir)
     migrate(importer, exporter, handler)
