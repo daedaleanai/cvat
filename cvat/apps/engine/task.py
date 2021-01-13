@@ -26,6 +26,7 @@ from distutils.dir_util import copy_tree
 from . import models
 from .ddln.inventory_client import record_task_creation
 from .ddln.sequences import group, distribute
+from .ddln.tasks import create_task_handler, guess_task_type
 from .ddln.utils import parse_frame_name
 from .log import slogger
 from .utils import load_instances
@@ -353,7 +354,10 @@ def _create_thread(tid, data, options):
     job.meta['status'] = 'Image meta cache is being created'
     job.save_meta()
     make_image_meta_cache(db_task)
-
+    job.meta['status'] = 'Finishing task creation...'
+    job.save_meta()
+    handler = create_task_handler(guess_task_type(db_task))
+    handler.finalize_task_creation(db_task)
     record_task_creation(db_task, segments)
 
 
