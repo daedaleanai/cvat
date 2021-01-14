@@ -34,6 +34,9 @@ class TaskHandler(abc.ABC):
 
         return sequences
 
+    def finalize_task_creation(self, task):
+        pass
+
     def begin_frame(self, sequence, frame, frame_index=None):
         self.reporter.begin_frame(sequence, frame, frame_index)
 

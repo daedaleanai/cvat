@@ -4,9 +4,32 @@ from django.db import transaction
 from ..utils import parse_frame_name
 
 
-class CVATExporter:
+class CVATMixin:
     def __init__(self, annotations):
         self._annotations = annotations
+
+    @classmethod
+    def for_task(cls, task_id, job_selection=None):
+        from cvat.apps.annotation.annotation import Annotation
+        from cvat.apps.engine.annotation import TaskAnnotation
+
+        with transaction.atomic():
+            annotation = TaskAnnotation(task_id, AnonymousUser(), job_selection)
+            annotation.init_from_db()
+
+        anno_exporter = Annotation(
+            annotation_ir=annotation.ir_data,
+            db_task=annotation.db_task,
+            scheme='https',
+            host='',
+            frame_container=annotation._frame_container,
+        )
+        return cls(anno_exporter), annotation
+
+
+class CVATExporter(CVATMixin):
+    def __init__(self, annotations):
+        super().__init__(annotations)
         self._frame_id_by_names = self._build_frame_id_mapping(annotations)
 
     def __enter__(self):
@@ -48,28 +71,7 @@ class CVATFrameWriter:
 
 
 
-class CVATImporter:
-    def __init__(self, annotations):
-        self._annotations = annotations
-
-    @classmethod
-    def for_task(cls, task_id, job_selection=None):
-        from cvat.apps.annotation.annotation import Annotation
-        from cvat.apps.engine.annotation import TaskAnnotation
-
-        with transaction.atomic():
-            annotation = TaskAnnotation(task_id, AnonymousUser(), job_selection)
-            annotation.init_from_db()
-
-        anno_exporter = Annotation(
-            annotation_ir=annotation.ir_data,
-            db_task=annotation.db_task,
-            scheme='https',
-            host='',
-            frame_container=annotation._frame_container,
-        )
-        return cls(anno_exporter)
-
+class CVATImporter(CVATMixin):
     def iterate_frames(self):
         for frame_annotation in self._annotations.group_by_frame(omit_empty_frames=False):
             frame_name, sequence_name = parse_frame_name(frame_annotation.name)

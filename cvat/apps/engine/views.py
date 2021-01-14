@@ -515,7 +515,7 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
         options.pop('version')
         options.pop('jobs')
 
-        importer = CVATImporter.for_task(pk, job_selection)
+        importer, _ = CVATImporter.for_task(pk, job_selection)
         handler = create_task_handler(task_type)
         sequences = handler.load_sequences(importer)
         reporter = handler.validate(sequences, **options)

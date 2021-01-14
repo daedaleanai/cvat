@@ -12,6 +12,8 @@ def iterate_bboxes(reader):
         if shape.type != "rectangle":
             # only bounding box is supported
             continue
+        if shape.label == "Hint":
+            continue
 
         attrs = build_attrs_dict(shape)
 

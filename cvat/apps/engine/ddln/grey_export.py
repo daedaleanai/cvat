@@ -42,7 +42,7 @@ def export_single_annotation(task, task_type):
         ddln_yaml_file = root_dir / 'ddln.yaml'
 
         handler = create_task_handler(task_type)
-        importer = CVATImporter.for_task(task.id)
+        importer, _ = CVATImporter.for_task(task.id)
         exporter = CsvDirectoryExporter(root_dir, clear_if_exists=False)
         migrate(importer, exporter, handler)
 
