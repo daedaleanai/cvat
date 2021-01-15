@@ -37,7 +37,7 @@ class VlsLinesValidationReporter(BaseValidationReporter):
         self._report("Runway {!r} lacks {} rays".format(runway_id, type), severity)
 
     def report_id_changed(self, previous, current):
-        self._report("Runway id has changed from {} to {}".format(previous, current))
+        self._report("Runway id has changed from {} to {}".format(previous, current), self.severity.WARNING)
 
     def report_lat_disorder(self):
         self._report("Lateral rays are mixed up")
@@ -49,4 +49,4 @@ class VlsLinesValidationReporter(BaseValidationReporter):
         self._report("Wrong values amount. Expected: {}, actual: {}".format(expected, actual))
 
     def report_not_crossing(self, error):
-        self._report("Lines seem not to cross at the same point. Error: {}".format(error))
+        self._report("Lines seem not to cross at the same point. Error: {}".format(error), self.severity.WARNING)
