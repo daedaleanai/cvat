@@ -9,7 +9,7 @@ class AggregatedCheck(ABC):
 
     @abstractmethod
     def format_message(self, runway_id, value, start, end):
-        ...
+        pass
 
     def __init__(self, reporter):
         self._reporter = reporter
