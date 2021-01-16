@@ -46,7 +46,7 @@ def export_single_annotation(task, task_type):
         exporter = CsvDirectoryExporter(root_dir, clear_if_exists=False)
         migrate(importer, exporter, handler)
 
-        sequences = handler.load_sequences(CsvDirectoryImporter(root_dir))
+        sequences = handler.load_sequences(CsvDirectoryImporter(root_dir), 1, 1)
         reporter = handler.validate(sequences)
         if reporter.has_violations(reporter.severity.ERROR):
             raise ExportError("Task has validation errors. Please run the validation.")
