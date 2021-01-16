@@ -35,19 +35,19 @@ class BaseValidationReporter:
         for sequence in data['violations']:
             file.write("Sequence {}:\n".format(sequence["name"]))
             for seq_message in sequence["messages"]:
-                file.write("\t\t{}\n".format(seq_message))
+                file.write("    {}\n".format(seq_message))
             for frame in sequence["frames"]:
-                file.write("\tFrame {}:\n".format(frame["name"]))
+                file.write("  Frame {}:\n".format(frame["name"]))
                 for frame_message in frame["messages"]:
-                    file.write("\t\t{}\n".format(frame_message))
+                    file.write("    {}\n".format(frame_message))
                 for obj in frame["objects"]:
                     for message in obj["messages"]:
-                        file.write("\t\t{} {}: {}\n".format(self.object_name, obj["index"], message))
+                        file.write("    {} {}: {}\n".format(self.object_name, obj["index"], message))
         file.write("Frame counts per sequence:\n")
         count_per_sequence = data['counts']['perSequence'].items()
         count_per_sequence = sorted(count_per_sequence, key=lambda e: natural_order(e[0]))
         for sequence, count in count_per_sequence:
-            file.write("\t{}: {}\n".format(sequence, count))
+            file.write("  {}: {}\n".format(sequence, count))
         file.write("Total frames: {}\n".format(data['counts']['total']))
 
     def get_text_report(self, severity=Severity.ERROR):
