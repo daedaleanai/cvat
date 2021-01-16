@@ -67,6 +67,23 @@ class Runway:
         if not designator_visible:
             self.designator_line = None
 
+    def get_invisible_lines(self):
+        result = []
+        if self.left_line is None:
+            result.append("left edge")
+        if self.right_line is None:
+            result.append("right edge")
+        if self.center_line is None:
+            result.append("central line")
+        if self.start_line is None:
+            result.append("beginning")
+        if self.designator_line is None:
+            result.append("designator")
+        if self.end_line is None:
+            result.append("end")
+        return tuple(result)
+
+
     def _check_lon_order(self, reporter):
         # end line is intentionally omitted to avoid false-positives
         lat_lines = [self.start_line, self.designator_line]

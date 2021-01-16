@@ -36,8 +36,6 @@ def iterate_runways(reader, reporter):
         reporter.report_missing_rays(runway_id, is_lon=True)
 
     for runway_id, lon in lons.items():
-        if runway_id not in lats:
-            reporter.report_missing_rays(runway_id, is_lon=False)
         lat = lats.get(runway_id)
         try:
             yield _parse_rays(lon, lat, reporter)
