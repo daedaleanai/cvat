@@ -46,6 +46,14 @@ class MissingLateralRaysCheck(AggregatedCheck):
         return "{} - {}: Runway {!r} lacks lateral rays".format(start, end, runway_id)
 
 
+class VisibilityCheck(AggregatedCheck):
+    severity = BaseValidationReporter.severity.WARNING
+    ignored_values = {(), ("beginning", "designator", "end")}
+
+    def format_message(self, runway_id, value, start, end):
+        return "{} - {}: Runway {!r} has invisible lines: {}.".format(start, end, runway_id, ", ".join(value))
+
+
 def validate(sequences, reporter=None, **kwargs):
     if reporter is None:
         reporter = VlsLinesValidationReporter()
@@ -53,6 +61,7 @@ def validate(sequences, reporter=None, **kwargs):
         reporter.sequence = seq.name
         previous_id = None
         lateral_check = MissingLateralRaysCheck(reporter)
+        visibility_check = VisibilityCheck(reporter)
 
         for frame in seq.frames:
             reporter.frame = frame.name
@@ -62,11 +71,13 @@ def validate(sequences, reporter=None, **kwargs):
             for runway in frame.objects:
                 has_lateral_rays = any(line is not None for line in [runway.start_line, runway.end_line, runway.designator_line])
                 lateral_check[runway.id] = not has_lateral_rays
+                visibility_check[runway.id] = runway.get_invisible_lines()
                 current_id = runway.id
                 if previous_id and current_id != previous_id:
                     reporter.report_id_changed(previous_id, current_id)
                 previous_id = current_id
         lateral_check.report()
+        visibility_check.report()
     return reporter
 
 
