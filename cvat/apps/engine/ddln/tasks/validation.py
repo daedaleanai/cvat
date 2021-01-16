@@ -63,13 +63,20 @@ class BaseValidationReporter:
     def count_frame(self, sequence_name):
         self._frames_count_by_sequence[sequence_name] = self._frames_count_by_sequence.get(sequence_name, 0) + 1
 
-    def _report(self, message, severity=Severity.ERROR):
+    @property
+    def frame_name(self):
         frame_name = self.frame
         if self.frame_index is not None:
             index = "({})".format(self.frame_index)
             index = index.rjust(6, ' ')
             frame_name = "{}{}".format(frame_name, index)
-        self._violations.append((self.sequence, frame_name, self.object_index, message, severity))
+        return frame_name
+
+    def _report_sequence_message(self, message, severity=Severity.ERROR):
+        self._violations.append((self.sequence, None, None, message, severity))
+
+    def _report(self, message, severity=Severity.ERROR):
+        self._violations.append((self.sequence, self.frame_name, self.object_index, message, severity))
 
 
 def _group_violations(data, severity):
