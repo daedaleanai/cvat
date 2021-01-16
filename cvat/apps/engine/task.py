@@ -356,8 +356,10 @@ def _create_thread(tid, data, options):
     make_image_meta_cache(db_task)
     job.meta['status'] = 'Finishing task creation...'
     job.save_meta()
-    handler = create_task_handler(guess_task_type(db_task))
-    handler.finalize_task_creation(db_task)
+    task_type = guess_task_type(db_task)
+    if task_type is not None:
+        handler = create_task_handler(task_type)
+        handler.finalize_task_creation(db_task)
     record_task_creation(db_task, segments)
 
 
