@@ -22,6 +22,9 @@ class BaseValidationReporter:
         self._violations = []
         self._frames_count_by_sequence = {}
 
+    def clear(self):
+        self._violations.clear()
+
     def begin_frame(self, sequence, frame, frame_index=None):
         self.sequence = sequence
         self.frame = frame

@@ -24,7 +24,7 @@ format_spec = {
 def dump(file_object, annotations):
     from tempfile import TemporaryDirectory
     from cvat.apps.dataset_manager.util import make_zip_archive
-    from cvat.apps.engine.ddln.transports import migrate, CsvDirectoryExporter, CsvDirectoryImporter, CVATImporter
+    from cvat.apps.engine.ddln.transports import migrate, CsvDirectoryExporter, CVATImporter
     from cvat.apps.engine.ddln.tasks.vls_lines import VlsLinesTaskHandler
     from cvat.apps.engine.ddln.utils import write_task_mapping_file, DdlnYamlWriter
 
@@ -34,9 +34,8 @@ def dump(file_object, annotations):
         handler = VlsLinesTaskHandler()
         migrate(importer, exporter, handler)
 
-        # image dimensions are needed to find center point,
-        # they can be arbitrary here since they are used only for validation
-        sequences = handler.load_sequences(CsvDirectoryImporter(temp_dir), 1, 1)
+        handler.reporter.clear()
+        sequences = handler.load_sequences(importer)
         reporter = handler.validate(sequences)
         validation_file = os.path.join(temp_dir, 'validation.txt')
         reporter.write_text_report(open(validation_file, 'wt'), reporter.severity.WARNING)
