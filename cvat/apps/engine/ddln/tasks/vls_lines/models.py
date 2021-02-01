@@ -106,10 +106,7 @@ class Runway:
             return
         distant_point = self.lon_vanishing_point
         if not distant_point:
-            # if longitudinal lines are parallel, just assume they are directed away from the camera
-            distant_point = Line.by_point_and_angle(Point(0, 0), 0).intersect(self.center_line)
-        if not distant_point:
-            distant_point = Point(0, -10000)
+            return
         final = sorted(original, key=lambda line: distant_point.distance_to(line))
         if final != original:
             reporter.report_lat_disorder()
