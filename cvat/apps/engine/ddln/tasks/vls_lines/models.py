@@ -95,9 +95,9 @@ class Runway:
         if any(p is None for p in left_points) or any(p is None for p in right_points):
             reporter.report_lon_disorder()
             return
-        is_left_right = all(p.signed_distance_to(self.center_line) < 0 for p in left_points)
-        is_right_right = all(p.signed_distance_to(self.center_line) > 0 for p in right_points)
-        if not (is_left_right and is_right_right):
+        left_points_side, is_left_correct = _get_points_side(left_points, self.center_line)
+        right_points_side, is_right_correct = _get_points_side(right_points, self.center_line)
+        if not (is_left_correct and is_right_correct and left_points_side == -right_points_side):
             reporter.report_lon_disorder()
 
     def _check_lat_order(self, reporter):
@@ -129,6 +129,19 @@ class Runway:
         if max_error > ERROR_THRESHOLD:
             reporter.report_not_crossing(max_error)
         return average_point
+
+
+def _get_points_side(points, line):
+    # iterate points and figure out on which side of the line the points are placed
+    # returns -1 if on the left, 1 if on the left, 0 if all the points lie on the line
+    # also check that no points are placed on the other side of the line
+    if len(points) == 0:
+        return 0, False
+    distances = (p.signed_distance_to(line) for p in points)
+    sides = (-1 if d < 0 else (1 if d > 0 else 0) for d in distances)
+    result = next(sides)
+    is_correct = all(v == result or v == 0 for v in sides)
+    return result, is_correct
 
 
 def get_lines_angle(a, b):
