@@ -2,7 +2,7 @@ import math
 from itertools import combinations
 from typing import Optional
 
-from cvat.apps.engine.ddln.geometry import Line, Point, get_angle_between, get_counterclockwise_angle
+from cvat.apps.engine.ddln.geometry import Line, Point, get_angle_between
 
 ANGLE_THRESHOLD = 5 * math.pi / 180
 ERROR_THRESHOLD = 30
@@ -97,13 +97,6 @@ class Runway:
         is_left_right = all(p.signed_distance_to(self.center_line) < 0 for p in left_points)
         is_right_right = all(p.signed_distance_to(self.center_line) > 0 for p in right_points)
         if not (is_left_right and is_right_right):
-            reporter.report_lon_disorder()
-
-    def _check_parallel_lon_order(self, reporter):
-        large_step = abs(self.left_line.c - self.right_line.c)
-        small_step_a = abs(self.center_line.c - self.left_line.c)
-        small_step_b = abs(self.center_line.c - self.right_line.c)
-        if small_step_a >= large_step or small_step_b >= large_step:
             reporter.report_lon_disorder()
 
     def _check_lat_order(self, reporter):
