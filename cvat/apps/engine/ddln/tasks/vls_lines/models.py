@@ -36,7 +36,8 @@ class Runway:
     def calculate_vanishing_points(self, reporter):
         lon_lines = [self.left_line, self.center_line, self.right_line]
         lon_lines = [line for line in lon_lines if line is not None]
-        self.lon_vanishing_point = self._calculate_vanishing_point(lon_lines, reporter, is_lon=True)
+        if len(lon_lines) > 1:
+            self.lon_vanishing_point = self._calculate_vanishing_point(lon_lines, reporter, is_lon=True)
         lat_lines = [self.start_line, self.designator_line, self.end_line]
         if all(line is not None for line in lat_lines):
             self.lat_vanishing_point = self._calculate_vanishing_point(lat_lines, reporter, is_lon=False)
