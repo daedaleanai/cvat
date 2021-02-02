@@ -130,8 +130,11 @@ class Runway:
 
 def _get_points_side(points, line):
     # iterate points and figure out on which side of the line the points are placed
-    # returns -1 if on the left, 1 if on the left, 0 if all the points lie on the line
-    # also check that no points are placed on the other side of the line
+    # returns:
+    #     -1, True - if all the points are to the left of the line
+    #     1, True - if all the points are to the right of the line
+    #     0, True - if all the points lie on the line
+    #     *, False - if some of the points are on the other side of the line
     if len(points) == 0:
         return 0, False
     distances = (p.signed_distance_to(line) for p in points)
