@@ -2,7 +2,7 @@ import math
 from itertools import combinations
 from typing import Optional
 
-from cvat.apps.engine.ddln.geometry import Line, Point, get_angle_between, get_counterclockwise_angle
+from cvat.apps.engine.ddln.geometry import Line, Point, get_angle_between
 
 ANGLE_THRESHOLD = 5 * math.pi / 180
 ERROR_THRESHOLD = 30
@@ -36,7 +36,8 @@ class Runway:
     def calculate_vanishing_points(self, reporter):
         lon_lines = [self.left_line, self.center_line, self.right_line]
         lon_lines = [line for line in lon_lines if line is not None]
-        self.lon_vanishing_point = self._calculate_vanishing_point(lon_lines, reporter, is_lon=True)
+        if len(lon_lines) > 1:
+            self.lon_vanishing_point = self._calculate_vanishing_point(lon_lines, reporter, is_lon=True)
         lat_lines = [self.start_line, self.designator_line, self.end_line]
         if all(line is not None for line in lat_lines):
             self.lat_vanishing_point = self._calculate_vanishing_point(lat_lines, reporter, is_lon=False)
@@ -94,16 +95,9 @@ class Runway:
         if any(p is None for p in left_points) or any(p is None for p in right_points):
             reporter.report_lon_disorder()
             return
-        is_left_right = all(p.signed_distance_to(self.center_line) < 0 for p in left_points)
-        is_right_right = all(p.signed_distance_to(self.center_line) > 0 for p in right_points)
-        if not (is_left_right and is_right_right):
-            reporter.report_lon_disorder()
-
-    def _check_parallel_lon_order(self, reporter):
-        large_step = abs(self.left_line.c - self.right_line.c)
-        small_step_a = abs(self.center_line.c - self.left_line.c)
-        small_step_b = abs(self.center_line.c - self.right_line.c)
-        if small_step_a >= large_step or small_step_b >= large_step:
+        left_points_side, is_left_correct = _get_points_side(left_points, self.center_line)
+        right_points_side, is_right_correct = _get_points_side(right_points, self.center_line)
+        if not (is_left_correct and is_right_correct and left_points_side == -right_points_side):
             reporter.report_lon_disorder()
 
     def _check_lat_order(self, reporter):
@@ -112,10 +106,7 @@ class Runway:
             return
         distant_point = self.lon_vanishing_point
         if not distant_point:
-            # if longitudinal lines are parallel, just assume they are directed away from the camera
-            distant_point = Line.by_point_and_angle(Point(0, 0), 0).intersect(self.center_line)
-        if not distant_point:
-            distant_point = Point(0, -10000)
+            return
         final = sorted(original, key=lambda line: distant_point.distance_to(line))
         if final != original:
             reporter.report_lat_disorder()
@@ -135,6 +126,22 @@ class Runway:
         if max_error > ERROR_THRESHOLD:
             reporter.report_not_crossing(max_error)
         return average_point
+
+
+def _get_points_side(points, line):
+    # iterate points and figure out on which side of the line the points are placed
+    # returns:
+    #     -1, True - if all the points are to the left of the line
+    #     1, True - if all the points are to the right of the line
+    #     0, True - if all the points lie on the line
+    #     *, False - if some of the points are on the other side of the line
+    if len(points) == 0:
+        return 0, False
+    distances = (p.signed_distance_to(line) for p in points)
+    sides = (-1 if d < 0 else (1 if d > 0 else 0) for d in distances)
+    result = next(sides)
+    is_correct = all(v == result or v == 0 for v in sides)
+    return result, is_correct
 
 
 def get_lines_angle(a, b):

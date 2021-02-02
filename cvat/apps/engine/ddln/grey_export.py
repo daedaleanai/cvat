@@ -9,7 +9,7 @@ from django.conf import settings
 
 from cvat.apps.engine.models import Task
 from .tasks import create_task_handler
-from .transports import CVATImporter, CsvDirectoryExporter, CsvDirectoryImporter, migrate
+from .transports import CVATImporter, CsvDirectoryExporter, migrate
 from .utils import write_task_mapping_file, DdlnYamlWriter, guess_task_name
 
 logger = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ def export_single_annotation(task, task_type):
         exporter = CsvDirectoryExporter(root_dir, clear_if_exists=False)
         migrate(importer, exporter, handler)
 
-        sequences = handler.load_sequences(CsvDirectoryImporter(root_dir), 1, 1)
+        sequences = handler.load_sequences(importer)
         reporter = handler.validate(sequences)
         if reporter.has_violations(reporter.severity.ERROR):
             raise ExportError("Task has validation errors. Please run the validation.")
