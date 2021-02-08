@@ -197,6 +197,18 @@ function HeaderContainer(props: Props): JSX.Element {
                             Analytics
                         </Button>
                     )}
+                { installedAnalytics
+                    && (
+                        <Button
+                            className='cvat-header-button'
+                            type='link'
+                            onClick={
+                                (): void => props.history.push('/statistics')
+                            }
+                        >
+                            Statistics
+                        </Button>
+                    )}
             </div>
             <div className='cvat-right-header'>
                 <Button
