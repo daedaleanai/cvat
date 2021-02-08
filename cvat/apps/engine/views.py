@@ -36,6 +36,7 @@ from cvat.settings.base import JS_3RDPARTY, CSS_3RDPARTY
 from cvat.apps.authentication.decorators import login_required
 from .ddln.grey_export import export_annotation
 from .ddln.multiannotation import request_extra_annotation, FailedAssignmentError, merge, accept_segments
+from .ddln.statistics import get_statistics
 from .ddln.tasks import create_task_handler
 from .ddln.transports import CVATImporter
 from .log import slogger, clogger
@@ -47,7 +48,7 @@ from cvat.apps.engine.serializers import (
     RqStatusSerializer, TaskDataSerializer, DataOptionsSerializer, LabeledDataSerializer,
     PluginSerializer, FileInfoSerializer, LogEventSerializer, JobSelectionSerializer,
     ProjectSerializer, BasicUserSerializer, TaskDumpSerializer, TaskValidateSerializer, ExternalFilesSerializer,
-    AcceptSegmentsSerializer,
+    AcceptSegmentsSerializer, DatePeriodSerializer,
 )
 from cvat.apps.engine.utils import natural_order, safe_path_join
 from cvat.apps.annotation.serializers import AnnotationFileSerializer, AnnotationFormatSerializer
@@ -241,6 +242,16 @@ class ServerViewSet(viewsets.ViewSet):
             choices = [str(p.relative_to(settings.SHARE_ROOT)) for p in candidates]
             data = dict(message="Ambiguous file choice.", choices=choices)
             return Response(data=data, status=status.HTTP_406_NOT_ACCEPTABLE)
+
+    @staticmethod
+    @action(detail=False, methods=['GET'], url_path='statistics')
+    def get_statistics(request):
+        serializer = DatePeriodSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        start = serializer.validated_data["start"]
+        end = serializer.validated_data["end"]
+        data = get_statistics(start, end)
+        return Response(data=data, status=status.HTTP_200_OK)
 
     @staticmethod
     @swagger_auto_schema(method='get', operation_summary='Method provides the list of available annotations formats supported by the server',

@@ -1,6 +1,7 @@
 # Copyright (C) 2019 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
+import datetime
 import json
 import os
 import re
@@ -335,6 +336,21 @@ class ExternalImageSerializer(serializers.Serializer):
         path = image.url
         host = settings.EXTERNAL_STORAGE_HOST
         return "{}{}".format(host, path)
+
+
+class DatePeriodSerializer(serializers.Serializer):
+    WORKING_DAY_START = datetime.time(hour=4, minute=0)
+    WORKING_DAY_END = datetime.time(hour=3, minute=59, second=59)
+    start = serializers.DateField(required=True)
+    end = serializers.DateField(required=True)
+
+    def validate(self, data):
+        if not (data['start'] <= data['end']):
+            raise serializers.ValidationError("start date should be less or equal to end date")
+        data['start'] = datetime.datetime.combine(data['start'], self.WORKING_DAY_START)
+        date_end = data['end'] + datetime.timedelta(days=1)
+        data['end'] = datetime.datetime.combine(date_end, self.WORKING_DAY_END)
+        return data
 
 
 class WriteOnceMixin:
