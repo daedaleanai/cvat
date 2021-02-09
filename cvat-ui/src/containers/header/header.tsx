@@ -22,6 +22,7 @@ interface StateToProps {
     installedTFSegmentation: boolean;
     installedTFAnnotation: boolean;
     username: string;
+    isStaff: boolean;
     toolName: string;
     serverHost: string;
     serverVersion: string;
@@ -41,6 +42,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
             fetching: logoutFetching,
             user: {
                 username,
+                isStaff,
             },
         },
         plugins: {
@@ -59,6 +61,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         installedTFSegmentation: list[SupportedPlugins.TF_SEGMENTATION],
         installedTFAnnotation: list[SupportedPlugins.TF_ANNOTATION],
         username,
+        isStaff,
         toolName: server.name as string,
         serverHost: core.config.backendAPI.slice(0, -7),
         serverDescription: server.description as string,

@@ -246,6 +246,8 @@ class ServerViewSet(viewsets.ViewSet):
     @staticmethod
     @action(detail=False, methods=['GET'], url_path='statistics')
     def get_statistics(request):
+        if not request.user.is_staff:
+            return Response(status=status.HTTP_403_FORBIDDEN)
         serializer = DatePeriodSerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         start = serializer.validated_data["start"]
