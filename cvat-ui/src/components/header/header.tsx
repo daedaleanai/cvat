@@ -34,6 +34,7 @@ interface HeaderContainerProps {
     installedTFSegmentation: boolean;
     serverHost: string;
     username: string;
+    isStaff: boolean;
     toolName: string;
     serverVersion: string;
     serverDescription: string;
@@ -51,6 +52,7 @@ function HeaderContainer(props: Props): JSX.Element {
         installedTFAnnotation,
         installedAnalytics,
         username,
+        isStaff,
         toolName,
         serverHost,
         serverVersion,
@@ -195,6 +197,18 @@ function HeaderContainer(props: Props): JSX.Element {
                             }
                         >
                             Analytics
+                        </Button>
+                    )}
+                { installedAnalytics && isStaff
+                    && (
+                        <Button
+                            className='cvat-header-button'
+                            type='link'
+                            onClick={
+                                (): void => props.history.push('/statistics')
+                            }
+                        >
+                            Statistics
                         </Button>
                     )}
             </div>

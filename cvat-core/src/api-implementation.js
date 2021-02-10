@@ -74,6 +74,11 @@
             return result;
         };
 
+        cvat.server.getStatistics.implementation = async (startDate, endDate) => {
+            const result = await serverProxy.server.getStatistics(startDate, endDate);
+            return result;
+        };
+
         cvat.server.register.implementation = async (username, firstName, lastName,
             email, password1, password2) => {
             await serverProxy.server.register(username, firstName, lastName, email,

@@ -557,6 +557,7 @@ class ShapeCollectionModel extends Listener {
     collectStatistic() {
         let statistic = {};
         let labels = window.cvat.labelsInfo.labels();
+        let hintLabelId = Object.entries(labels).filter(([,name]) => name === 'Hint').map(([id,]) => id)[0];
         for (let labelId in labels) {
             statistic[labelId] = {
                 boxes: {
@@ -665,7 +666,9 @@ class ShapeCollectionModel extends Listener {
             totalForLabels.cuboids.interpolation += statistic[labelId].cuboids.interpolation;
             totalForLabels.manually += statistic[labelId].manually;
             totalForLabels.interpolated += statistic[labelId].interpolated;
-            totalForLabels.total += statistic[labelId].total;
+            if (labelId !== hintLabelId) {
+                totalForLabels.total += statistic[labelId].total;
+            }
         }
 
         return [statistic, totalForLabels];

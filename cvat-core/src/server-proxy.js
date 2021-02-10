@@ -126,6 +126,19 @@
                 return response;
             }
 
+            async function getStatistics(startDate, endDate) {
+                const { backendAPI } = config;
+                const start = startDate.format("YYYY-MM-DD");
+                const end = endDate.format("YYYY-MM-DD");
+                const endpoint = `${backendAPI}/server/statistics?start=${start}&end=${end}`;
+                try {
+                    const response = await Axios.get(endpoint, { proxy: config.proxy });
+                    return response.data;
+                } catch (errorData) {
+                    throw generateError(errorData);
+                }
+            }
+
             async function register(username, firstName, lastName, email, password1, password2) {
                 let response = null;
                 try {
@@ -750,6 +763,7 @@
                         formats,
                         datasetFormats,
                         exception,
+                        getStatistics,
                         login,
                         logout,
                         authorized,

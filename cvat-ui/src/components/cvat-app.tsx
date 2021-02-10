@@ -20,6 +20,7 @@ import SettingsPageContainer from 'containers/settings-page/settings-page';
 import TasksPageContainer from 'containers/tasks-page/tasks-page';
 import CreateTaskPageContainer from 'containers/create-task-page/create-task-page';
 import TaskPageContainer from 'containers/task-page/task-page';
+import StatisticsPageContainer from 'containers/statistics-page/statistics-page';
 import ModelsPageContainer from 'containers/models-page/models-page';
 import CreateModelPageContainer from 'containers/create-model-page/create-model-page';
 import AnnotationPageContainer from 'containers/annotation-page/annotation-page';
@@ -253,6 +254,7 @@ class CVATApplication extends React.PureComponent<CVATAppProps & RouteComponentP
                                     <Route exact path='/tasks/create' component={CreateTaskPageContainer} />
                                     <Route exact path='/tasks/:id' component={TaskPageContainer} />
                                     <Route exact path='/tasks/:tid/jobs/:jid' component={AnnotationPageContainer} />
+                                    <Route exact path='/statistics' component={StatisticsPageContainer} />
                                     { withModels
                                         && <Route exact path='/models' component={ModelsPageContainer} /> }
                                     { installedAutoAnnotation

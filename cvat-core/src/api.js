@@ -130,6 +130,11 @@ function build() {
                     .apiWrapper(cvat.server.datasetFormats);
                 return result;
             },
+            async getStatistics(startDate, endDate) {
+                const result = await PluginRegistry
+                    .apiWrapper(cvat.server.getStatistics, startDate, endDate);
+                return result;
+            },
             /**
                 * Method allows to register on a server
                 * @method register
