@@ -43,7 +43,7 @@ class MissingLateralRaysCheck(AggregatedCheck):
     ignored_values = {False}
 
     def format_message(self, runway_id, value, start, end):
-        return "{} - {}: Runway {!r} lacks lateral rays".format(start, end, runway_id)
+        return "{} - {}: Runway {!r} lacks horizontal rays".format(start, end, runway_id)
 
 
 class VisibilityCheck(AggregatedCheck):
@@ -88,11 +88,11 @@ class VlsLinesValidationReporter(BaseValidationReporter):
         self._report("Label {!r} is unknown".format(label), self.severity.WARNING)
 
     def report_duplicated_rays(self, runway_id, is_lon):
-        type = "longitudinal" if is_lon else "lateral"
+        type = "vertical" if is_lon else "horizontal"
         self._report("Runway {!r} has duplicated {} rays".format(runway_id, type))
 
     def report_missing_rays(self, runway_id, is_lon):
-        type = "longitudinal" if is_lon else "lateral"
+        type = "vertical" if is_lon else "horizontal"
         severity = self.severity.ERROR if is_lon else self.severity.WARNING
         self._report("Runway {!r} lacks {} rays".format(runway_id, type), severity)
 
