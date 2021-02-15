@@ -1051,15 +1051,15 @@ class RaysDrawInstance {
         const { arePointsEqual, findVanishingPoint } = window.graphicPrimitives;
         let actualPoints = this._finishedRays.map(e => e.attr('points')).join(" ");
         actualPoints = window.cvat.translate.points.canvasToActual(actualPoints);
-        let segments = RaysModel.convertStringToSegments(actualPoints);
+        let [segments,] = RaysModel.loadFromPoints(actualPoints);
         segments = segments.filter(([a, b]) => !arePointsEqual(a, b));
         let vanishingPoint;
         if (segments.length > 1) {
             const label = this._creatorView._controller._model.defaultLabel;
             const isStrict = label !== 'Horizontal line';
             [segments, vanishingPoint] = findVanishingPoint(segments, RaysModel.getAngleThreshold(isStrict));
-            const points = RaysModel.convertSegmentsToString(segments);
-            this._creatorView._controller.finish({ points, vanishingPoint }, this._type);
+            const points = RaysModel.dumpToPoints(segments, vanishingPoint);
+            this._creatorView._controller.finish({ points }, this._type);
         }
         this._creatorView._controller.switchCreateMode(true);
     }

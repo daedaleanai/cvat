@@ -1270,26 +1270,14 @@ class PolylineModel extends PolyShapeModel {
 class RaysModel extends PolyShapeModel {
     constructor(data, type, clientID, color) {
         super(data, type, clientID, color);
-        this._vanishingPoint = data.vanishingPoint;
-        if (window.__UPDATE_RAYS__) {
-            console.log(this.vanishingPoint);
-        }
+        this._vanishingPoint = undefined;
     }
 
     get vanishingPoint() {
-        // vanishing point is not initialized when rays are loaded from db
         if (typeof this._vanishingPoint === 'undefined') {
             const { points } = this._positions[this._frame];
-            let segments = RaysModel.convertStringToSegments(points);
-            let vanishingPoint;
-            [segments, vanishingPoint] = window.graphicPrimitives.findVanishingPoint(segments, RaysModel.getAngleThreshold());
+            let [segments, vanishingPoint] = RaysModel.loadFromPoints(points);
             this._vanishingPoint = vanishingPoint;
-            // if angle threshold is increased, there might be a case when rays are shown as parallel on the front-end
-            // while they are stored as crossed lines on the back-end
-            // use this variable as an escape hack to update values on the back-end
-            if (window.__UPDATE_RAYS__) {
-                this._positions[this._frame].points = RaysModel.convertSegmentsToString(segments);
-            }
         }
         return this._vanishingPoint;
     }
@@ -1299,7 +1287,7 @@ class RaysModel extends PolyShapeModel {
         return angle * Math.PI / 180;
     }
 
-    static convertStringToSegments(points) {
+    static loadFromPoints(points) {
         if (typeof (points) === 'string') {
             points = PolyShapeModel.convertStringToNumberArray(points);
         }
@@ -1307,17 +1295,25 @@ class RaysModel extends PolyShapeModel {
         for (let i = 0; i < points.length - 1; i += 2) {
             segments.push([points[i], points[i+1]]);
         }
-        return segments;
+        let vanishingPoint = null;
+        if (points.length % 2 === 1) {
+            vanishingPoint = points[points.length - 1];
+        }
+        return [segments, vanishingPoint];
     }
 
-    static convertSegmentsToString(segments) {
-        return PolyShapeModel.convertNumberArrayToString(segments.flat(1));
+    static dumpToPoints(segments, vanishingPoint) {
+        const points = segments.flat(1);
+        if (vanishingPoint) {
+            points.push(vanishingPoint);
+        }
+        return PolyShapeModel.convertNumberArrayToString(points);
     }
 
     updatePosition(frame, position, silent) {
         const { getLineByTwoPoints, getAngle, pointsDistance } = window.graphicPrimitives;
-        let segments = RaysModel.convertStringToSegments(position.points);
-        const c = this.vanishingPoint;
+        let [segments, vanishingPoint] = RaysModel.loadFromPoints(position.points);
+        const c = vanishingPoint;
         if (c) {
             segments = segments.map(([a, b]) => pointsDistance(b, c) < pointsDistance(a, c) ? [a, b] : [b, a]);
         } else {
@@ -1338,7 +1334,7 @@ class RaysModel extends PolyShapeModel {
                 }
             });
         }
-        position.points = RaysModel.convertSegmentsToString(segments);
+        position.points = RaysModel.dumpToPoints(segments, vanishingPoint);
         this._vanishingPoint = undefined;
         super.updatePosition(frame, position, silent);
     }
@@ -1348,10 +1344,10 @@ class RaysModel extends PolyShapeModel {
         const segmentIndex = Math.floor(idx/2);
         let frame = window.cvat.player.frames.current;
         let position = this._interpolatePosition(frame);
-        const segments = RaysModel.convertStringToSegments(position.points);
+        let [segments, vanishingPoint] = RaysModel.loadFromPoints(points);
         if (segments.length > 1) {
             segments.splice(segmentIndex, 1);
-            position.points = RaysModel.convertSegmentsToString(segments);
+            position.points = RaysModel.dumpToPoints(segments, vanishingPoint);
             this.updatePosition(frame, position);
         }
     }
@@ -1369,7 +1365,7 @@ class RaysModel extends PolyShapeModel {
         const { pointsDistance } = window.graphicPrimitives;
         let pos = this._interpolatePosition(frame);
         if (pos.outside) return Number.MAX_SAFE_INTEGER;
-        const segments = RaysModel.convertStringToSegments(pos.points);
+        const [segments,] = RaysModel.loadFromPoints(pos.points);
         let minDistance = Number.MAX_SAFE_INTEGER;
         segments.forEach(([p1, p2]) => {
             // perpendicular from point to straight length
@@ -3594,9 +3590,14 @@ class RaysView extends PolyShapeView {
     }
 
     _buildPosition() {
-        const points = this._lines.map(line => line.attr('points')).join(' ');
+        let points = this._lines.map(line => line.attr('points')).join(' ');
+        points = window.cvat.translate.points.canvasToActual(points);
+        const { vanishingPoint } = this._controller._model;
+        if (vanishingPoint) {
+            points = `${points} ${vanishingPoint.x},${vanishingPoint.y}`;
+        }
         return {
-            points: window.cvat.translate.points.canvasToActual(points),
+            points: points,
             occluded: this._uis.shape.hasClass('occludedShape'),
             outside: false,
             z_order: +this._z_order,
@@ -3920,7 +3921,7 @@ class RaysView extends PolyShapeView {
     }
 
     _splitIntoLines(points) {
-        const lines = RaysModel.convertStringToSegments(points);
+        const [lines,] = RaysModel.loadFromPoints(points);
         return lines.map(PolyShapeModel.convertNumberArrayToString);
     }
 
