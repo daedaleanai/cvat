@@ -1626,6 +1626,29 @@ class RaysController extends PolyShapeController {
 
 
 
+    stretchUpdateLineCoordinates(lineElement, isBigRotation, initialRatio, initialPosition, lineElements) {
+        const {
+            projectOntoLine,
+            getLineByTwoPoints,
+        } = window.graphicPrimitives;
+        const line = getLineByTwoPoints(initialPosition[0], initialPosition[1]);
+        let [a, b] = this.extractPoints(lineElement);
+        a = projectOntoLine(a, line);
+        b = projectOntoLine(b, line);
+        this.setPoints(lineElement, initialPosition);
+        const newVanishingPoint = this.getPointFromRatio(a, b, initialRatio);
+        lineElements.forEach((element) => {
+            if (element === lineElement) {
+                return;
+            }
+            const points = this.extractPoints(element);
+            const rotationPoint = isBigRotation ? points[0] : points[1];
+            const newPoints = this.rotate(points, rotationPoint, newVanishingPoint);
+            this.setPoints(element, newPoints);
+        });
+        this._model._vanishingPoint = newVanishingPoint;
+    }
+
     complexUpdateLineCoordinates(lineElement, isBigRotation, lineElements) {
         const {
             toPolarCoordinates,
@@ -1711,6 +1734,30 @@ class RaysController extends PolyShapeController {
             .map(p => toPolarCoordinates(p, rotationPoint))
             .map(snapAngle)
             .map(coords => fromPolarCoordinates(coords, rotationPoint));
+    }
+
+    initRatio(lineElement) {
+        if (!this._model._vanishingPoint) {
+            return null;
+        }
+        const p = this._model._vanishingPoint;
+        const [a, b] = this.extractPoints(lineElement);
+        return this.getRatio(a, b, p);
+    }
+
+    getRatio(a, b, p) {
+        const { pointsDistance } = window.graphicPrimitives;
+        return pointsDistance(a, p) / pointsDistance(a, b);
+    }
+
+    getPointFromRatio(a, b, ratio) {
+        let dx = b.x - a.x;
+        let dy = b.y - a.y;
+        dx *= ratio;
+        dy *= ratio
+        const x = a.x + dx;
+        const y = a.y + dy;
+        return { x, y };
     }
 
     extractPoints(lineElement) {
@@ -3753,7 +3800,10 @@ class RaysView extends PolyShapeView {
             let objWasResized = false;
             let linePhi;
             let isUpdateComplex = false;
+            let isStretchUpdate = false;
             let isBigRotation;
+            let initialRatio;
+            let initialPosition;
             lineElement.selectize({
                 classRect: 'shapeSelect',
                 rotationPoint: false,
@@ -3764,16 +3814,27 @@ class RaysView extends PolyShapeView {
             }).on('resizestart', (event) => {
                 const { getLineByTwoPoints, getAngle, pointsDistance } = window.graphicPrimitives;
                 const mouseEvent = event.detail.event.detail.event;
-                isUpdateComplex = mouseEvent.shiftKey;
+                if (mouseEvent.ctrlKey) {
+                    isStretchUpdate = true;
+                    isUpdateComplex = false;
+                } else if (mouseEvent.shiftKey) {
+                    isStretchUpdate = false;
+                    isUpdateComplex = true;
+                } else {
+                    isStretchUpdate = false;
+                    isUpdateComplex = false;
+                }
                 const mousePos = this._getMousePosition(mouseEvent);
                 const [a, b] = lineElement.array().value
                     .map(([x, y]) => ({ x, y }))
                     .map(p => window.cvat.translate.box.canvasToActual(p));
-                if (isUpdateComplex) {
-                    // point b is closer to vanishing point than point a
-                    // if point b is clicked, then rotate over point a
-                    // which means the rotation is "big"
-                    isBigRotation = pointsDistance(b, mousePos) < pointsDistance(a, mousePos);
+                // point b is closer to vanishing point than point a
+                // if point b is clicked, then rotate over point a
+                // which means the rotation is "big"
+                isBigRotation = pointsDistance(b, mousePos) < pointsDistance(a, mousePos);
+                if (isStretchUpdate) {
+                    initialRatio = this._controller.initRatio(lineElement);
+                    initialPosition = this._controller.extractPoints(lineElement);
                 }
                 linePhi = getAngle(getLineByTwoPoints(a, b));
                 objWasResized = false;
@@ -3784,7 +3845,12 @@ class RaysView extends PolyShapeView {
                 this.notify('resize');
             }).on('resizing', (event) => {
                 const mousePos = this._getMousePosition(event.detail.event);
-                if (isUpdateComplex) {
+                if (isStretchUpdate) {
+                    this._controller.stretchUpdateLineCoordinates(lineElement, isBigRotation, initialRatio, initialPosition, this._lines);
+                    this._removeVanishingPoint();
+                    this._drawVanishingPoint();
+
+                } else if (isUpdateComplex) {
                     this._controller.complexUpdateLineCoordinates(lineElement, isBigRotation, this._lines);
                     this._removeVanishingPoint();
                     this._drawVanishingPoint();
