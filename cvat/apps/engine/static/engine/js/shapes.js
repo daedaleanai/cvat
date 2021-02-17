@@ -1625,6 +1625,30 @@ class RaysController extends PolyShapeController {
     }
 
 
+    createVanishingPoint(lineElement, isBigRotation, lineElements) {
+        let [a, b] = this.extractPoints(lineElement);
+        if (!isBigRotation) {
+            [a, b] = [b, a];
+        }
+        const newVanishingPoint = this.getPointFromRatio(a, b, 2);
+        lineElements.forEach((element) => {
+            const points = this.extractPoints(element);
+            if (!isBigRotation) {
+                points.reverse();
+            }
+            const newPoints = this.rotate(points, points[0], newVanishingPoint);
+            this.setPoints(element, newPoints);
+        });
+        if (!isBigRotation) {
+            // as the edges of the line, which is currently being resized, get swapped,
+            // have to change the values stored in svg.resize.js internals as well
+            const resizeHandler = lineElement.remember('_resizeHandler');
+            const array = resizeHandler.el.array().valueOf();
+            resizeHandler.parameters.i = 1;
+            resizeHandler.parameters.pointCoords = [array[1][0], array[1][1]];
+        }
+        this._model._vanishingPoint = newVanishingPoint;
+    }
 
     stretchUpdateLineCoordinates(lineElement, isBigRotation, initialRatio, initialPosition, lineElements) {
         const {
@@ -3846,6 +3870,14 @@ class RaysView extends PolyShapeView {
             }).on('resizing', (event) => {
                 const mousePos = this._getMousePosition(event.detail.event);
                 if (isStretchUpdate) {
+                    if (!this._controller._model.vanishingPoint) {
+                        this._controller.createVanishingPoint(lineElement, isBigRotation, this._lines);
+                        initialRatio = this._controller.initRatio(lineElement);
+                        if (!isBigRotation) {
+                            initialPosition.reverse();
+                        }
+                        isBigRotation = true;
+                    }
                     this._controller.stretchUpdateLineCoordinates(lineElement, isBigRotation, initialRatio, initialPosition, this._lines);
                     this._removeVanishingPoint();
                     this._drawVanishingPoint();
