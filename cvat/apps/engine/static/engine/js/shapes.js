@@ -3859,6 +3859,17 @@ class RaysView extends PolyShapeView {
                 if (isStretchUpdate) {
                     initialRatio = this._controller.initRatio(lineElement);
                     initialPosition = this._controller.extractPoints(lineElement);
+                    if (!this._controller._model.vanishingPoint) {
+                        this._controller.createVanishingPoint(lineElement, isBigRotation, this._lines);
+                        initialRatio = this._controller.initRatio(lineElement);
+                        if (!isBigRotation) {
+                            initialPosition.reverse();
+                        }
+                        isBigRotation = true;
+                        setTimeout(() => {
+                            lineElement.fire('resizing', { event: mouseEvent });
+                        }, 0);
+                    }
                 }
                 linePhi = getAngle(getLineByTwoPoints(a, b));
                 objWasResized = false;
@@ -3870,14 +3881,6 @@ class RaysView extends PolyShapeView {
             }).on('resizing', (event) => {
                 const mousePos = this._getMousePosition(event.detail.event);
                 if (isStretchUpdate) {
-                    if (!this._controller._model.vanishingPoint) {
-                        this._controller.createVanishingPoint(lineElement, isBigRotation, this._lines);
-                        initialRatio = this._controller.initRatio(lineElement);
-                        if (!isBigRotation) {
-                            initialPosition.reverse();
-                        }
-                        isBigRotation = true;
-                    }
                     this._controller.stretchUpdateLineCoordinates(lineElement, isBigRotation, initialRatio, initialPosition, this._lines);
                     this._removeVanishingPoint();
                     this._drawVanishingPoint();
