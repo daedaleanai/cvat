@@ -1,6 +1,7 @@
 const {
     findVanishingPoint,
     arePointsEqual,
+    projectOntoLine,
     getLineByTwoPoints,
     fromPolarCoordinates,
     toPolarCoordinates,
@@ -14,6 +15,7 @@ const {
 module.exports = {
     findVanishingPoint,
     arePointsEqual,
+    projectOntoLine,
     getLineByTwoPoints,
     fromPolarCoordinates,
     toPolarCoordinates,
