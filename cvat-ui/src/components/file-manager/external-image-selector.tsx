@@ -47,7 +47,8 @@ const ExternalImagesSelector = ({ value, onChange }) => {
 
 async function loadData(selection) {
     const csvFileContent = await getScenarioFile(selection);
-    const sequences = parseCsv(csvFileContent, csvHeader);
+    let sequences = parseCsv(csvFileContent, csvHeader);
+    sequences = filterUnique(sequences, (s) => s.sequenceName);
     // In order to get all the necessary data for task creation,
     // have to fetch recording data from records service for each sequence,
     // but making requests for each sequence leads to duplicated requests
@@ -56,6 +57,19 @@ async function loadData(selection) {
     const cachedFetchRecording = cached(fetchRecordingData);
     const recordings = await Promise.all(sequences.map(s => cachedFetchRecording(s.recordingName)));
     return sequences.map((s, i) => joinData(s, recordings[i][Number(s.cameraIndex)]));
+}
+
+function filterUnique(array, keyExtractor) {
+    const result = [];
+    const seen = new Set();
+    array.forEach(el => {
+        const key = keyExtractor(el);
+        if (!seen.has(key)) {
+            result.push(el);
+        }
+        seen.add(key);
+    })
+    return result;
 }
 
 async function getScenarioFile(paths) {
