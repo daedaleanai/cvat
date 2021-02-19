@@ -47,7 +47,8 @@ const ExternalImagesSelector = ({ value, onChange }) => {
 
 async function loadData(selection) {
     const csvFileContent = await getScenarioFile(selection);
-    const sequences = parseCsv(csvFileContent, csvHeader);
+    let sequences = parseCsv(csvFileContent, csvHeader);
+    sequences = filterUnique(sequences, (s) => s.sequenceName);
     // In order to get all the necessary data for task creation,
     // have to fetch recording data from records service for each sequence,
     // but making requests for each sequence leads to duplicated requests
@@ -56,6 +57,19 @@ async function loadData(selection) {
     const cachedFetchRecording = cached(fetchRecordingData);
     const recordings = await Promise.all(sequences.map(s => cachedFetchRecording(s.recordingName)));
     return sequences.map((s, i) => joinData(s, recordings[i][Number(s.cameraIndex)]));
+}
+
+function filterUnique(array, keyExtractor) {
+    const result = [];
+    const seen = new Set();
+    array.forEach(el => {
+        const key = keyExtractor(el);
+        if (!seen.has(key)) {
+            result.push(el);
+        }
+        seen.add(key);
+    })
+    return result;
 }
 
 async function getScenarioFile(paths) {
@@ -116,11 +130,10 @@ function fetchRecordingData(recordingName) {
 function processRecordingData(data) {
     return data.record.cam.map(item => {
         const { width, height } = item.params;
-        const frames = item.abs_timestamp_ns.map(padFrameName);
-        const indexByFrame = {};
-        item.abs_timestamp_ns.forEach((f, i) => indexByFrame[f] = i);
-        return { width, height, frames, indexByFrame };
-    })
+        const sourceFrames = item.abs_timestamp_ns;
+        const frames = sourceFrames.map(padFrameName);
+        return { width, height, frames, sourceFrames };
+    });
 }
 
 function padFrameName(name) {
@@ -128,17 +141,33 @@ function padFrameName(name) {
 }
 
 function joinData(sequenceData, recordingData) {
-    const { sequenceName, recordingName, cameraIndex } = sequenceData;
-    const { indexByFrame, width, height } = recordingData;
-    const frameNames = recordingData.frames.slice(
-        indexByFrame[sequenceData.startFrame],
-        indexByFrame[sequenceData.endFrame] + 1
-    );
+    const { sequenceName, recordingName, cameraIndex, startFrame, endFrame } = sequenceData;
+    const { sourceFrames, width, height } = recordingData;
+    const startFrameIndex = binarySearch(sourceFrames, startFrame);
+    let endFrameIndex = binarySearch(sourceFrames, endFrame);
+    if (sourceFrames[endFrameIndex] === endFrame) {
+        ++endFrameIndex;
+    }
+    const frameNames = recordingData.frames.slice(startFrameIndex, endFrameIndex);
     const frames = frameNames.map((f) => ({
         path: `/.upload/${sequenceName}/cam${cameraIndex}/data/${f}.jpg`,
         url: `/${recordingName}/cam${cameraIndex}/${f}.jpg`,
     }));
     return { sequence_name: sequenceName, camera_index: cameraIndex, width, height, frames };
+}
+
+function binarySearch(array, value) {
+    let left = 0;
+    let right = array.length;
+    while (left < right) {
+        const mid = left + Math.floor((right - left) / 2);
+        if (array[mid] < value) {
+            left = mid + 1;
+        } else {
+            right = mid;
+        }
+    }
+    return left;
 }
 
 export default ExternalImagesSelector;
