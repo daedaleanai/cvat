@@ -131,10 +131,9 @@ function processRecordingData(data) {
     return data.record.cam.map(item => {
         const { width, height } = item.params;
         const frames = item.abs_timestamp_ns.map(padFrameName);
-        const indexByFrame = {};
-        item.abs_timestamp_ns.forEach((f, i) => indexByFrame[f] = i);
-        return { width, height, frames, indexByFrame };
-    })
+        const sourceFrames = item.abs_timestamp_ns.map(e => +e);
+        return { width, height, frames, sourceFrames };
+    });
 }
 
 function padFrameName(name) {
@@ -142,17 +141,33 @@ function padFrameName(name) {
 }
 
 function joinData(sequenceData, recordingData) {
-    const { sequenceName, recordingName, cameraIndex } = sequenceData;
-    const { indexByFrame, width, height } = recordingData;
-    const frameNames = recordingData.frames.slice(
-        indexByFrame[sequenceData.startFrame],
-        indexByFrame[sequenceData.endFrame] + 1
-    );
+    const { sequenceName, recordingName, cameraIndex, startFrame, endFrame } = sequenceData;
+    const { sourceFrames, width, height } = recordingData;
+    const startFrameIndex = binarySearch(sourceFrames, +startFrame);
+    let endFrameIndex = binarySearch(sourceFrames, +endFrame);
+    if (sourceFrames[endFrameIndex] === +endFrame) {
+        ++endFrameIndex;
+    }
+    const frameNames = recordingData.frames.slice(startFrameIndex, endFrameIndex);
     const frames = frameNames.map((f) => ({
         path: `/.upload/${sequenceName}/cam${cameraIndex}/data/${f}.jpg`,
         url: `/${recordingName}/cam${cameraIndex}/${f}.jpg`,
     }));
     return { sequence_name: sequenceName, camera_index: cameraIndex, width, height, frames };
+}
+
+function binarySearch(array, value) {
+    let left = 0;
+    let right = array.length;
+    while (left < right) {
+        const mid = left + Math.floor((right - left) / 2);
+        if (array[mid] < value) {
+            left = mid + 1;
+        } else {
+            right = mid;
+        }
+    }
+    return left;
 }
 
 export default ExternalImagesSelector;
