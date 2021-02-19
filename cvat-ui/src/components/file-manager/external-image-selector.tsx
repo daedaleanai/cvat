@@ -130,8 +130,8 @@ function fetchRecordingData(recordingName) {
 function processRecordingData(data) {
     return data.record.cam.map(item => {
         const { width, height } = item.params;
-        const frames = item.abs_timestamp_ns.map(padFrameName);
-        const sourceFrames = item.abs_timestamp_ns.map(e => +e);
+        const sourceFrames = item.abs_timestamp_ns;
+        const frames = sourceFrames.map(padFrameName);
         return { width, height, frames, sourceFrames };
     });
 }
@@ -143,9 +143,9 @@ function padFrameName(name) {
 function joinData(sequenceData, recordingData) {
     const { sequenceName, recordingName, cameraIndex, startFrame, endFrame } = sequenceData;
     const { sourceFrames, width, height } = recordingData;
-    const startFrameIndex = binarySearch(sourceFrames, +startFrame);
-    let endFrameIndex = binarySearch(sourceFrames, +endFrame);
-    if (sourceFrames[endFrameIndex] === +endFrame) {
+    const startFrameIndex = binarySearch(sourceFrames, startFrame);
+    let endFrameIndex = binarySearch(sourceFrames, endFrame);
+    if (sourceFrames[endFrameIndex] === endFrame) {
         ++endFrameIndex;
     }
     const frameNames = recordingData.frames.slice(startFrameIndex, endFrameIndex);
