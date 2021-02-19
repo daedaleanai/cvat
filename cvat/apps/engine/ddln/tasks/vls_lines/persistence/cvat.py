@@ -79,31 +79,34 @@ def _parse_rays(lon, lat, reporter):
     left_visible = bool(int(lon_attrs['Left(1)']))
     right_visible = bool(int(lon_attrs['Right(2)']))
     center_visible = bool(int(lon_attrs['Central(3)']))
-    left, right, center = _parse_lines(lon_shape)
+    left, right, center, lon_vanishing_point = _parse_lines(lon_shape)
     if lat:
         lat_shape, lat_attrs = lat
         start_visible = bool(int(lat_attrs['Beginning(1)']))
         designator_visible = bool(int(lat_attrs['Designator(2)']))
         end_visible = bool(int(lat_attrs['End(3)']))
-        start, designator, end = _parse_lines(lat_shape)
+        start, designator, end, lat_vanishing_point = _parse_lines(lat_shape)
     else:
         start_visible = end_visible = designator_visible = False
         start = designator = end = None
+        lat_vanishing_point = None
 
     runway = Runway(runway_id, left, right, center, start, end, designator)
-    runway.calculate_vanishing_points(reporter)
+    runway.lon_vanishing_point = lon_vanishing_point
+    runway.lat_vanishing_point = lat_vanishing_point
     runway.fix_order(reporter)
     runway.apply_visibility(left_visible, right_visible, center_visible, start_visible, end_visible, designator_visible)
     return runway
 
 
 def _parse_lines(shape):
-    points = (Point(x, y) for x, y in grouper(shape.points, 2))
+    points = [Point(x, y) for x, y in grouper(shape.points, 2)]
+    vanishing_point = None if len(points) % 2 == 0 else points.pop()
     lines = [Line.by_two_points(a, b) for a, b in grouper(points, 2)]
     if len(lines) < 3:
         raise RunwayParseError("Not enough lines (should be at least 3)")
     first, second, third, *rest = lines
-    return first, second, third
+    return first, second, third, vanishing_point
 
 
 def _get_points_list(runway):
@@ -118,10 +121,14 @@ def _get_points_list(runway):
     for lon_index in range(3):
         lon_points.append(intersections[lon_index][0])
         lon_points.append(intersections[lon_index][2])
+    if runway.lon_vanishing_point:
+        lon_points.append(runway.lon_vanishing_point)
     lat_points = []
     for lat_index in range(3):
         lat_points.append(intersections[0][lat_index])
         lat_points.append(intersections[2][lat_index])
+    if runway.lat_vanishing_point:
+        lon_points.append(runway.lat_vanishing_point)
 
     lon_result = []
     for point in lon_points:
