@@ -37,7 +37,7 @@ from cvat.apps.authentication.decorators import login_required
 from .ddln.grey_export import export_annotation
 from .ddln.multiannotation import request_extra_annotation, FailedAssignmentError, merge, accept_segments
 from .ddln.statistics import get_statistics
-from .ddln.tasks import create_task_handler
+from .ddln.tasks import create_task_handler, guess_task_type
 from .ddln.transports import CVATImporter
 from .log import slogger, clogger
 from cvat.apps.engine.models import StatusChoice, Task, Job, Plugin, Segment
@@ -421,7 +421,12 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
         task_ids = self.paginate_queryset(task_queryset.values_list('id', flat=True))
         segments = Segment.objects.filter(task_id__in=tuple(task_ids)).with_sequence_name()
         sequence_by_segment_id = {s.id: s.sequence_name for s in segments}
+        extra_info_by_task_id = {}
+        for tid in task_ids:
+            extra_info = get_extra_info(tid)
+            extra_info_by_task_id[tid] = extra_info
         context['sequence_by_segment_id'] = sequence_by_segment_id
+        context['extra_info_by_task_id'] = extra_info_by_task_id
         context['request'] = self.request
         return context
 
@@ -1039,6 +1044,15 @@ class PluginViewSet(viewsets.ModelViewSet):
         serializer_class=RqStatusSerializer, url_path='requests/(?P<id>\d+)')
     def request_detail(self, request, name, rq_id):
         pass
+
+
+def get_extra_info(task_id):
+    task = models.Task.objects.prefetch_related("label_set").get(pk=task_id)
+    task_type = guess_task_type(task)
+    if task_type is not None:
+        handler = create_task_handler(task_type)
+        return handler.get_extra_data(task)
+    return None
 
 
 def rq_handler(job, exc_type, exc_value, tb):
