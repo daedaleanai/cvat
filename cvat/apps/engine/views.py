@@ -50,7 +50,7 @@ from cvat.apps.engine.serializers import (
     ProjectSerializer, BasicUserSerializer, TaskDumpSerializer, TaskValidateSerializer, ExternalFilesSerializer,
     AcceptSegmentsSerializer, DatePeriodSerializer,
 )
-from cvat.apps.engine.utils import natural_order, safe_path_join
+from cvat.apps.engine.utils import natural_order, safe_path_join, cached
 from cvat.apps.annotation.serializers import AnnotationFileSerializer, AnnotationFormatSerializer
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
@@ -1046,6 +1046,7 @@ class PluginViewSet(viewsets.ModelViewSet):
         pass
 
 
+@cached("extra_info", 60*5)
 def get_extra_info(task_id):
     task = models.Task.objects.prefetch_related("label_set").get(pk=task_id)
     task_type = guess_task_type(task)

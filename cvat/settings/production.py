@@ -15,6 +15,13 @@ for key in RQ_QUEUES:
 
 CACHEOPS_REDIS['host'] = 'cvat_redis'
 
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://cvat_redis:6379/1",
+    }
+}
+
 # Django-sendfile:
 # https://github.com/johnsensible/django-sendfile
 SENDFILE_BACKEND = 'sendfile.backends.xsendfile'
