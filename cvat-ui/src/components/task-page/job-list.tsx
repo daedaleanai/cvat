@@ -36,6 +36,17 @@ interface Props {
     onJobUpdate(jobInstance: any): void;
 }
 
+const ExtraInfoViewer = ({ data }) => {
+    if (!data) return false;
+    const lines = Object.entries(data).map(([key, value]) => `${key}: ${value}`);
+    const content = <div>{lines.map(line => <>{line}<br/></>)}</div>;
+    return (
+        <Tooltip title={content}>
+            <Icon type='question-circle' />
+        </Tooltip>
+    );
+}
+
 function JobListComponent(props: Props & RouteComponentProps): JSX.Element {
     const {
         taskInstance,
@@ -81,6 +92,14 @@ function JobListComponent(props: Props & RouteComponentProps): JSX.Element {
         dataIndex: 'sequenceName',
         key: 'sequenceName',
         className: 'cvat-text-color',
+        render: (sequenceName, record) => {
+            return (
+                <>
+                    {sequenceName}{' '}
+                    <ExtraInfoViewer data={record.extraInfo} />
+                </>
+            );
+        },
     },
         ...versionColumns,
     {
@@ -139,6 +158,7 @@ function JobListComponent(props: Props & RouteComponentProps): JSX.Element {
             key: job.id,
             job: job.id,
             sequenceName: job.sequenceName,
+            extraInfo: job.extraInfo,
             version: job.version,
             frames: `${job.startFrame}-${job.stopFrame}`,
             status: `${job.status}`,
