@@ -30,8 +30,10 @@ class SpotterTaskHandler(TaskHandler):
         result = {}
         for row in reader:
             sequence_name, record_name, start, end, camera, target_recording, target_type = row
+            record_a, record_b = record_name.split('/')
             entry = [
-                ("Record", record_name),
+                ("Record #1", record_a),
+                ("Record #2", record_b),
                 ("Start", start),
                 ("End", end),
                 ("Camera index", camera),

@@ -22,8 +22,10 @@ class VlsLinesTaskHandler(TaskHandler):
         result = {}
         for row in reader:
             sequence_name, record_name, start, end, camera, runway_id, runway_info = row
+            record_a, record_b = record_name.split('/')
             entry = OrderedDict((
-                ("Record", record_name),
+                ("Record #1", record_a),
+                ("Record #2", record_b),
                 ("Start", start),
                 ("End", end),
                 ("Camera index", camera),
