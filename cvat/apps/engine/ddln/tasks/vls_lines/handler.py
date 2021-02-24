@@ -1,5 +1,6 @@
 import csv as pycsv
 from collections import OrderedDict
+from itertools import groupby
 
 from django.conf import settings
 
@@ -20,19 +21,30 @@ class VlsLinesTaskHandler(TaskHandler):
         scenario_file = scenario_files[0]
         reader = pycsv.reader(scenario_file.open('rt', newline=''), lineterminator="\n")
         result = {}
-        for row in reader:
-            sequence_name, record_name, start, end, camera, runway_id, runway_info = row
+        rows = list(reader)
+        rows = sorted(rows, key=lambda r: r[0:5])
+        rows = groupby(rows, key=lambda r: r[0:5])
+        for key, group in rows:
+            group = list(group)
+            sequence_name, record_name, start, end, camera = key
             record_a, record_b = record_name.split('/')
-            entry = OrderedDict((
+            entry = [
                 ("Record #1", record_a),
                 ("Record #2", record_b),
                 ("Start", start),
                 ("End", end),
                 ("Camera index", camera),
-                ("Runway info", runway_info),
-                ("Runway ID", runway_id),
-            ))
-            result[sequence_name] = entry
+            ]
+            if len(group) == 1:
+                *_, runway_id, runway_info = group[0]
+                entry.append(("Runway info", runway_info))
+                entry.append(("Runway ID", runway_id))
+            else:
+                for i, row in enumerate(group, start=1):
+                    *_, runway_id, runway_info = row
+                    entry.append(("Runway #{} info".format(i), runway_info))
+                    entry.append(("Runway #{} ID".format(i), runway_id))
+            result[sequence_name] = OrderedDict(entry)
         return result
 
     def validate(self, sequences, **kwargs):
