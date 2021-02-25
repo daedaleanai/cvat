@@ -1652,15 +1652,19 @@ class RaysController extends PolyShapeController {
 
     stretchUpdateLineCoordinates(lineElement, isBigRotation, initialRatio, initialPosition, lineElements) {
         const {
-            projectOntoLine,
-            getLineByTwoPoints,
+            pointsDistance,
         } = window.graphicPrimitives;
-        const line = getLineByTwoPoints(initialPosition[0], initialPosition[1]);
         let [a, b] = this.extractPoints(lineElement);
-        a = projectOntoLine(a, line);
-        b = projectOntoLine(b, line);
-        this.setPoints(lineElement, initialPosition);
         const newVanishingPoint = this.getPointFromRatio(a, b, initialRatio);
+        const ratio = pointsDistance(...initialPosition) / pointsDistance(a, b);
+        if (!Number.isFinite(ratio)) {
+            [a, b] = initialPosition;
+        } else  if (isBigRotation) {
+            b = this.getPointFromRatio(a, b, ratio);
+        } else {
+            a = this.getPointFromRatio(b, a, ratio);
+        }
+        this.setPoints(lineElement, [a, b]);
         lineElements.forEach((element) => {
             if (element === lineElement) {
                 return;
