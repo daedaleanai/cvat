@@ -1344,7 +1344,7 @@ class RaysModel extends PolyShapeModel {
         const segmentIndex = Math.floor(idx/2);
         let frame = window.cvat.player.frames.current;
         let position = this._interpolatePosition(frame);
-        let [segments, vanishingPoint] = RaysModel.loadFromPoints(points);
+        let [segments, vanishingPoint] = RaysModel.loadFromPoints(position.points);
         if (segments.length > 1) {
             segments.splice(segmentIndex, 1);
             position.points = RaysModel.dumpToPoints(segments, vanishingPoint);
