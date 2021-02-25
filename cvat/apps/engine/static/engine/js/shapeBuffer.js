@@ -480,6 +480,8 @@ class ShapeBufferView {
         this._shape = null;
         this._shapeView = null;
         this._shapeViewGroup = null;
+        this._vanishingPoint = null;
+        this._referencePoint = null;
 
         this._controller.propagateFrames = +this._propagateFramesInput.prop('value');
         this._propagateFramesInput.on('change', (e) => {
@@ -529,6 +531,10 @@ class ShapeBufferView {
             });
             break;
         case 'rays':
+            const [segments, vanishingPoint] = RaysModel.loadFromPoints(points);
+            this._vanishingPoint = vanishingPoint;
+            this._referencePoint = segments[0][0];
+            points = RaysModel.dumpToPoints(segments, null);
             this._shapeView = this._frameContent.polyline(points).addClass('shapeCreation').attr({
                 'stroke-width': STROKE_WIDTH / scale,
             });
@@ -584,7 +590,19 @@ class ShapeBufferView {
         this._frameContent.on('mousedown.buffer', (e) => {
             if (e.which != 1) return;
             if (this._shape.type != 'box') {
+                let type = this._shape.type;
                 let actualPoints = window.cvat.translate.points.canvasToActual(this._shapeView.attr('points'));
+                if (type === 'rays' && this._vanishingPoint) {
+                    const [segments,] = RaysModel.loadFromPoints(actualPoints);
+                    const updatedReferencePoint = segments[0][0];
+                    const dx = updatedReferencePoint.x - this._referencePoint.x;
+                    const dy = updatedReferencePoint.y - this._referencePoint.y;
+                    this._vanishingPoint.x += dx;
+                    this._vanishingPoint.y += dy;
+                    actualPoints = RaysModel.dumpToPoints(segments, this._vanishingPoint);
+                    this._vanishingPoint = null;
+                    this._referencePoint = null;
+                }
 
                 if (this.clipToFrame) {
                     actualPoints = PolyShapeModel.convertStringToNumberArray(actualPoints);
@@ -603,7 +621,6 @@ class ShapeBufferView {
                 let w = polybox.width;
                 let h = polybox.height;
                 let area = w * h;
-                let type = this._shape.type;
 
                 if (area >= AREA_TRESHOLD || type === 'points' || type === 'polyline' && (w >= AREA_TRESHOLD || h >= AREA_TRESHOLD)) {
                     this._controller.pasteToFrame(e, null, actualPoints);
