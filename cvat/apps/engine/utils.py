@@ -78,7 +78,11 @@ def cached(key_prefix, timeout=None, cache_name="default"):
             rv = cache.get(key)
             if rv is None:
                 rv = func(*args, **kwargs)
+                if rv is None:
+                    rv = Ellipsis
                 cache.set(key, rv, timeout)
+            if rv is Ellipsis:
+                rv = None
             return rv
         return wrapper
     return inner
