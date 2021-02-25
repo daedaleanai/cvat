@@ -1689,7 +1689,8 @@ class RaysController extends PolyShapeController {
                     return;
                 }
                 const points = this.extractPoints(element);
-                const newPoints = this.rotate(points, points[0], newVanishingPoint);
+                const rotPoint = isBigRotation ? points[0] : points[1];
+                const newPoints = this.rotate(points, rotPoint, newVanishingPoint);
                 this.setPoints(element, newPoints);
             });
             this._model._vanishingPoint = newVanishingPoint;
