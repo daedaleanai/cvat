@@ -1344,7 +1344,7 @@ class RaysModel extends PolyShapeModel {
         const segmentIndex = Math.floor(idx/2);
         let frame = window.cvat.player.frames.current;
         let position = this._interpolatePosition(frame);
-        let [segments, vanishingPoint] = RaysModel.loadFromPoints(points);
+        let [segments, vanishingPoint] = RaysModel.loadFromPoints(position.points);
         if (segments.length > 1) {
             segments.splice(segmentIndex, 1);
             position.points = RaysModel.dumpToPoints(segments, vanishingPoint);
@@ -1652,15 +1652,19 @@ class RaysController extends PolyShapeController {
 
     stretchUpdateLineCoordinates(lineElement, isBigRotation, initialRatio, initialPosition, lineElements) {
         const {
-            projectOntoLine,
-            getLineByTwoPoints,
+            pointsDistance,
         } = window.graphicPrimitives;
-        const line = getLineByTwoPoints(initialPosition[0], initialPosition[1]);
         let [a, b] = this.extractPoints(lineElement);
-        a = projectOntoLine(a, line);
-        b = projectOntoLine(b, line);
-        this.setPoints(lineElement, initialPosition);
         const newVanishingPoint = this.getPointFromRatio(a, b, initialRatio);
+        const ratio = pointsDistance(...initialPosition) / pointsDistance(a, b);
+        if (!Number.isFinite(ratio)) {
+            [a, b] = initialPosition;
+        } else  if (isBigRotation) {
+            b = this.getPointFromRatio(a, b, ratio);
+        } else {
+            a = this.getPointFromRatio(b, a, ratio);
+        }
+        this.setPoints(lineElement, [a, b]);
         lineElements.forEach((element) => {
             if (element === lineElement) {
                 return;
@@ -1689,7 +1693,8 @@ class RaysController extends PolyShapeController {
                     return;
                 }
                 const points = this.extractPoints(element);
-                const newPoints = this.rotate(points, points[0], newVanishingPoint);
+                const rotPoint = isBigRotation ? points[0] : points[1];
+                const newPoints = this.rotate(points, rotPoint, newVanishingPoint);
                 this.setPoints(element, newPoints);
             });
             this._model._vanishingPoint = newVanishingPoint;
