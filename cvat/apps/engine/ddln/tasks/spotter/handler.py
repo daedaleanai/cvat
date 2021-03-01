@@ -20,7 +20,7 @@ class SpotterTaskHandler(TaskHandler):
         if hints_dir.exists():
             load_hints(hints_dir, task)
 
-    def get_extra_data(self, task):
+    def get_extra_info(self, task):
         task_name = guess_task_name(task.name)
         scenario_files = list(settings.INCOMING_TASKS_ROOT.joinpath(task_name).glob("spo*.csv"))
         if len(scenario_files) != 1:

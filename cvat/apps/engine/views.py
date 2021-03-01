@@ -1052,7 +1052,7 @@ def get_extra_info(task_id):
     task_type = guess_task_type(task)
     if task_type is not None:
         handler = create_task_handler(task_type)
-        return handler.get_extra_data(task)
+        return handler.get_extra_info(task)
     return None
 
 

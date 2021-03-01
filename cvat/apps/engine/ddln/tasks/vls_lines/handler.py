@@ -13,7 +13,7 @@ from ...utils import guess_task_name
 class VlsLinesTaskHandler(TaskHandler):
     reporter_class = VlsLinesValidationReporter
 
-    def get_extra_data(self, task):
+    def get_extra_info(self, task):
         task_name = guess_task_name(task.name)
         scenario_files = list(settings.INCOMING_TASKS_ROOT.joinpath(task_name).glob("vls*.csv"))
         if len(scenario_files) != 1:
