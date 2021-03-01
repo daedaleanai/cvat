@@ -130,7 +130,7 @@ function fetchRecordingData(recordingName) {
 function processRecordingData(data) {
     return data.record.cam.map(item => {
         const { width, height } = item.params;
-        const sourceFrames = item.abs_timestamp_ns;
+        const sourceFrames = item.abs_timestamp_ns || [];
         const frames = sourceFrames.map(padFrameName);
         return { width, height, frames, sourceFrames };
     });
