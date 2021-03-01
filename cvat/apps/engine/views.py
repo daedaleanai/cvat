@@ -37,7 +37,7 @@ from cvat.apps.authentication.decorators import login_required
 from .ddln.grey_export import export_annotation
 from .ddln.multiannotation import request_extra_annotation, FailedAssignmentError, merge, accept_segments
 from .ddln.statistics import get_statistics
-from .ddln.tasks import create_task_handler
+from .ddln.tasks import create_task_handler, guess_task_type
 from .ddln.transports import CVATImporter
 from .log import slogger, clogger
 from cvat.apps.engine.models import StatusChoice, Task, Job, Plugin, Segment
@@ -50,7 +50,7 @@ from cvat.apps.engine.serializers import (
     ProjectSerializer, BasicUserSerializer, TaskDumpSerializer, TaskValidateSerializer, ExternalFilesSerializer,
     AcceptSegmentsSerializer, DatePeriodSerializer,
 )
-from cvat.apps.engine.utils import natural_order, safe_path_join
+from cvat.apps.engine.utils import natural_order, safe_path_join, cached
 from cvat.apps.annotation.serializers import AnnotationFileSerializer, AnnotationFormatSerializer
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
@@ -418,8 +418,15 @@ class TaskViewSet(auth.TaskGetQuerySetMixin, viewsets.ModelViewSet):
     def get_serializer_context(self):
         context = super().get_serializer_context()
         task_queryset = self.filter_queryset(self.get_queryset())
-        sequence_by_segment_id = get_sequences_by_segments(task_queryset)
+        task_ids = self.paginate_queryset(task_queryset.values_list('id', flat=True))
+        segments = Segment.objects.filter(task_id__in=tuple(task_ids)).with_sequence_name()
+        sequence_by_segment_id = {s.id: s.sequence_name for s in segments}
+        extra_info_by_task_id = {}
+        for tid in task_ids:
+            extra_info = get_extra_info(tid)
+            extra_info_by_task_id[tid] = extra_info
         context['sequence_by_segment_id'] = sequence_by_segment_id
+        context['extra_info_by_task_id'] = extra_info_by_task_id
         context['request'] = self.request
         return context
 
@@ -1039,11 +1046,14 @@ class PluginViewSet(viewsets.ModelViewSet):
         pass
 
 
-def get_sequences_by_segments(task_queryset):
-    """Get segment_id -> sequence_name mapping only for the task listed in task_queryset"""
-    task_ids = tuple(task_queryset.values_list('id', flat=True))
-    segments = Segment.objects.filter(task_id__in=task_ids).with_sequence_name()
-    return {s.id: s.sequence_name for s in segments}
+@cached("extra_info", 60*5)
+def get_extra_info(task_id):
+    task = models.Task.objects.prefetch_related("label_set").get(pk=task_id)
+    task_type = guess_task_type(task)
+    if task_type is not None:
+        handler = create_task_handler(task_type)
+        return handler.get_extra_info(task)
+    return None
 
 
 def rq_handler(job, exc_type, exc_value, tb):

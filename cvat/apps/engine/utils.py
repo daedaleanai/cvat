@@ -1,5 +1,6 @@
 import ast
 import itertools
+import json
 import re
 import threading
 import os.path
@@ -64,6 +65,27 @@ def execute_python_code(source_code, global_vars=None, local_vars=None):
         _, _, tb = sys.exc_info()
         line_number = traceback.extract_tb(tb)[-1][1]
         raise InterpreterError("{} at line {}: {}".format(error_class, line_number, details))
+
+
+def cached(key_prefix, timeout=None, cache_name="default"):
+    from django.core.cache import caches
+    cache = caches[cache_name]
+
+    def inner(func):
+        def wrapper(*args, **kwargs):
+            key = json.dumps(dict(a=args, k=kwargs))
+            key = key_prefix + key
+            rv = cache.get(key)
+            if rv is None:
+                rv = func(*args, **kwargs)
+                if rv is None:
+                    rv = Ellipsis
+                cache.set(key, rv, timeout)
+            if rv is Ellipsis:
+                rv = None
+            return rv
+        return wrapper
+    return inner
 
 
 def safe_path_join(base_dir, path):

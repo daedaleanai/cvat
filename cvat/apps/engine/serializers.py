@@ -112,11 +112,12 @@ class SimpleJobSerializer(serializers.ModelSerializer):
 class SegmentSerializer(serializers.ModelSerializer):
     jobs = SimpleJobSerializer(many=True, source='job_set')
     sequence_name = serializers.SerializerMethodField()
+    extra_info = serializers.SerializerMethodField()
 
     class Meta:
         model = models.Segment
-        fields = ('start_frame', 'stop_frame', 'jobs', 'sequence_name', 'concurrent_version')
-        read_only_fields = ('sequence_name', 'concurrent_version')
+        fields = ('start_frame', 'stop_frame', 'jobs', 'sequence_name', 'extra_info', 'concurrent_version')
+        read_only_fields = ('sequence_name', 'extra_info', 'concurrent_version')
 
     def to_representation(self, instance):
         value = super().to_representation(instance)
@@ -128,6 +129,18 @@ class SegmentSerializer(serializers.ModelSerializer):
         if not sequence_by_segment_id:
             return ''
         return sequence_by_segment_id.get(obj.id, '')
+
+    def get_extra_info(self, obj):
+        sequence_name = self.get_sequence_name(obj)
+        if not sequence_name:
+            return None
+        extra_info_by_task_id = self.context.get('extra_info_by_task_id')
+        if not extra_info_by_task_id:
+            return None
+        extra_info = extra_info_by_task_id.get(obj.task_id)
+        if not extra_info:
+            return None
+        return extra_info.get(sequence_name, None)
 
 class ClientFileSerializer(serializers.ModelSerializer):
     class Meta:

@@ -1,3 +1,6 @@
+import csv as pycsv
+from collections import OrderedDict
+
 from django.conf import settings
 
 from cvat.apps.engine.ddln.utils import guess_task_name
@@ -16,6 +19,42 @@ class SpotterTaskHandler(TaskHandler):
         hints_dir = settings.INCOMING_TASKS_ROOT / task_name / "hints"
         if hints_dir.exists():
             load_hints(hints_dir, task)
+
+    def get_extra_info(self, task):
+        task_name = guess_task_name(task.name)
+        scenario_files = list(settings.INCOMING_TASKS_ROOT.joinpath(task_name).glob("spo*.csv"))
+        if len(scenario_files) != 1:
+            return None
+        scenario_file = scenario_files[0]
+        reader = pycsv.reader(scenario_file.open('rt', newline=''), lineterminator="\n")
+        result = {}
+        for row in reader:
+            sequence_name, record_name, start, end, camera, target_recording, target_type = row
+            record_a, record_b = record_name.split('/')
+            entry = [
+                ("Record #1", record_a),
+                ("Record #2", record_b),
+                ("Start", start),
+                ("End", end),
+                ("Camera index", camera),
+            ]
+            if target_type:
+                entry.append(("Target type", target_type))
+            if target_recording:
+                entry.append(("Target recording", target_recording))
+            result[sequence_name] = entry
+
+        track_files = settings.INCOMING_TASKS_ROOT.joinpath(task_name).glob("spo*/tracks/*.csv")
+        for track_file in track_files:
+            sequence_name = track_file.stem
+            track_reader = pycsv.reader(track_file.open('rt', newline=''), lineterminator="\n")
+            tracks = [tid for tid, _, _ in track_reader]
+            tracks = ", ".join(tracks)
+            entry = result.get(sequence_name)
+            if entry:
+                entry.append(("Track", tracks))
+
+        return {k: OrderedDict(v) for k, v in result.items()}
 
     def validate(self, sequences, **kwargs):
         return validate(sequences, self.reporter, **kwargs)

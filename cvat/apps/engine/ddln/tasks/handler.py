@@ -37,6 +37,9 @@ class TaskHandler(abc.ABC):
     def finalize_task_creation(self, task):
         pass
 
+    def get_extra_info(self, task):
+        return None
+
     def begin_frame(self, sequence, frame, frame_index=None):
         self.reporter.begin_frame(sequence, frame, frame_index)
 
