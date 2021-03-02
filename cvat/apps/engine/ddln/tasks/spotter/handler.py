@@ -1,6 +1,3 @@
-import csv as pycsv
-from collections import OrderedDict
-
 from django.conf import settings
 
 from cvat.apps.engine.ddln.utils import guess_task_name
@@ -26,35 +23,10 @@ class SpotterTaskHandler(TaskHandler):
         if len(scenario_files) != 1:
             return None
         scenario_file = scenario_files[0]
-        reader = pycsv.reader(scenario_file.open('rt', newline=''), lineterminator="\n")
-        result = {}
-        for row in reader:
-            sequence_name, record_name, start, end, camera, target_recording, target_type = row
-            record_a, record_b = record_name.split('/')
-            entry = [
-                ("Record #1", record_a),
-                ("Record #2", record_b),
-                ("Start", start),
-                ("End", end),
-                ("Camera index", camera),
-            ]
-            if target_type:
-                entry.append(("Target type", target_type))
-            if target_recording:
-                entry.append(("Target recording", target_recording))
-            result[sequence_name] = entry
-
+        result = self._get_common_extra_info(scenario_file)
         track_files = settings.INCOMING_TASKS_ROOT.joinpath(task_name).glob("spo*/tracks/*.csv")
-        for track_file in track_files:
-            sequence_name = track_file.stem
-            track_reader = pycsv.reader(track_file.open('rt', newline=''), lineterminator="\n")
-            tracks = [tid for tid, _, _ in track_reader]
-            tracks = ", ".join(tracks)
-            entry = result.get(sequence_name)
-            if entry:
-                entry.append(("Track", tracks))
-
-        return {k: OrderedDict(v) for k, v in result.items()}
+        self._append_per_sequence_info(result, track_files, ['Track ID', 'target', 'type'])
+        return result
 
     def validate(self, sequences, **kwargs):
         return validate(sequences, self.reporter, **kwargs)

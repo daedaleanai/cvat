@@ -1046,7 +1046,7 @@ class PluginViewSet(viewsets.ModelViewSet):
         pass
 
 
-@cached("extra_info", 60*5)
+@cached("extra_info", 60*15)
 def get_extra_info(task_id):
     task = models.Task.objects.prefetch_related("label_set").get(pk=task_id)
     task_type = guess_task_type(task)
