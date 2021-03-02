@@ -19,32 +19,9 @@ class VlsLinesTaskHandler(TaskHandler):
         if len(scenario_files) != 1:
             return None
         scenario_file = scenario_files[0]
-        reader = pycsv.reader(scenario_file.open('rt', newline=''), lineterminator="\n")
-        result = {}
-        rows = list(reader)
-        rows = sorted(rows, key=lambda r: r[0:5])
-        rows = groupby(rows, key=lambda r: r[0:5])
-        for key, group in rows:
-            group = list(group)
-            sequence_name, record_name, start, end, camera = key
-            record_a, record_b = record_name.split('/')
-            entry = [
-                ("Record #1", record_a),
-                ("Record #2", record_b),
-                ("Start", start),
-                ("End", end),
-                ("Camera index", camera),
-            ]
-            if len(group) == 1:
-                *_, runway_id, runway_info = group[0]
-                entry.append(("Runway info", runway_info))
-                entry.append(("Runway ID", runway_id))
-            else:
-                for i, row in enumerate(group, start=1):
-                    *_, runway_id, runway_info = row
-                    entry.append(("Runway #{} info".format(i), runway_info))
-                    entry.append(("Runway #{} ID".format(i), runway_id))
-            result[sequence_name] = OrderedDict(entry)
+        result = self._get_common_extra_info(scenario_file)
+        runway_files = settings.INCOMING_TASKS_ROOT.joinpath(task_name).glob("vls*/runways/*.csv")
+        self._append_per_sequence_info(result, runway_files, ['Runway ID', 'Runway Info'])
         return result
 
     def validate(self, sequences, **kwargs):

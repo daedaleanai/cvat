@@ -1,5 +1,6 @@
 import abc
-from collections import defaultdict
+import csv as pycsv
+from collections import defaultdict, OrderedDict
 
 from cvat.apps.engine.utils import natural_order
 from .models import Sequence, Frame
@@ -72,3 +73,38 @@ class TaskHandler(abc.ABC):
     @abc.abstractmethod
     def _write_csv_object(self, object, writer):
         pass
+
+    def _get_common_extra_info(self, scenario_file):
+        reader = pycsv.reader(scenario_file.open('rt', newline=''), lineterminator="\n")
+        result = {}
+        for row in reader:
+            if len(row) < 5:
+                # skip empty or invalid lines to
+                continue
+            sequence_name, record_name, start, end, camera, *_ = row
+            record_a, record_b = record_name.split('/')
+            entry = OrderedDict([
+                ("Record #1", record_a),
+                ("Record #2", record_b),
+                ("Start", start),
+                ("End", end),
+                ("Camera index", camera),
+            ])
+            result[sequence_name] = entry
+        return result
+
+    def _append_per_sequence_info(self, result, sequence_files, fields):
+        for file in sequence_files:
+            sequence_name = file.stem
+            entry = result.get(sequence_name)
+            if not entry:
+                continue
+            rows = list(pycsv.reader(file.open('rt', newline=''), lineterminator="\n"))
+            if len(rows) == 1:
+                for field, value in zip(fields, rows[0]):
+                    entry[field] = value
+            else:
+                for i, row in enumerate(rows, start=1):
+                    for field, value in zip(fields, row):
+                        key = "#{} {}".format(i, field)
+                        entry[key] = value
