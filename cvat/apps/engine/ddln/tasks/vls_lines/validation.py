@@ -59,7 +59,7 @@ def validate(sequences, reporter=None, **kwargs):
         reporter = VlsLinesValidationReporter()
     for seq in sequences:
         reporter.sequence = seq.name
-        previous_id = None
+        previous_ids = set()
         lateral_check = MissingLateralRaysCheck(reporter)
         visibility_check = VisibilityCheck(reporter)
 
@@ -68,14 +68,17 @@ def validate(sequences, reporter=None, **kwargs):
             reporter.frame_index = frame.index
             reporter.count_frame(seq.name)
 
+            current_ids = set()
             for runway in frame.objects:
                 has_lateral_rays = any(line is not None for line in [runway.start_line, runway.end_line, runway.designator_line])
                 lateral_check[runway.id] = not has_lateral_rays
                 visibility_check[runway.id] = runway.get_invisible_lines()
-                current_id = runway.id
-                if previous_id and current_id != previous_id:
-                    reporter.report_id_changed(previous_id, current_id)
-                previous_id = current_id
+                current_ids.add(runway.id)
+            appeared = current_ids - previous_ids
+            disappeared = previous_ids - current_ids
+            for previous_id, current_id in zip(disappeared, appeared):
+                reporter.report_id_changed(previous_id, current_id)
+            previous_ids = current_ids
         lateral_check.report()
         visibility_check.report()
     return reporter
