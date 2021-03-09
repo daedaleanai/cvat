@@ -150,6 +150,7 @@
         </div>  <!-- END of PLAYER PANEL -->
         <div style="margin-top: 20px">
             <button id="menuButton" class="regular h2"> Open Menu </button>
+            <span id="range-attribute-editor-root" ></span>
             <label class="regular h2" style="margin-left: 50px"> Filter: </label>
             <datalist id="filterSubmitList" style="display: none;"> </datalist>
             <input type="text" list="filterSubmitList" id="filterInputString" class="regular h2" placeholder='car[attr/model=/"mazda"'/>
@@ -482,4 +483,8 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block footer %}
+    <script src="/cvat-ui.min.js" type="text/javascript"></script>
 {% endblock %}

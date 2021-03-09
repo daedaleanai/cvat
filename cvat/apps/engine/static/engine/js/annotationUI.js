@@ -625,6 +625,13 @@ function buildAnnotationUI(jobData, taskData, imageMetaData, externalImagesData,
 
     const annotationSaverModel = buildAnnotationSaver(annotationData, shapeCollectionModel);
 
+    document.dispatchEvent(new CustomEvent('annotation-page-content-loaded', { detail: {
+        start: window.cvat.player.frames.start,
+        stop: window.cvat.player.frames.stop,
+        labelsInfo: window.cvat.labelsInfo,
+        shapeCollection: shapeCollectionModel,
+    }}));
+
     window.cvat.data = {
         get: () => shapeCollectionModel.export()[0],
         set: (data) => {
