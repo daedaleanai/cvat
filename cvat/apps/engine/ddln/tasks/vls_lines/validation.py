@@ -103,10 +103,10 @@ class VlsLinesValidationReporter(BaseValidationReporter):
         self._report("Runway id has changed from {} to {}".format(previous, current), self.severity.WARNING)
 
     def report_lat_disorder(self):
-        self._report("Lateral rays are mixed up")
+        self._report("Horizontal rays are mixed up")
 
     def report_lon_disorder(self):
-        self._report("Longitudinal rays are mixed up")
+        self._report("Vertical rays are mixed up")
 
     def report_wrong_values_amount(self, expected, actual):
         self._report("Wrong values amount. Expected: {}, actual: {}".format(expected, actual))
