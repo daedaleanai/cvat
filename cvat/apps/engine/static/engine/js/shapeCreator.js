@@ -872,6 +872,9 @@ class ShapeCreatorView {
 
     _rescaleDrawPoints() {
         const scale = this._scale;
+        $(".svg_select_points").each(function () {
+            this.instance.radius(2.5 / scale).attr("stroke-width", 1 / scale);
+        });
         $(".svg_draw_point").each(function () {
             this.instance.radius(2.5 / scale).attr("stroke-width", 1 / scale);
         });
