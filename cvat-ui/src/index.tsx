@@ -8,7 +8,6 @@ import { connect, Provider } from 'react-redux';
 import { BrowserRouter } from 'react-router-dom';
 
 import CVATApplication from './components/cvat-app';
-import AttributeEditor from "./components/attribute-editor/attribute-editor";
 
 import createRootReducer from './reducers/root-reducer';
 import createCVATStore, { getCVATStore } from './cvat-store';
@@ -103,32 +102,13 @@ const ReduxAppWrapper = connect(
     mapDispatchToProps,
 )(CVATApplication);
 
-const root = document.getElementById('root');
-if (root) {
-    ReactDOM.render(
-        (
-            <Provider store={cvatStore}>
-                <BrowserRouter>
-                    <ReduxAppWrapper />
-                </BrowserRouter>
-            </Provider>
-        ),
-        root,
-    );
-}
-
-const editorRoot = document.getElementById('range-attribute-editor-root');
-if (editorRoot) {
-    document.addEventListener('annotation-page-content-loaded', (event) => {
-        const {start, stop, labelsInfo, shapeCollection } = event.detail;
-        ReactDOM.render(
-            <AttributeEditor
-                start={start}
-                stop={stop}
-                labelsInfo={labelsInfo}
-                shapeCollection={shapeCollection}
-            />,
-            editorRoot
-        );
-    });
-}
+ReactDOM.render(
+    (
+        <Provider store={cvatStore}>
+            <BrowserRouter>
+                <ReduxAppWrapper />
+            </BrowserRouter>
+        </Provider>
+    ),
+    document.getElementById('root'),
+);

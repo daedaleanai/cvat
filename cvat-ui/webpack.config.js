@@ -13,10 +13,13 @@ module.exports = {
     target: 'web',
     mode: 'production',
     devtool: 'source-map',
-    entry: './src/index.tsx',
+    entry: {
+        "cvat-ui": './src/index.tsx',
+        "attribute-editor": './src/attribute-editor-index.tsx',
+    },
     output: {
         path: path.resolve(__dirname, 'dist'),
-        filename: 'cvat-ui.min.js',
+        filename: '[name].min.js',
     },
     devServer: {
         contentBase: path.join(__dirname, 'dist'),
