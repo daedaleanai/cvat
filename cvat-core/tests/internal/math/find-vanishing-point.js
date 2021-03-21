@@ -15,7 +15,7 @@ describe("findVanishingPoint", () => {
       ]
     ];
 
-    const [newSegments, vanishingPoint] = findVanishingPoint(segments, 100000);
+    const [newSegments, vanishingPoint] = findVanishingPoint(segments, 5 * Math.PI / 180);
 
     expect(vanishingPoint).toEqual({
       x: 9663.461538461537,

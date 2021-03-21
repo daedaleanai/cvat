@@ -6,7 +6,6 @@ function findVanishingPoint(lineSegments, thresholdAngle) {
   // If the angle between any two line segments is greater than thresholdAngle,
   // the lines are considered to intersect at a finite point,
   // otherwise the lines are considered to intersect at an infinite point (to be parallel).
-  const segmentCenters = lineSegments.map((s) => getMidPoint(s[0], s[1]));
   const lines = lineSegments.map((s) => getLineByTwoPoints(s[0], s[1]));
   let vanishingPoint = approximateLinesIntersection(lines);
   if (vanishingPoint) {
@@ -17,17 +16,20 @@ function findVanishingPoint(lineSegments, thresholdAngle) {
       return [b, a];
     });
   }
-  if (vanishingPoint && !isFinite(vanishingPoint, segmentCenters, thresholdAngle)) {
+  // use the end of line which is far from the vanishing point, as its position is more precise
+  // than the position of the other end
+  const anchorPoints = lineSegments.map((s) => s[0]);
+  if (vanishingPoint && !isFinite(vanishingPoint, anchorPoints, thresholdAngle)) {
     vanishingPoint = null;
   }
   let adjustedLines;
   if (vanishingPoint) {
-    adjustedLines = segmentCenters.map((center) =>
-      getLineByTwoPoints(center, vanishingPoint)
+    adjustedLines = anchorPoints.map((anchor) =>
+      getLineByTwoPoints(anchor, vanishingPoint)
     );
   } else {
     const angleFactor = approximateAngleFactor(lines);
-    adjustedLines = segmentCenters.map((point) =>
+    adjustedLines = anchorPoints.map((point) =>
       buildLineThrough(point, angleFactor)
     );
   }
