@@ -104,10 +104,11 @@ class Runway:
         original = [self.end_line, self.designator_line, self.start_line]
         if any(line is None for line in original):
             return
+        reference_line = self.center_line or self.left_line or self.right_line
         distant_point = self.lon_vanishing_point
-        if not distant_point:
+        if not (distant_point and reference_line):
             return
-        final = sorted(original, key=lambda line: distant_point.distance_to(line))
+        final = sorted(original, key=lambda line: distant_point.distance_to(reference_line.intersect(line)))
         if final != original:
             reporter.report_lat_disorder()
 
