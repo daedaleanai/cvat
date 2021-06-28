@@ -87,6 +87,7 @@ class LabeledBoundingBox(BoundingBox):
         return cls(xtl, ytl, xbr - xtl, ybr - ytl, class_id, track_id)
 
 
+# TODO(gy): store these in labels
 label_by_class_id = {
     "1": "Drone",
     "3": "Flying bird",
@@ -94,5 +95,6 @@ label_by_class_id = {
     "5": "Helicopter",
     "6": "Hot air balloon",
     "7": "Parachute",
+    "99": "Exclusion",
     "100": "Unknown",
 }
