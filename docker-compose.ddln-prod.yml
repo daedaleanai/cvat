@@ -13,6 +13,9 @@ services:
       INVENTORY_SPREADSHEET_ID: 11nn8OJlvMllfpF8qkcLqbvefclF0iIiawFO9xN-2MrI
     volumes:
       - cvat_share:/home/django/share:rw
+    build:
+      args:
+        UID: 848400089
 volumes:
   cvat_share:
     driver_opts:
